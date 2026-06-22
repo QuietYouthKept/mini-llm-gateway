@@ -1,0 +1,117 @@
+gateway:
+  name: mini-llm-gateway
+  environment: local
+  default_profile: fast-chat
+  request_timeout_ms: 1500
+
+clients:
+  - client_id: demo-client
+    api_key: demo-key
+    enabled: true
+    rate_limit:
+      requests_per_minute: 10
+    token_budget:
+      period: daily
+      max_tokens: 10000
+
+  - client_id: tiny-budget-client
+    api_key: tiny-key
+    enabled: true
+    rate_limit:
+      requests_per_minute: 5
+    token_budget:
+      period: daily
+      max_tokens: 50
+
+providers:
+  mock_fast:
+    type: mock
+    enabled: true
+    behavior:
+      latency_ms: 80
+      error_rate: 0.0
+      timeout_ms: 1000
+      default_response: "default response from mock_fast"
+
+  mock_stable:
+    type: mock
+    enabled: true
+    behavior:
+      latency_ms: 180
+      error_rate: 0.0
+      timeout_ms: 1000
+      default_response: "stable mock response"
+
+  mock_slow:
+    type: mock
+    enabled: true
+    behavior:
+      latency_ms: 2000
+      error_rate: 0.0
+      timeout_ms: 1000
+      default_response: "slow mock response"
+
+  mock_error:
+    type: mock
+    enabled: true
+    behavior:
+      latency_ms: 50
+      error_rate: 1.0
+      timeout_ms: 1000
+      default_response: "this should usually fail"
+
+  fake_static:
+    type: fake_static
+    enabled: true
+    behavior:
+      latency_ms: 20
+      error_rate: 0.0
+      timeout_ms: 1000
+      default_response: "safe fallback response from fake_static"
+
+model_profiles:
+  fast-chat:
+    description: "Low-latency chat profile for quick responses."
+    intent: low_latency
+    capabilities:
+      context_window: 8192
+      supports_tools: false
+      supports_streaming: false
+    preferences:
+      latency_priority: high
+      cost_priority: medium
+      stability_priority: medium
+    routing:
+      strategy: priority
+      candidates:
+        - provider: mock_fast
+          priority: 1
+        - provider: mock_stable
+          priority: 2
+        - provider: fake_static
+          priority: 3
+    fallback:
+      enabled: true
+      trigger_on:
+        - provider_error
+        - timeout
+        - bad_status
+      chain:
+        - mock_fast
+        - mock_stable
+        - fake_static
+
+token_estimation:
+  strategy: heuristic
+  chars_per_token: 4
+  min_tokens: 1
+
+logging:
+  persist_request_body: false
+  persist_response_body: false
+  persist_attempts: true
+  persist_budget_snapshot: true
+
+streaming:
+  enabled: false
+  behavior_if_requested: reject

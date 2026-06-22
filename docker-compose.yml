@@ -1,0 +1,11 @@
+services:
+  gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    environment:
+      - GW_ENVIRONMENT=local
+      - GW_LOG_LEVEL=INFO
