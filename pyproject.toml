@@ -1,26 +1,59 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mini-llm-gateway"
-version = "0.1.0"
-description = "Lightweight local-first LLM Gateway demonstrating governance mechanisms"
+version = "1.0.0rc1"
+description = "Production-oriented local-first LLM Gateway demonstrating governance mechanisms"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
     "pyyaml>=6.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
+    "httpx>=0.26.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
-    "httpx>=0.25.0",
-    "pytest-asyncio>=0.21.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.1.0",
+]
+production = [
+    "redis>=5.0.0",
+    "psycopg[binary]>=3.1.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.24.0",
+]
+datasets = [
+    "pyarrow>=15.0.0",
+    "psutil>=5.9.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore:.*testclient.*deprecated.*:Warning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "*.egg-info"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts intentionally keep verbose demo output on one line and set a warning
+# filter before importing the test client.
+"scripts/**" = ["E402", "E501"]
+"eval/**" = ["E402", "E501"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

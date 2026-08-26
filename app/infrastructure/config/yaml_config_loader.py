@@ -20,7 +20,7 @@ class YamlConfigLoader:
                 f"Config file not found: {self._config_path}"
             )
         try:
-            with open(self._config_path, "r", encoding="utf-8") as f:
+            with open(self._config_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             raise ConfigLoadError(
