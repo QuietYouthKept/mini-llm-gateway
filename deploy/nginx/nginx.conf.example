@@ -1,0 +1,10 @@
+# TLS terminates at the reverse proxy; the FastAPI process remains private HTTP.
+server {
+    listen 443 ssl http2;
+    server_name gateway.example.com;
+    ssl_certificate /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+    location / { proxy_pass http://gateway:8000; proxy_set_header X-Request-ID $request_id; }
+    location /admin/ { allow 10.0.0.0/8; deny all; proxy_pass http://gateway:8000; }
+    location = /metrics { allow 10.0.0.0/8; deny all; proxy_pass http://gateway:8000; }
+}

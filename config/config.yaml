@@ -9,10 +9,11 @@ clients:
     api_key: demo-key
     enabled: true
     rate_limit:
-      requests_per_minute: 10
+      requests_per_minute: 60
     token_budget:
       period: daily
-      max_tokens: 10000
+      max_tokens: 100000
+      max_cost_usd: 0
 
   - client_id: tiny-budget-client
     api_key: tiny-key
@@ -22,22 +23,33 @@ clients:
     token_budget:
       period: daily
       max_tokens: 50
+      max_cost_usd: 0
+
+  - client_id: burst-client
+    api_key: burst-key
+    enabled: true
+    rate_limit:
+      requests_per_minute: 3
+    token_budget:
+      period: daily
+      max_tokens: 100000
+      max_cost_usd: 0
 
 providers:
   mock_fast:
     type: mock
     enabled: true
     behavior:
-      latency_ms: 80
+      latency_ms: 30
       error_rate: 0.0
       timeout_ms: 1000
-      default_response: "default response from mock_fast"
+      default_response: "fast response from mock_fast"
 
   mock_stable:
     type: mock
     enabled: true
     behavior:
-      latency_ms: 180
+      latency_ms: 80
       error_rate: 0.0
       timeout_ms: 1000
       default_response: "stable mock response"
@@ -46,16 +58,16 @@ providers:
     type: mock
     enabled: true
     behavior:
-      latency_ms: 2000
+      latency_ms: 150
       error_rate: 0.0
-      timeout_ms: 1000
+      timeout_ms: 500
       default_response: "slow mock response"
 
   mock_error:
     type: mock
     enabled: true
     behavior:
-      latency_ms: 50
+      latency_ms: 10
       error_rate: 1.0
       timeout_ms: 1000
       default_response: "this should usually fail"
@@ -64,10 +76,37 @@ providers:
     type: fake_static
     enabled: true
     behavior:
-      latency_ms: 20
+      latency_ms: 5
       error_rate: 0.0
       timeout_ms: 1000
       default_response: "safe fallback response from fake_static"
+
+  # Real OpenAI-compatible provider (disabled by default; set enabled + api_key to use).
+  # openai:
+  #   type: openai_compatible
+  #   enabled: false
+  #   http:
+  #     base_url: https://api.openai.com/v1
+  #     api_key_env: OPENAI_API_KEY
+  #     model: gpt-4o-mini
+  #     timeout_ms: 20000
+
+  # Local real-model providers (OpenAI-compatible; no cloud API key needed).
+  # Start 'ollama serve' or a vLLM server, then enable one of these.
+  # ollama-local:
+  #   type: openai_compatible
+  #   enabled: false
+  #   http:
+  #     base_url: http://localhost:11434/v1
+  #     model: llama3.2
+  #     timeout_ms: 30000
+  # vllm-local:
+  #   type: openai_compatible
+  #   enabled: false
+  #   http:
+  #     base_url: http://localhost:8000/v1
+  #     model: Qwen/Qwen2.5-7B-Instruct
+  #     timeout_ms: 30000
 
 model_profiles:
   fast-chat:
@@ -101,17 +140,106 @@ model_profiles:
         - mock_stable
         - fake_static
 
+  fallback-chat:
+    description: "Demonstrates fallback: primary always fails, then stable succeeds."
+    intent: demo_fallback
+    capabilities:
+      context_window: 8192
+    routing:
+      strategy: priority
+      candidates:
+        - provider: mock_error
+          priority: 1
+        - provider: mock_stable
+          priority: 2
+    fallback:
+      enabled: true
+      trigger_on: [provider_error, timeout, bad_status]
+      chain: [mock_error, mock_stable]
+
+  timeout-chat:
+    description: "Demonstrates timeout-triggered fallback."
+    intent: demo_timeout
+    capabilities:
+      context_window: 8192
+    routing:
+      strategy: priority
+      candidates:
+        - provider: mock_slow
+          priority: 1
+        - provider: mock_fast
+          priority: 2
+    fallback:
+      enabled: true
+      trigger_on: [provider_error, timeout, bad_status]
+      chain: [mock_slow, mock_fast]
+
 token_estimation:
   strategy: heuristic
   chars_per_token: 4
   min_tokens: 1
+  cost_per_1k_input_tokens_usd: 0.0
+  cost_per_1k_output_tokens_usd: 0.0
+
+retry:
+  max_retries: 1
+  base_delay_ms: 20
+  max_delay_ms: 200
+  retry_on: [provider_timeout, provider_failed, provider_bad_status]
+
+circuit_breaker:
+  enabled: true
+  failure_threshold: 3
+  recovery_timeout_ms: 2000
+  half_open_max_calls: 1
+
+guardrails:
+  enabled: true
+  audit: true
+  input_policy:
+    max_chars: 4000
+    blocked_regex:
+      - 'drop\s+table'
+      - 'ignore\s+(all\s+)?previous\s+instructions'
+      - 'reveal\s+(your\s+)?system\s+prompt'
+      - 'show\s+me\s+(your\s+)?(system\s+)?(instructions|prompt)'
+    pii_detection: true
+    prompt_injection: true
+  output_policy:
+    max_chars: 8000
+    blocked_terms: [api_key, access_token, secret, password, "private key"]
+    pii_redaction: false
 
 logging:
   persist_request_body: false
   persist_response_body: false
+  # Contains original messages; deliberately opt-in for privacy.
+  persist_replay_payload: false
   persist_attempts: true
   persist_budget_snapshot: true
 
 streaming:
   enabled: false
   behavior_if_requested: reject
+
+metrics:
+  enabled: true
+  prefix: llm_gateway
+
+admin:
+  enabled: true
+  api_key: admin-key
+
+observability:
+  structured_json_logs: true
+  tracing_enabled: true
+  max_spans: 2048
+
+cache:
+  enabled: true
+  max_entries: 256
+  ttl_ms: 300000
+
+replay:
+  # Live replay can incur provider cost and mutate provider-side state.
+  allow_live: false

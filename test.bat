@@ -1,2 +1,2 @@
 @echo off
-pytest -v %*
+.venv\Scripts\python -m pytest -v %*

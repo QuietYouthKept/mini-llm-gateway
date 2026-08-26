@@ -1,0 +1,43 @@
+groups:
+  - name: mini-llm-gateway
+    rules:
+      - alert: High5xxRate
+        expr: sum(rate(llm_gateway_requests_total{status=~"internal_error|provider_.*|fallback_exhausted"}[5m])) / clamp_min(sum(rate(llm_gateway_requests_total[5m])), 1) > 0.02
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: "Gateway errors exceed 2 percent" }
+      - alert: ProviderFailureSpike
+        expr: sum(rate(llm_gateway_provider_attempts_total{status!="success"}[5m])) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Provider failures are elevated" }
+      - alert: RetryAmplificationHigh
+        expr: sum(rate(llm_gateway_retry_count_total[5m])) / clamp_min(sum(rate(llm_gateway_requests_total[5m])), 1) > 0.25
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Retry amplification exceeds 0.25 per request" }
+      - alert: AuditFailure
+        expr: increase(llm_gateway_audit_failures_total[5m]) > 0
+        for: 2m
+        labels: { severity: page }
+        annotations: { summary: "Gateway audit persistence failed" }
+      - alert: BudgetReservationLeak
+        expr: increase(llm_gateway_budget_reservation_leaks_total[15m]) > 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: "Budget reconciliation found expired reservations" }
+      - alert: RedisUnavailable
+        expr: increase(llm_gateway_redis_failures_total[5m]) > 0
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "Redis-dependent gateway operation failed" }
+      - alert: PostgresUnavailable
+        expr: increase(llm_gateway_requests_total{status="internal_error"}[5m]) > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "Investigate database connectivity and gateway errors" }
+      - alert: CircuitOpenTooLong
+        expr: max_over_time(llm_gateway_circuit_open[15m]) >= 1
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "A provider circuit has been open for 15 minutes" }
