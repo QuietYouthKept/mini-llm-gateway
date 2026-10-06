@@ -1,0 +1,5 @@
+sequence,started_at,request_id,status_code,latency_ms,client_queue_wait_ms,provider,provider_duration_ms,gateway_overhead_ms,provider_attempts,provider_request_ids,retry_count,cache_hit,estimated_cost_usd,error_code,input_tokens_target,output_tokens_target,ttft_ms,chunk_count,inter_chunk_p95_ms,disconnected,audit_status,budget_after,usage_source
+0,2026-10-06T10:31:30.162206+00:00,065c57a956ad4cfa9b141290877fe2da,200,281.0,0.0,mock_fast,250,31.0,1,[],0,False,5.8e-05,,128,16,47.0,4,62.0,False,completed,99676,provider
+1,2026-10-06T10:31:30.447039+00:00,5084e97635c144fdadf8f316f2b1fa56,200,391.0,266.0,mock_fast,358,33.0,1,[],0,False,3e-05,,8,64,47.0,6,63.0,False,completed,99642,provider
+2,2026-10-06T10:31:30.829979+00:00,2f2413fbd0854c9397c5d636a50911cf,200,265.0,657.0,mock_fast,250,15.0,1,[],0,False,2.3e-05,,8,16,31.0,4,63.0,False,completed,99614,provider
+3,2026-10-06T10:31:31.090648+00:00,6e9120b9c6c8472aa87a7c5ccb6c4ee0,200,297.0,922.0,mock_fast,296,1.0,1,[],0,False,2.3e-05,,8,16,47.0,4,63.0,False,completed,99586,provider

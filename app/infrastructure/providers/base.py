@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import math
 import random
+import time
+from collections.abc import AsyncIterator
 
 from app.domain.errors import (
     ProviderFailedError,
@@ -14,6 +16,7 @@ from app.domain.models.provider import ProviderBehavior
 from app.domain.ports.provider_port import (
     ChatRequest,
     ChatResponse,
+    ProviderChunk,
     ProviderPort,
 )
 
@@ -55,6 +58,24 @@ class BaseMockProvider(ProviderPort):
             )
 
         return self._build_response(request)
+
+    async def stream_chat(self, request: ChatRequest) -> AsyncIterator[ProviderChunk]:
+        """Deterministic chunking for the local providers used in tests and demos."""
+        response = await self.chat(request)
+        for index, offset in enumerate(range(0, len(response.content), 16)):
+            yield ProviderChunk(
+                delta=response.content[offset : offset + 16],
+                index=index,
+                received_at_ms=int(time.monotonic() * 1000),
+            )
+            if self._behavior.stream_chunk_delay_ms:
+                await asyncio.sleep(self._behavior.stream_chunk_delay_ms / 1000.0)
+        yield ProviderChunk(
+            finish_reason="stop",
+            usage=dict(response.usage),
+            index=max(0, (len(response.content) + 15) // 16),
+            received_at_ms=int(time.monotonic() * 1000),
+        )
 
     # ── hooks for subclasses ──
 

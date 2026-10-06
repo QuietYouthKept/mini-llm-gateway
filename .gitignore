@@ -22,6 +22,7 @@ htmlcov/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/streaming-smoke-server*.log
 
 # Editor / OS
 .vscode/

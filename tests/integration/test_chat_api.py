@@ -92,12 +92,30 @@ def test_profile_not_found(client: TestClient) -> None:
     assert resp.json()["error"]["code"] == "model_profile_not_found"
 
 
-def test_streaming_rejected(client: TestClient) -> None:
+def test_streaming_returns_sse_and_audits_completion(client: TestClient) -> None:
     payload = chat_payload("fast-chat")
     payload["stream"] = True
     resp = client.post("/v1/chat", json=payload, headers=auth())
-    assert resp.status_code == 400
-    assert resp.json()["error"]["code"] == "streaming_not_supported"
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    assert "event: message" in resp.text
+    assert "event: usage" in resp.text
+    assert "event: done" in resp.text
+    request_id = resp.headers["x-request-id"]
+    audit = client.get(f"/v1/requests/{request_id}", headers=auth()).json()
+    assert audit["status"] == "completed"
+    assert audit["cache_hit"] == 0
+
+
+def test_streaming_provider_failure_is_an_sse_error(client: TestClient) -> None:
+    payload = chat_payload("fallback-chat")
+    payload["stream"] = True
+    response = client.post("/v1/chat", json=payload, headers=auth())
+    assert response.status_code == 200
+    assert "event: error" in response.text
+    assert '"code":"provider_failed"' in response.text
+    audit = client.get(f"/v1/requests/{response.headers['x-request-id']}", headers=auth()).json()
+    assert audit["status"] == "provider_error"
 
 
 def test_audit_lookup(client: TestClient) -> None:
@@ -143,6 +161,28 @@ def test_metrics_endpoint(client: TestClient) -> None:
     assert resp.status_code == 200
     assert "llm_gateway_requests_total" in resp.text
     assert "llm_gateway_provider_attempts_total" in resp.text
+
+
+def test_lifecycle_phase_metrics_and_traces_are_prompt_free(client: TestClient, container) -> None:
+    secret = "do-not-record-this-prompt"
+    response = client.post("/v1/chat", json=chat_payload("fast-chat", secret), headers=auth())
+    assert response.status_code == 200
+    metrics = client.get("/metrics").text
+    for phase in (
+        "auth.duration",
+        "rate_limit.wait",
+        "cache.lookup.duration",
+        "budget.reserve.duration",
+        "routing.duration",
+        "provider.duration",
+        "audit.persist.duration",
+    ):
+        assert f'phase="{phase}"' in metrics
+    spans = container.tracer.snapshot()
+    assert {span.name for span in spans}.issuperset(
+        {"gateway.request", "provider.queue_wait", "provider.duration"}
+    )
+    assert secret not in str([(span.name, span.attributes) for span in spans])
 
 
 def test_admin_config_redacts_keys(client: TestClient) -> None:

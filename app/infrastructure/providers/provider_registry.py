@@ -17,6 +17,7 @@ from app.infrastructure.providers.openai_compatible import OpenAICompatibleProvi
 def _behavior_from(config: ProviderConfig) -> ProviderBehavior:
     return ProviderBehavior(
         latency_ms=config.behavior.latency_ms,
+        stream_chunk_delay_ms=config.behavior.stream_chunk_delay_ms,
         error_rate=config.behavior.error_rate,
         timeout_ms=config.behavior.timeout_ms,
         default_response=config.behavior.default_response,

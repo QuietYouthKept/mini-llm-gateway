@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 
@@ -28,6 +29,23 @@ class ChatResponse:
     provider_id: str
     model: str = ""
     usage: dict[str, int] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class ProviderChunk:
+    """One increment received from a provider streaming response.
+
+    ``usage`` is optional because OpenAI-compatible providers commonly include
+    it only in their final SSE frame (and some omit it altogether).
+    """
+
+    delta: str = ""
+    finish_reason: str | None = None
+    provider_request_id: str = ""
+    usage: dict[str, int] | None = None
+    index: int = 0
+    received_at_ms: int = 0
 
 
 class ProviderPort(ABC):
@@ -42,12 +60,20 @@ class ProviderPort(ABC):
         """
         ...
 
-    @property
-    @abstractmethod
-    def provider_id(self) -> str:
-        ...
+    async def stream_chat(self, request: ChatRequest) -> AsyncIterator[ProviderChunk]:
+        """Stream provider deltas without buffering the full response.
+
+        This intentionally remains optional for legacy provider adapters: they
+        continue to support non-streaming calls, while the gateway reports a
+        controlled stream error if selected for an SSE request.
+        """
+        raise NotImplementedError(f"Provider '{self.provider_id}' does not support streaming")
+        yield ProviderChunk()  # pragma: no cover - makes this an async iterator
 
     @property
     @abstractmethod
-    def provider_type(self) -> str:
-        ...
+    def provider_id(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def provider_type(self) -> str: ...

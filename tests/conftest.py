@@ -102,6 +102,7 @@ def make_test_config() -> AppConfig:
                 "enabled": True,
                 "input_policy": {"max_chars": 4000, "blocked_regex": ["blockme"]},
             },
+            "streaming": {"enabled": True, "output_guardrail_mode": "incremental"},
             "logging": {"persist_replay_payload": True},
             "metrics": {"enabled": True, "prefix": "llm_gateway"},
             "admin": {"enabled": True, "api_key": "admin-key"},

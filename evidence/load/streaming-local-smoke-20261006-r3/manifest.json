@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "run_id": "streaming-local-smoke-20261006-r3",
+  "created_at": "2026-10-06T10:31:31.398814+00:00",
+  "git_commit": "af9cbe32dd16cb93bea081d750abcbc4ca232e6f",
+  "git_worktree": {
+    "dirty": true,
+    "diff_sha256": "9e81dfb87387de7c2ccb9fba793f86636045d07f74eb8869683c5c8c08cebae3"
+  },
+  "config": {
+    "path": "config\\config.yaml",
+    "sha256": "6c55bfc02fce03dbd8d7e589286813e4bb3a6029f407c86c42ef9dea3309f3c4"
+  },
+  "runtime": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "cpu_count": 24,
+    "machine": "AMD64"
+  },
+  "provider": {
+    "mode": "stub",
+    "name": "mock_fast",
+    "model": "deterministic",
+    "comparison_group": "stub"
+  },
+  "workload": {
+    "url": "http://127.0.0.1:8765",
+    "profile": "fast-chat",
+    "concurrency": 1,
+    "requests": 4,
+    "duration_seconds": null,
+    "warmup_requests": 0,
+    "shape": "constant",
+    "seed": 42,
+    "input_tokens": [
+      8,
+      32,
+      128
+    ],
+    "output_tokens": [
+      16,
+      64
+    ],
+    "cache_target_ratio": 0.0,
+    "stream": true,
+    "disconnect_after_chunks": null,
+    "workload_label": "streaming-local-smoke-20261006-r3"
+  },
+  "privacy": {
+    "api_key_recorded": false,
+    "prompt_text_recorded": false,
+    "completion_text_recorded": false
+  }
+}

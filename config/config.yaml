@@ -2,7 +2,8 @@ gateway:
   name: mini-llm-gateway
   environment: local
   default_profile: fast-chat
-  request_timeout_ms: 1500
+  # A real internet Provider needs more headroom than deterministic local mocks.
+  request_timeout_ms: 5000
 
 clients:
   - client_id: demo-client
@@ -41,6 +42,8 @@ providers:
     enabled: true
     behavior:
       latency_ms: 30
+      # Enables repeatable client-disconnect experiments without a real model.
+      stream_chunk_delay_ms: 50
       error_rate: 0.0
       timeout_ms: 1000
       default_response: "fast response from mock_fast"
@@ -81,15 +84,17 @@ providers:
       timeout_ms: 1000
       default_response: "safe fallback response from fake_static"
 
-  # Real OpenAI-compatible provider (disabled by default; set enabled + api_key to use).
-  # openai:
-  #   type: openai_compatible
-  #   enabled: false
-  #   http:
-  #     base_url: https://api.openai.com/v1
-  #     api_key_env: OPENAI_API_KEY
-  #     model: gpt-4o-mini
-  #     timeout_ms: 20000
+  # Real DeepSeek provider. The secret comes only from DEEPSEEK_API_KEY; it is
+  # intentionally not present in this repository or persisted by the gateway.
+  deepseek:
+    type: openai_compatible
+    enabled: true
+    http:
+      # The adapter appends /chat/completions itself; do not append /v1 here.
+      base_url: https://api.deepseek.com
+      api_key_env: DEEPSEEK_API_KEY
+      model: deepseek-flash
+      timeout_ms: 30000
 
   # Local real-model providers (OpenAI-compatible; no cloud API key needed).
   # Start 'ollama serve' or a vLLM server, then enable one of these.
@@ -115,7 +120,7 @@ model_profiles:
     capabilities:
       context_window: 8192
       supports_tools: false
-      supports_streaming: false
+      supports_streaming: true
     preferences:
       latency_priority: high
       cost_priority: medium
@@ -174,12 +179,37 @@ model_profiles:
       trigger_on: [provider_error, timeout, bad_status]
       chain: [mock_slow, mock_fast]
 
+  deepseek-chat:
+    description: "Small-traffic real-provider validation through DeepSeek."
+    intent: real_provider_validation
+    capabilities:
+      context_window: 8192
+      supports_tools: false
+      supports_streaming: true
+    preferences:
+      stability_priority: high
+    routing:
+      strategy: priority
+      candidates:
+        - provider: deepseek
+          priority: 1
+    # Keep the validation path single-provider so cost, provider request IDs,
+    # and error semantics are attributable to DeepSeek rather than a mock fallback.
+    fallback:
+      enabled: false
+      chain: [deepseek]
+
 token_estimation:
   strategy: heuristic
   chars_per_token: 4
   min_tokens: 1
-  cost_per_1k_input_tokens_usd: 0.0
-  cost_per_1k_output_tokens_usd: 0.0
+  # Real providers include protocol/system-token overhead that a character
+  # heuristic cannot observe. Reserve conservatively, then settle actual usage.
+  reservation_input_floor: 128
+  # DeepSeek Flash peak cache-miss rates as verified 2026-10-06. Peak values
+  # are intentional: budgets must remain conservative across billing windows.
+  cost_per_1k_input_tokens_usd: 0.0003
+  cost_per_1k_output_tokens_usd: 0.0012
 
 retry:
   max_retries: 1
@@ -219,8 +249,11 @@ logging:
   persist_budget_snapshot: true
 
 streaming:
-  enabled: false
+  # Low-latency incremental output checks run before each emitted chunk. They
+  # cannot retract chunks already delivered if a later window is blocked.
+  enabled: true
   behavior_if_requested: reject
+  output_guardrail_mode: incremental
 
 metrics:
   enabled: true

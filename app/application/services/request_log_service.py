@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from app.domain.models.provider import ProviderAttempt
@@ -11,9 +12,18 @@ from app.infrastructure.config.config_models import LoggingConfig
 
 
 class RequestLogService:
-    def __init__(self, repository: RequestLogRepositoryPort, config: LoggingConfig) -> None:
+    def __init__(
+        self,
+        repository: RequestLogRepositoryPort,
+        config: LoggingConfig,
+        *,
+        tracer: Any | None = None,
+        metrics: Any | None = None,
+    ) -> None:
         self._repo = repository
         self._config = config
+        self._tracer = tracer
+        self._metrics = metrics
 
     def record_success(
         self,
@@ -45,6 +55,7 @@ class RequestLogService:
         cache_hit: bool = False,
         cache_key: str = "",
         cost_saved_usd: float = 0.0,
+        status: str = "success",
     ) -> None:
         row = {
             "request_id": request_id,
@@ -53,7 +64,7 @@ class RequestLogService:
             "endpoint": endpoint,
             "selected_provider": selected_provider,
             "fallback_used": 1 if fallback_used else 0,
-            "status": "success",
+            "status": status,
             "status_code": status_code,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
@@ -92,7 +103,7 @@ class RequestLogService:
             if self._config.persist_attempts
             else []
         )
-        self._repo.insert_request_with_attempts(row, attempt_rows)
+        self._persist(row, attempt_rows)
 
     def record_error(
         self,
@@ -109,6 +120,7 @@ class RequestLogService:
         request_body: Any = None,
         decision_trace: list[dict[str, Any]] | None = None,
         replay_payload: Any = None,
+        status: str = "error",
     ) -> None:
         row = {
             "request_id": request_id,
@@ -117,7 +129,7 @@ class RequestLogService:
             "endpoint": endpoint,
             "selected_provider": None,
             "fallback_used": 0,
-            "status": "error",
+            "status": status,
             "status_code": status_code,
             "input_tokens": 0,
             "output_tokens": 0,
@@ -150,7 +162,7 @@ class RequestLogService:
             if self._config.persist_attempts
             else []
         )
-        self._repo.insert_request_with_attempts(row, attempt_rows)
+        self._persist(row, attempt_rows)
 
     def record_http_error(
         self,
@@ -177,6 +189,19 @@ class RequestLogService:
     def get(self, request_id: str) -> dict[str, Any] | None:
         return self._repo.get_request(request_id)
 
+    def _persist(self, row: dict[str, Any], attempts: list[dict[str, Any]]) -> None:
+        """Keep audit persistence visible without coupling repositories to tracing."""
+        started = time.monotonic()
+        try:
+            if self._tracer is None:
+                self._repo.insert_request_with_attempts(row, attempts)
+            else:
+                with self._tracer.span("audit.persist.duration"):
+                    self._repo.insert_request_with_attempts(row, attempts)
+        finally:
+            if self._metrics is not None:
+                self._metrics.record_phase("audit.persist.duration", time.monotonic() - started)
+
     @staticmethod
     def _attempt_row(request_id: str, attempt: ProviderAttempt) -> dict[str, Any]:
         return {
@@ -189,6 +214,7 @@ class RequestLogService:
             "latency_ms": attempt.latency_ms,
             "error_code": attempt.error_code,
             "error_message": attempt.error_message,
+            "provider_request_id": attempt.provider_request_id or None,
         }
 
     @staticmethod

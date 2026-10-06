@@ -16,6 +16,7 @@ class ProviderType(Enum):
 @dataclass
 class ProviderBehavior:
     latency_ms: int = 100
+    stream_chunk_delay_ms: int = 0
     error_rate: float = 0.0
     timeout_ms: int = 1000
     default_response: str = ""
@@ -41,4 +42,5 @@ class ProviderAttempt:
     error_code: str = ""
     error_message: str = ""
     retry_index: int = 0
+    provider_request_id: str = ""
     response: dict[str, Any] | None = None

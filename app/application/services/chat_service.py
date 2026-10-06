@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from dataclasses import replace
+from collections.abc import AsyncIterator, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from typing import Any
 
 from app.application.dto.chat_dto import AttemptDetail, ChatOutcome
@@ -33,7 +35,11 @@ from app.domain.errors import (
 from app.domain.models.decision_trace import DecisionStep
 from app.domain.models.model_profile import ModelProfile
 from app.domain.models.provider import ProviderAttempt
-from app.domain.ports.provider_port import ChatRequest, ChatResponse, ProviderPort
+from app.domain.ports.provider_port import (
+    ChatRequest,
+    ChatResponse,
+    ProviderPort,
+)
 from app.domain.ports.repositories import PromptCachePort, RateLimiterPort
 from app.infrastructure.config.config_models import AppConfig, ClientConfig
 from app.infrastructure.observability.gateway_metrics import GatewayMetrics
@@ -44,6 +50,20 @@ _CIRCUIT_STATE_VALUE = {
     CircuitState.OPEN: 1,
     CircuitState.HALF_OPEN: 2,
 }
+
+
+@dataclass
+class StreamEvent:
+    event: str
+    data: dict[str, Any]
+
+
+@dataclass
+class StreamingSession:
+    """A prepared stream; admission completes before HTTP headers are sent."""
+
+    request_id: str
+    events: AsyncIterator[StreamEvent]
 
 
 class ChatService:
@@ -131,7 +151,8 @@ class ChatService:
             self._enforce_streaming(request, request_id)
             trace.append(DecisionStep(step="streaming_checked", meta={"allowed": True}))
 
-            self._enforce_rate_limit(client, request_id)
+            with self._phase("rate_limit.wait"):
+                self._enforce_rate_limit(client, request_id)
             trace.append(
                 DecisionStep(
                     step="rate_limit_checked",
@@ -194,7 +215,8 @@ class ChatService:
                     if remaining <= 0:
                         raise RequestDeadlineExceededError(request_id=request_id)
                     try:
-                        await asyncio.wait_for(event.wait(), timeout=remaining)
+                        with self._phase("singleflight.wait"):
+                            await asyncio.wait_for(event.wait(), timeout=remaining)
                     except TimeoutError as exc:
                         raise RequestDeadlineExceededError(request_id=request_id) from exc
                     cached = self._cache_get(cache_key, trace)
@@ -239,29 +261,39 @@ class ChatService:
             )
 
             budget_before = self._budget.snapshot(client)
-            reserved_tokens = estimated_input + max(0, request.max_tokens)
-            reserved_cost = self._estimator.cost_usd(estimated_input, max(0, request.max_tokens))
-            reservation_id = f"{request_id}:{uuid.uuid4().hex}"
-            reserved = self._budget.reserve(
-                reservation_id,
-                client,
-                reserved_tokens,
-                reserved_cost,
+            reserved_input = max(
+                estimated_input,
+                self._config.token_estimation.reservation_input_floor,
             )
+            reserved_tokens = reserved_input + max(0, request.max_tokens)
+            reserved_cost = self._estimator.cost_usd(reserved_input, max(0, request.max_tokens))
+            reservation_id = f"{request_id}:{uuid.uuid4().hex}"
+            with self._phase("budget.reserve.duration"):
+                reserved = self._budget.reserve(
+                    reservation_id,
+                    client,
+                    reserved_tokens,
+                    reserved_cost,
+                )
             trace.append(
                 DecisionStep(
                     step="budget_reserved",
                     meta={
                         "tokens": reserved_tokens,
+                        "input_floor_applied": reserved_input != estimated_input,
                         "remaining_after_reservation": reserved.remaining_tokens,
                     },
                 )
             )
 
-            with self._tracer.span(
-                "routing.resolve", {"profile": profile.profile_id}
-            ) as routing_span:
-                candidates = self._routing.resolve_candidates(profile)
+            with self._phase("routing.duration", {"profile": profile.profile_id}) as routing_span:
+                # Keep the original semantic span for existing trace queries while
+                # exposing the plan's duration-oriented phase name.
+                with self._tracer.span(
+                    "routing.resolve", {"profile": profile.profile_id}
+                ) as resolve_span:
+                    candidates = self._routing.resolve_candidates(profile)
+                    resolve_span.attributes["candidate_count"] = len(candidates)
                 routing_span.attributes["candidate_count"] = len(candidates)
             response, attempts = await self._fallback.execute(
                 request,
@@ -281,12 +313,13 @@ class ChatService:
             billed_input = usage["billed_input"]
             billed_output = usage["billed_output"]
             cost_usd = self._estimator.cost_usd(billed_input, billed_output)
-            budget_after = self._budget.settle(
-                reservation_id,
-                client,
-                billed_input + billed_output,
-                cost_usd,
-            )
+            with self._phase("budget.settle.duration"):
+                budget_after = self._budget.settle(
+                    reservation_id,
+                    client,
+                    billed_input + billed_output,
+                    cost_usd,
+                )
             reservation_id = None
             trace.append(
                 DecisionStep(
@@ -458,6 +491,311 @@ class ChatService:
             self.sync_circuit_metrics()
             raise InternalError(message=str(exc), request_id=request_id) from exc
 
+    async def start_stream(
+        self, request: ChatRequest, client: ClientConfig, endpoint: str
+    ) -> StreamingSession:
+        """Run stream admission before HTTP starts and never cache partial output."""
+        request_id = get_request_id()
+        start = time.monotonic()
+        trace: list[DecisionStep] = []
+        replay_payload = self._request_body_snapshot(request)
+        self._enforce_streaming(request, request_id)
+        with self._phase("rate_limit.wait"):
+            self._enforce_rate_limit(client, request_id)
+        trace.append(DecisionStep(step="rate_limit_checked", meta={"allowed": True}))
+        profile, profile_id = self._resolve_profile(request, request_id)
+        trace.append(DecisionStep(step="profile_resolved", meta={"profile": profile_id}))
+        self._enforce_guardrails_input(request, request_id)
+        trace.append(DecisionStep(step="guardrail_input_checked", meta={"allowed": True}))
+        # A stream may be cancelled or fail after bytes have been sent, so it
+        # is intentionally neither read from nor written to the exact cache.
+        trace.append(
+            DecisionStep(step="cache_skipped", reason="streaming responses are not cached")
+        )
+
+        estimated_input = self._estimator.estimate_messages(request.messages)
+        reserved_input = max(estimated_input, self._config.token_estimation.reservation_input_floor)
+        reservation_id = f"{request_id}:{uuid.uuid4().hex}"
+        budget_before = self._budget.snapshot(client)
+        with self._phase("budget.reserve.duration"):
+            self._budget.reserve(
+                reservation_id,
+                client,
+                reserved_input + max(0, request.max_tokens),
+                self._estimator.cost_usd(reserved_input, max(0, request.max_tokens)),
+            )
+        trace.append(DecisionStep(step="budget_reserved"))
+        candidates = self._routing.resolve_candidates(profile)
+        provider = self._providers.get(candidates[0]) if candidates else None
+        if provider is None:
+            self._budget.release(reservation_id)
+            raise InternalError("No streaming provider is available", request_id=request_id)
+        return StreamingSession(
+            request_id=request_id,
+            events=self._stream_events(
+                request_id=request_id,
+                request=request,
+                client=client,
+                endpoint=endpoint,
+                profile_id=profile_id,
+                provider=provider,
+                reservation_id=reservation_id,
+                estimated_input=estimated_input,
+                budget_before=budget_before.remaining_tokens,
+                trace=trace,
+                replay_payload=replay_payload,
+                start=start,
+            ),
+        )
+
+    async def _stream_events(
+        self,
+        *,
+        request_id: str,
+        request: ChatRequest,
+        client: ClientConfig,
+        endpoint: str,
+        profile_id: str,
+        provider: ProviderPort,
+        reservation_id: str,
+        estimated_input: int,
+        budget_before: int,
+        trace: list[DecisionStep],
+        replay_payload: dict[str, Any],
+        start: float,
+    ) -> AsyncIterator[StreamEvent]:
+        """Forward provider chunks and make budget/audit completion cancellation-safe."""
+        content = ""
+        provider_usage: dict[str, int] | None = None
+        finish_reason = "stop"
+        provider_request_id = ""
+        started = time.monotonic()
+        attempt = ProviderAttempt(
+            provider_id=provider.provider_id, attempt_order=0, status="success"
+        )
+        try:
+            try:
+                async with asyncio.timeout(self._config.gateway.request_timeout_ms / 1000.0):
+                    async for chunk in provider.stream_chat(request):
+                        provider_request_id = chunk.provider_request_id or provider_request_id
+                        provider_usage = chunk.usage or provider_usage
+                        finish_reason = chunk.finish_reason or finish_reason
+                        if not chunk.delta:
+                            continue
+                        candidate = content + chunk.delta
+                        decision = self._guardrails.check_output(candidate)
+                        if not decision.allowed:
+                            raise GuardrailBlockedError(
+                                message=f"Streaming output blocked ({decision.reason})",
+                                request_id=request_id,
+                            )
+                        # Low-latency mode checks before each release; already sent
+                        # deltas cannot be retracted if a later window is blocked.
+                        content = decision.content if decision.content is not None else candidate
+                        yield StreamEvent(
+                            event="message",
+                            data={
+                                "delta": chunk.delta,
+                                "request_id": request_id,
+                                "index": chunk.index,
+                            },
+                        )
+            except TimeoutError as exc:
+                raise RequestDeadlineExceededError(request_id=request_id) from exc
+
+            usage, budget_after = self._settle_stream(
+                reservation_id, client, provider, provider_usage, estimated_input, content
+            )
+            attempt.latency_ms = int((time.monotonic() - started) * 1000)
+            attempt.provider_request_id = provider_request_id
+            trace.extend(self._build_provider_trace([provider.provider_id], [attempt]))
+            trace.append(
+                DecisionStep(step="budget_settled", meta={"usage_source": usage["source"]})
+            )
+            duration_ms = int((time.monotonic() - start) * 1000)
+            self._record_stream_audit(
+                request_id,
+                client,
+                endpoint,
+                profile_id,
+                provider,
+                attempt,
+                usage,
+                estimated_input,
+                content,
+                budget_before,
+                budget_after.remaining_tokens,
+                duration_ms,
+                trace,
+                replay_payload,
+                status="completed",
+                status_code=200,
+            )
+            self._record_success_metrics(
+                endpoint,
+                client,
+                usage["billed_input"],
+                usage["billed_output"],
+                [attempt],
+                False,
+                duration_ms,
+            )
+            yield StreamEvent(
+                event="usage",
+                data={
+                    "input_tokens": usage["billed_input"],
+                    "output_tokens": usage["billed_output"],
+                    "usage_source": usage["source"],
+                },
+            )
+            yield StreamEvent(
+                event="done", data={"finish_reason": finish_reason, "request_id": request_id}
+            )
+        except asyncio.CancelledError:
+            usage, budget_after = self._settle_stream(
+                reservation_id, client, provider, provider_usage, estimated_input, content
+            )
+            attempt.status = "cancelled"
+            attempt.latency_ms = int((time.monotonic() - started) * 1000)
+            attempt.provider_request_id = provider_request_id
+            trace.append(DecisionStep(step="cancelled", meta={"partial_chars": len(content)}))
+            self._record_stream_audit(
+                request_id,
+                client,
+                endpoint,
+                profile_id,
+                provider,
+                attempt,
+                usage,
+                estimated_input,
+                content,
+                budget_before,
+                budget_after.remaining_tokens,
+                int((time.monotonic() - start) * 1000),
+                trace,
+                replay_payload,
+                status="cancelled",
+                status_code=499,
+            )
+            raise
+        except Exception as exc:
+            try:
+                self._settle_stream(
+                    reservation_id, client, provider, provider_usage, estimated_input, content
+                )
+            except Exception:
+                self._budget.release(reservation_id)
+            attempt.status = "error"
+            attempt.error_code = getattr(exc, "error_code", "provider_failed")
+            attempt.error_message = str(exc)
+            attempt.latency_ms = int((time.monotonic() - started) * 1000)
+            attempt.provider_request_id = provider_request_id
+            trace.append(
+                DecisionStep(
+                    step="error", reason=attempt.error_code, meta={"partial_chars": len(content)}
+                )
+            )
+            self._log_service.record_error(
+                request_id=request_id,
+                client_id=client.client_id,
+                model_profile=profile_id,
+                endpoint=endpoint,
+                status_code=http_status_for(attempt.error_code),
+                error_code=attempt.error_code,
+                error_message=attempt.error_message,
+                duration_ms=int((time.monotonic() - start) * 1000),
+                attempts=[attempt],
+                decision_trace=[step.to_dict() for step in trace],
+                status="provider_error",
+            )
+            self._record_error_metrics(
+                exc if isinstance(exc, GatewayError) else InternalError(),
+                endpoint,
+                int((time.monotonic() - start) * 1000),
+            )
+            yield StreamEvent(
+                event="error",
+                data={
+                    "code": attempt.error_code,
+                    "message": "stream terminated",
+                    "request_id": request_id,
+                },
+            )
+
+    def _settle_stream(
+        self,
+        reservation_id: str,
+        client: ClientConfig,
+        provider: ProviderPort,
+        provider_usage: dict[str, int] | None,
+        estimated_input: int,
+        content: str,
+    ) -> tuple[dict[str, Any], Any]:
+        response = ChatResponse(
+            content=content, provider_id=provider.provider_id, usage=provider_usage or {}
+        )
+        usage = self._resolve_usage(
+            response, estimated_input, self._estimator.estimate_text(content)
+        )
+        budget_after = self._budget.settle(
+            reservation_id,
+            client,
+            usage["billed_input"] + usage["billed_output"],
+            self._estimator.cost_usd(usage["billed_input"], usage["billed_output"]),
+        )
+        return usage, budget_after
+
+    def _record_stream_audit(
+        self,
+        request_id: str,
+        client: ClientConfig,
+        endpoint: str,
+        profile_id: str,
+        provider: ProviderPort,
+        attempt: ProviderAttempt,
+        usage: dict[str, Any],
+        estimated_input: int,
+        content: str,
+        budget_before: int,
+        budget_after: int,
+        duration_ms: int,
+        trace: list[DecisionStep],
+        replay_payload: dict[str, Any],
+        *,
+        status: str,
+        status_code: int,
+    ) -> None:
+        estimated_output = self._estimator.estimate_text(content)
+        self._log_service.record_success(
+            request_id=request_id,
+            client_id=client.client_id,
+            model_profile=profile_id,
+            endpoint=endpoint,
+            selected_provider=provider.provider_id,
+            fallback_used=False,
+            status_code=status_code,
+            input_tokens=usage["billed_input"],
+            output_tokens=usage["billed_output"],
+            estimated_tokens=estimated_input + estimated_output,
+            estimated_cost_usd=self._estimator.cost_usd(
+                usage["billed_input"], usage["billed_output"]
+            ),
+            estimated_input_tokens=estimated_input,
+            estimated_output_tokens=estimated_output,
+            actual_input_tokens=usage["actual_input"],
+            actual_output_tokens=usage["actual_output"],
+            usage_source=usage["source"],
+            budget_before=budget_before,
+            budget_after=budget_after,
+            duration_ms=duration_ms,
+            attempts=[attempt],
+            request_body=replay_payload,
+            response_body={"content": content},
+            decision_trace=[step.to_dict() for step in trace],
+            replay_payload=replay_payload,
+            status=status,
+        )
+
     def _serve_cache_hit(
         self,
         cached: ChatResponse,
@@ -547,9 +885,7 @@ class ChatService:
         profile = self._profiles.get(profile_id)
         if profile is None:
             raise ModelProfileNotFoundError(profile_id)
-        with self._tracer.span(
-            "routing.resolve", {"profile": profile.profile_id, "replay": True}
-        ):
+        with self._tracer.span("routing.resolve", {"profile": profile.profile_id, "replay": True}):
             candidates = self._routing.resolve_candidates(profile)
 
         if mode == "offline":
@@ -654,9 +990,7 @@ class ChatService:
             raise StreamingNotSupportedError(request_id=request_id)
 
     def _enforce_rate_limit(self, client: ClientConfig, request_id: str) -> None:
-        result = self._rate_limiter.check(
-            client.client_id, client.rate_limit.requests_per_minute
-        )
+        result = self._rate_limiter.check(client.client_id, client.rate_limit.requests_per_minute)
         if not result.allowed:
             error = RateLimitExceededError(
                 message=(
@@ -668,9 +1002,7 @@ class ChatService:
             error.retry_after_ms = result.retry_after_ms  # type: ignore[attr-defined]
             raise error
 
-    def _resolve_profile(
-        self, request: ChatRequest, request_id: str
-    ) -> tuple[ModelProfile, str]:
+    def _resolve_profile(self, request: ChatRequest, request_id: str) -> tuple[ModelProfile, str]:
         profile_id = request.profile or self._config.gateway.default_profile
         profile = self._profiles.get(profile_id)
         if profile is None:
@@ -779,25 +1111,30 @@ class ChatService:
         if flight is not None:
             self._singleflight.release(*flight)
 
-    def _cache_get(
-        self, cache_key: str, trace: list[DecisionStep]
-    ) -> ChatResponse | None:
+    def _cache_get(self, cache_key: str, trace: list[DecisionStep]) -> ChatResponse | None:
         """Read cache with explicit Redis fail-open semantics."""
         assert self._cache is not None
         try:
-            return self._cache.get(cache_key)
+            with self._phase("cache.lookup.duration"):
+                return self._cache.get(cache_key)
         except Exception:
             if self._distributed_singleflight is None:
                 raise
             self._metrics.redis_failures.inc()
-            trace.append(
-                DecisionStep(step="cache_degraded", reason="redis_unavailable")
-            )
+            trace.append(DecisionStep(step="cache_degraded", reason="redis_unavailable"))
             return None
 
-    def _cache_put(
-        self, cache_key: str, response: ChatResponse, trace: list[DecisionStep]
-    ) -> None:
+    @contextmanager
+    def _phase(self, name: str, attributes: dict[str, Any] | None = None) -> Iterator[Any]:
+        """Keep stage timings consistent in local traces and Prometheus metrics."""
+        started = time.monotonic()
+        try:
+            with self._tracer.span(name, attributes) as span:
+                yield span
+        finally:
+            self._metrics.record_phase(name, time.monotonic() - started)
+
+    def _cache_put(self, cache_key: str, response: ChatResponse, trace: list[DecisionStep]) -> None:
         """Cache publication is advisory: a Redis outage must not fail a chat."""
         assert self._cache is not None
         try:
@@ -806,9 +1143,7 @@ class ChatService:
             if self._distributed_singleflight is None:
                 raise
             self._metrics.redis_failures.inc()
-            trace.append(
-                DecisionStep(step="cache_degraded", reason="redis_unavailable")
-            )
+            trace.append(DecisionStep(step="cache_degraded", reason="redis_unavailable"))
 
     async def _acquire_distributed_flight(
         self,
@@ -861,8 +1196,7 @@ class ChatService:
             "profile": request.profile,
             "model": request.model,
             "messages": [
-                {"role": message.role, "content": message.content}
-                for message in request.messages
+                {"role": message.role, "content": message.content} for message in request.messages
             ],
             "max_tokens": request.max_tokens,
             "temperature": request.temperature,

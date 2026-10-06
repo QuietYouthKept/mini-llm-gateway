@@ -1,4 +1,4 @@
-.PHONY: dev test eval demo replay demo-report security-eval lint verify clean-db clean
+.PHONY: dev test eval demo replay demo-report security-eval lint verify experiment streaming-consistency clean-db clean
 
 PYTHON ?= python
 
@@ -22,6 +22,12 @@ demo-report:
 
 replay:
 	$(PYTHON) scripts/replay_request.py --request-id $(REQUEST_ID) --mode offline
+
+experiment:
+	$(PYTHON) scripts/run_experiment.py --provider-mode stub --provider-name mock_fast --provider-model deterministic --config config/config.yaml
+
+streaming-consistency:
+	$(PYTHON) scripts/check_streaming_consistency.py
 
 lint:
 	$(PYTHON) -m ruff check .

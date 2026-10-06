@@ -1,27 +1,73 @@
 # mini-llm-gateway
 
-An **explainable, failure-tested LLM Gateway** built with FastAPI and Clean Architecture.
-It centralizes model access behind one OpenAI-compatible API and enforces the
-governance every AI team ends up hand-rolling: authentication, rate limiting,
-token/cost budgets, provider routing, fallback, retry, circuit breaking,
-guardrails, request auditing, and Prometheus metrics — plus **explainable routing
-decisions**, **failure replay**, and **exact prompt caching**.
+> An explainable, failure-tested LLM gateway focused on routing, governance,
+> distributed state, and reproducible production evidence.
 
-Runs entirely locally with mock providers — **no real API keys required** — and
-can point at local Ollama/vLLM servers for real-model testing.
+It is more than an API proxy: every request has a policy decision, budget
+outcome, provider attempt chain, audit record, and prompt-free trace. It runs
+locally with mock providers—no paid provider key is required.
 
 [![CI](https://github.com/QuietYouthKept/mini-llm-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/QuietYouthKept/mini-llm-gateway/actions)
 
 ---
 
-## Why this exists
+## Why this project
 
 When teams call LLMs directly from business code, every service repeats the same
 provider-switching, retry, rate-limit, and budget-tracking logic. A gateway moves
 that logic into one place so the rest of the system talks to a single, stable,
 auditable API — the same way LiteLLM Proxy, Portkey, and Cloudflare AI Gateway do.
 
+## 5-minute quickstart
+
+Requires Python 3.11+. The local/demo path uses SQLite and mock providers.
+
+```powershell
+# Windows PowerShell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+```bash
+# macOS / Linux
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python -m uvicorn app.main:app --reload
+```
+
+In a second terminal:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/v1/chat \
+  -H "Authorization: Bearer demo-key" \
+  -H "Content-Type: application/json" \
+  -d '{"profile":"fast-chat","messages":[{"role":"user","content":"hi"}]}'
+```
+
+For a production-like local stack, install `.[production]`, configure
+`GW_DATABASE_URL`, `GW_REDIS_URL`, and `GW_CACHE_BACKEND=redis`, then use the
+backend guide and the two-replica probes in `scripts/`.
+
 ## Architecture
+
+```mermaid
+flowchart TD
+  Client --> API[FastAPI + auth]
+  API --> Gov[Guardrails + rate limit]
+  Gov --> Cache[Exact cache + singleflight]
+  Cache --> Budget[Budget reservation]
+  Budget --> Route[Routing + retry/fallback/circuit]
+  Route --> Provider[ProviderPort]
+  Provider --> Audit[Audit + decision trace]
+  Audit --> Client
+  Redis[(Redis: rate limit, cache, lease)] --- Gov
+  Redis --- Cache
+  Postgres[(PostgreSQL: clients, budget, audit)] --- Budget
+  Postgres --- Audit
+  OTel[OTel collector] --- API
+```
 
 ```
                          HTTP clients
@@ -91,35 +137,38 @@ wired service, which is what makes `POST /admin/reload-config` a one-liner.
 - **Local real-model path** — the same OpenAI-compatible adapter targets Ollama
   or vLLM, so the gateway is not mock-only.
 
-## Quick start
-
-Requires **Python 3.11+**. `uv` is recommended.
-
-```bash
-uv venv .venv --python 3.11
-uv pip install --python .venv/Scripts/python -e ".[dev]"
-
-# macOS / Linux: .venv/bin/python
-.venv/Scripts/python -m uvicorn app.main:app --reload
-```
-
-Verify:
-
-```bash
-curl http://localhost:8000/health
-# {"status":"ok","service":"mini-llm-gateway"}
-
-curl http://localhost:8000/v1/chat \
-  -H "Authorization: Bearer demo-key" \
-  -H "Content-Type: application/json" \
-  -d '{"profile":"fast-chat","messages":[{"role":"user","content":"hi"}]}'
-```
-
-Or via Docker:
+Or use Docker for the same demo path:
 
 ```bash
 docker compose up --build
 ```
+
+## Request lifecycle
+
+`auth → rate limit → profile → input guardrail → exact cache/singleflight →
+budget reserve → route/retry/fallback → output guardrail → settle/release →
+cache/audit/metrics/trace`.
+
+## Failure handling and distributed state
+
+| State | Backend | Scope |
+| --- | --- | --- |
+| Client auth | config / PostgreSQL | deployment |
+| Budget + audit | SQLite / PostgreSQL | database scope |
+| Rate limit | memory / Redis | process / deployment |
+| Cache | memory / Redis | process / deployment |
+| Singleflight | local event / Redis lease | process / deployment |
+| Circuit breaker | memory | process/provider |
+| Metrics | local exporter | process |
+| Traces | OTel exporter | deployment |
+
+| Dependency | Actual failure semantics |
+| --- | --- |
+| Redis rate limit | fail closed with 503 by default |
+| Redis cache | fail-open cache miss |
+| Redis singleflight | bounded local-singleflight degradation |
+| PostgreSQL budget/audit | request fails closed; no retry loop is hidden |
+| OTel exporter | request continues; tracing is best-effort |
 
 ## Endpoints
 
@@ -137,12 +186,13 @@ docker compose up --build
 Auth: `Authorization: Bearer <api-key>` or `x-api-key`. Admin endpoints use
 `x-admin-key: admin-key` (default).
 
-## Demo & reports
+## Demo and evidence
 
 ```bash
 make demo                 # 10 failure-injection scenarios, PASS/FAIL
 make demo-report          # writes docs/demo-report.md (traces + metrics)
 make replay REQUEST_ID=x  # replay a historical request, detect regressions
+make experiment           # creates evidence/load/<run_id>/ with a reproducible Stub manifest
 .venv/Scripts/python scripts/final_demos.py  # 4 concise acceptance demos
 ```
 
@@ -150,21 +200,28 @@ make replay REQUEST_ID=x  # replay a historical request, detect regressions
 [docs/demo-report.md](docs/demo-report.md) — with the explainable decision trace
 for each routing scenario and a metrics snapshot.
 
-## Test & eval
+The concise operator demo is documented in [docs/demo-guide.md](docs/demo-guide.md).
+The [experiment runbook](docs/experiment-runbook.md) defines the evidence contract,
+phase-level latency attribution, and separate Stub versus real-provider runs.
+
+## Verification and development
 
 ```bash
 make test           # pytest (unit + integration)
 make lint           # ruff
 make eval           # config-driven eval harness (eval/eval_cases.yaml)
 make security-eval  # OWASP attack pack (eval/security_cases.yaml)
+make verify         # lint + compile + tests + both eval suites
 ```
 
 ## Configuration
 
 Everything is driven by `config/config.yaml`: clients (rate limit + budget),
 providers (mock or `openai_compatible`), model profiles (routing + fallback),
-retry, circuit breaker, guardrails, metrics, admin, and observability. To use a
-real provider, uncomment and enable the `openai` block and set `OPENAI_API_KEY`.
+retry, circuit breaker, guardrails, metrics, admin, and observability. The
+included DeepSeek profile reads `DEEPSEEK_API_KEY` from the process environment;
+see the [experiment runbook](docs/experiment-runbook.md#deepseek-profile) for a
+small-traffic validation command.
 Request bodies and replay payloads are independently opt-in under `logging`;
 both are disabled in the checked-in config.
 
@@ -180,7 +237,7 @@ Runtime backend selection is environment-driven:
 Install shared-backend dependencies with `uv pip install -e ".[production]"`.
 Public dataset tooling additionally uses `.[datasets]`.
 
-## Verification evidence
+## Evidence
 
 The 2026-08-23 hardening pass used deterministic WildChat and UltraChat fixtures,
 real Uvicorn processes, a local OpenAI-compatible fault provider, disposable
@@ -188,8 +245,9 @@ Redis/PostgreSQL/OTel containers, and a fresh copied checkout. See
 [the evidence report](docs/production-hardening-report-2026-08-23.md),
 [formal test cards](docs/test-cards/public-dataset-production-evidence.md), and
 [bounded load results](docs/load-test-results-2026-08-23.md).
+The RC snapshot is [docs/releases/v1.0.0-rc1-evidence.md](docs/releases/v1.0.0-rc1-evidence.md).
 
-## Honest scope notes
+## Security and known limitations
 
 - **Local-first defaults**: SQLite budget/audit works across local processes;
   in-process rate limit/cache/breakers do not. Redis rate limit/cache and
@@ -208,8 +266,10 @@ Redis/PostgreSQL/OTel containers, and a fresh copied checkout. See
   provider attempts are available in the authenticated request audit endpoint.
 - **Guardrails are heuristics**, not a guarantee against prompt injection or PII
   leakage — they provide configurable policy hooks + audit logs.
-- **Streaming** is deliberately rejected in the MVP (`stream: true` → 400); the
-  policy is configurable.
+- **Streaming** uses SSE (`event: message`, `usage`, `done`) with incremental
+  output guardrails. It is intentionally uncached: a later policy violation
+  can stop future chunks but cannot retract text already delivered. Client
+  cancellation settles observed output rather than releasing the full budget.
 
 ## Project structure
 
@@ -227,3 +287,7 @@ scripts/           demo, demo-report, replay scripts
 
 See [docs/architecture.md](docs/architecture.md) and the ADRs under `docs/adr/`
 for the reasoning behind key decisions.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
+[docs/roadmap-v1.md](docs/roadmap-v1.md) for development, reporting, and
+post-v1 direction.

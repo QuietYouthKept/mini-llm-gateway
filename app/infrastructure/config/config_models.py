@@ -44,6 +44,7 @@ class ClientConfig:
 @dataclass
 class ProviderBehavior:
     latency_ms: int = 100
+    stream_chunk_delay_ms: int = 0
     error_rate: float = 0.0
     timeout_ms: int = 1000
     default_response: str = ""
@@ -105,6 +106,7 @@ class TokenEstimationConfig:
     strategy: str = "heuristic"
     chars_per_token: int = 4
     min_tokens: int = 1
+    reservation_input_floor: int = 0
     cost_per_1k_input_tokens_usd: float = 0.0
     cost_per_1k_output_tokens_usd: float = 0.0
 
@@ -123,6 +125,7 @@ class LoggingConfig:
 class StreamingConfig:
     enabled: bool = False
     behavior_if_requested: str = "reject"  # "reject" | "ignore"
+    output_guardrail_mode: str = "incremental"
 
 
 @dataclass
@@ -215,9 +218,7 @@ class AppConfig:
     clients: list[ClientConfig] = field(default_factory=list)
     providers: dict[str, ProviderConfig] = field(default_factory=dict)
     model_profiles: dict[str, ModelProfileConfig] = field(default_factory=dict)
-    token_estimation: TokenEstimationConfig = field(
-        default_factory=TokenEstimationConfig
-    )
+    token_estimation: TokenEstimationConfig = field(default_factory=TokenEstimationConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     streaming: StreamingConfig = field(default_factory=StreamingConfig)
     retry: RetryConfig = field(default_factory=RetryConfig)
@@ -272,9 +273,7 @@ class AppConfig:
                 api_key=c.get("api_key", ""),
                 enabled=c.get("enabled", True),
                 rate_limit=RateLimitConfig(
-                    requests_per_minute=c.get("rate_limit", {}).get(
-                        "requests_per_minute", 60
-                    )
+                    requests_per_minute=c.get("rate_limit", {}).get("requests_per_minute", 60)
                 ),
                 token_budget=TokenBudgetConfig(
                     period=c.get("token_budget", {}).get("period", "daily"),
@@ -308,7 +307,13 @@ class AppConfig:
             http_raw = pdata.get("http", {})
             _reject_unknown(
                 behavior_raw,
-                {"latency_ms", "error_rate", "timeout_ms", "default_response"},
+                {
+                    "latency_ms",
+                    "stream_chunk_delay_ms",
+                    "error_rate",
+                    "timeout_ms",
+                    "default_response",
+                },
                 f"providers.{pid}.behavior",
             )
             _reject_unknown(
@@ -322,6 +327,7 @@ class AppConfig:
                 enabled=pdata.get("enabled", True),
                 behavior=ProviderBehavior(
                     latency_ms=behavior_raw.get("latency_ms", 100),
+                    stream_chunk_delay_ms=behavior_raw.get("stream_chunk_delay_ms", 0),
                     error_rate=behavior_raw.get("error_rate", 0.0),
                     timeout_ms=behavior_raw.get("timeout_ms", 1000),
                     default_response=behavior_raw.get("default_response", ""),
@@ -385,6 +391,7 @@ class AppConfig:
                 "strategy",
                 "chars_per_token",
                 "min_tokens",
+                "reservation_input_floor",
                 "cost_per_1k_input_tokens_usd",
                 "cost_per_1k_output_tokens_usd",
             },
@@ -394,6 +401,7 @@ class AppConfig:
             strategy=te.get("strategy", "heuristic"),
             chars_per_token=te.get("chars_per_token", 4),
             min_tokens=te.get("min_tokens", 1),
+            reservation_input_floor=te.get("reservation_input_floor", 0),
             cost_per_1k_input_tokens_usd=te.get("cost_per_1k_input_tokens_usd", 0.0),
             cost_per_1k_output_tokens_usd=te.get("cost_per_1k_output_tokens_usd", 0.0),
         )
@@ -419,16 +427,17 @@ class AppConfig:
         )
 
         st = raw.get("streaming", {})
-        _reject_unknown(st, {"enabled", "behavior_if_requested"}, "streaming")
+        _reject_unknown(
+            st, {"enabled", "behavior_if_requested", "output_guardrail_mode"}, "streaming"
+        )
         streaming = StreamingConfig(
             enabled=st.get("enabled", False),
             behavior_if_requested=st.get("behavior_if_requested", "reject"),
+            output_guardrail_mode=st.get("output_guardrail_mode", "incremental"),
         )
 
         rt = raw.get("retry", {})
-        _reject_unknown(
-            rt, {"max_retries", "base_delay_ms", "max_delay_ms", "retry_on"}, "retry"
-        )
+        _reject_unknown(rt, {"max_retries", "base_delay_ms", "max_delay_ms", "retry_on"}, "retry")
         retry = RetryConfig(
             max_retries=rt.get("max_retries", 1),
             base_delay_ms=rt.get("base_delay_ms", 50),
@@ -562,15 +571,15 @@ class AppConfig:
                 raise ConfigValidationError("requests_per_minute must not be negative")
             if client.token_budget.max_tokens < 0:
                 raise ConfigValidationError("token_budget.max_tokens must not be negative")
+        if self.token_estimation.reservation_input_floor < 0:
+            raise ConfigValidationError("reservation_input_floor must not be negative")
         for provider_id, provider in self.providers.items():
             if provider.type not in supported_provider_types:
                 raise ConfigValidationError(
                     f"Unknown provider type '{provider.type}' for '{provider_id}'"
                 )
             if provider.type == "openai_compatible" and not provider.http.base_url:
-                raise ConfigValidationError(
-                    f"Provider '{provider_id}' requires http.base_url"
-                )
+                raise ConfigValidationError(f"Provider '{provider_id}' requires http.base_url")
         allowed_retry = {"provider_timeout", "provider_failed", "provider_bad_status"}
         invalid_retry = sorted(set(self.retry.retry_on) - allowed_retry)
         if invalid_retry:
@@ -581,6 +590,8 @@ class AppConfig:
             raise ConfigValidationError(
                 "streaming.behavior_if_requested must be 'reject' or 'ignore'"
             )
+        if self.streaming.output_guardrail_mode != "incremental":
+            raise ConfigValidationError("streaming.output_guardrail_mode must be 'incremental'")
         enabled = {pid for pid, provider in self.providers.items() if provider.enabled}
         allowed_triggers = {
             "provider_error",

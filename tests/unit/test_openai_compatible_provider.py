@@ -36,6 +36,7 @@ async def test_maps_openai_response() -> None:
         assert request.headers["Authorization"] == "Bearer k"
         return httpx.Response(
             200,
+            headers={"x-request-id": "upstream-request-123"},
             json={
                 "choices": [{"message": {"role": "assistant", "content": "hello back"}}],
                 "model": "m",
@@ -47,6 +48,7 @@ async def test_maps_openai_response() -> None:
     response = await provider.chat(make_request())
     assert response.content == "hello back"
     assert response.usage["total_tokens"] == 7
+    assert response.metadata["provider_request_id"] == "upstream-request-123"
 
 
 @pytest.mark.asyncio
@@ -91,3 +93,36 @@ async def test_network_error_raises_failed() -> None:
     provider = make_provider(handler)
     with pytest.raises(ProviderFailedError):
         await provider.chat(make_request())
+
+
+@pytest.mark.asyncio
+async def test_stream_parses_sse_without_buffering_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/chat/completions"
+        assert b'"stream":true' in request.content
+        return httpx.Response(
+            200,
+            headers={"x-request-id": "upstream-stream-123"},
+            content=(
+                b'data: {"choices":[{"delta":{"content":"hello "},"finish_reason":null}]}\n\n'
+                b'data: {"choices":[{"delta":{"content":"world"},"finish_reason":"stop"}],'
+                b'"usage":{"prompt_tokens":2,"completion_tokens":2,"total_tokens":4}}\n\n'
+                b"data: [DONE]\n\n"
+            ),
+        )
+
+    provider = make_provider(handler)
+    chunks = [chunk async for chunk in provider.stream_chat(make_request())]
+    assert "".join(chunk.delta for chunk in chunks) == "hello world"
+    assert chunks[1].usage == {"prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4}
+    assert chunks[0].provider_request_id == "upstream-stream-123"
+    # A [DONE] after a terminal choice does not create a duplicate final chunk.
+    assert sum(chunk.finish_reason is not None for chunk in chunks) == 1
+
+
+@pytest.mark.asyncio
+async def test_stream_rejects_malformed_sse_json() -> None:
+    provider = make_provider(lambda _: httpx.Response(200, content=b"data: not-json\n\n"))
+    with pytest.raises(ProviderFailedError, match="malformed streaming SSE frame"):
+        async for _ in provider.stream_chat(make_request()):
+            pass

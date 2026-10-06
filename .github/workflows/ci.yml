@@ -19,10 +19,25 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev]" pip-audit
 
       - name: Lint
         run: ruff check .
 
       - name: Test
         run: pytest -q
+
+      - name: Streaming consistency
+        run: python scripts/check_streaming_consistency.py
+
+      - name: Functional evaluation
+        run: python eval/run_eval.py
+
+      - name: Security evaluation
+        run: python eval/run_eval.py --cases eval/security_cases.yaml
+
+      - name: Dependency audit
+        # The gateway is installed editable for CI and is not a PyPI package.
+        # Audit every resolved third-party dependency while excluding only the
+        # local editable project; discovered vulnerabilities still fail CI.
+        run: pip-audit --skip-editable
