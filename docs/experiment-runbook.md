@@ -56,6 +56,12 @@ inter-chunk p95 separately from total latency. Use
 `--disconnect-after-chunks N` for cancellation propagation evidence. Streaming
 responses are intentionally not cached.
 
+For a repeatable Stub capacity curve, use `scripts/run_matrix.py`. It runs the
+configured concurrency/cache-ratio/repetition grid through the same HTTP
+harness and creates a separate immutable evidence directory for every cell.
+It labels all results `stub`; do not compare these capacity measurements with
+real-provider smoke runs.
+
 DeepSeek reports input usage that includes message/protocol overhead not visible
 to the local character estimator. The default config therefore reserves a 128
 token input floor and settles the Provider-reported total afterwards. This is a

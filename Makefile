@@ -1,4 +1,4 @@
-.PHONY: dev test eval demo replay demo-report security-eval lint verify experiment streaming-consistency clean-db clean
+.PHONY: dev test eval demo replay demo-report security-eval lint verify experiment matrix streaming-consistency clean-db clean
 
 PYTHON ?= python
 
@@ -25,6 +25,9 @@ replay:
 
 experiment:
 	$(PYTHON) scripts/run_experiment.py --provider-mode stub --provider-name mock_fast --provider-model deterministic --config config/config.yaml
+
+matrix:
+	$(PYTHON) scripts/run_matrix.py --config config/config.yaml
 
 streaming-consistency:
 	$(PYTHON) scripts/check_streaming_consistency.py
