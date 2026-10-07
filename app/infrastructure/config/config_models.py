@@ -6,6 +6,7 @@ gateway can be configured to do. Parsing happens in AppConfig.from_dict.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,6 +37,7 @@ class TokenBudgetConfig:
 class ClientConfig:
     client_id: str = ""
     api_key: str = ""
+    api_key_hash: str = ""
     enabled: bool = True
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
     token_budget: TokenBudgetConfig = field(default_factory=TokenBudgetConfig)
@@ -182,7 +184,8 @@ class MetricsConfig:
 @dataclass
 class AdminConfig:
     enabled: bool = True
-    api_key: str = "admin-key"
+    api_key: str = ""
+    api_key_env: str = ""
 
 
 @dataclass
@@ -210,6 +213,7 @@ class GatewayConfig:
     environment: str = "local"
     default_profile: str = ""
     request_timeout_ms: int = 1500
+    tenant_mode: str = "single"
 
 
 @dataclass
@@ -257,7 +261,7 @@ class AppConfig:
         gw = raw.get("gateway", {})
         _reject_unknown(
             gw,
-            {"name", "environment", "default_profile", "request_timeout_ms"},
+            {"name", "environment", "default_profile", "request_timeout_ms", "tenant_mode"},
             "gateway",
         )
         gateway = GatewayConfig(
@@ -265,12 +269,14 @@ class AppConfig:
             environment=gw.get("environment", "local"),
             default_profile=gw.get("default_profile", ""),
             request_timeout_ms=gw.get("request_timeout_ms", 1500),
+            tenant_mode=gw.get("tenant_mode", "single"),
         )
 
         clients = [
             ClientConfig(
                 client_id=c.get("client_id", ""),
                 api_key=c.get("api_key", ""),
+                api_key_hash=c.get("api_key_hash", ""),
                 enabled=c.get("enabled", True),
                 rate_limit=RateLimitConfig(
                     requests_per_minute=c.get("rate_limit", {}).get("requests_per_minute", 60)
@@ -286,7 +292,14 @@ class AppConfig:
         for index, client_raw in enumerate(raw.get("clients", [])):
             _reject_unknown(
                 client_raw,
-                {"client_id", "api_key", "enabled", "rate_limit", "token_budget"},
+                {
+                    "client_id",
+                    "api_key",
+                    "api_key_hash",
+                    "enabled",
+                    "rate_limit",
+                    "token_budget",
+                },
                 f"clients[{index}]",
             )
             _reject_unknown(
@@ -498,10 +511,11 @@ class AppConfig:
         )
 
         ad = raw.get("admin", {})
-        _reject_unknown(ad, {"enabled", "api_key"}, "admin")
+        _reject_unknown(ad, {"enabled", "api_key", "api_key_env"}, "admin")
         admin = AdminConfig(
             enabled=ad.get("enabled", True),
-            api_key=ad.get("api_key", "admin-key"),
+            api_key=ad.get("api_key", ""),
+            api_key_env=ad.get("api_key_env", ""),
         )
 
         ob = raw.get("observability", {})
@@ -549,6 +563,11 @@ class AppConfig:
     def validate(self, *, check_references: bool = True) -> None:
         if self.gateway.request_timeout_ms <= 0:
             raise ConfigValidationError("gateway.request_timeout_ms must be positive")
+        if self.gateway.tenant_mode != "single":
+            raise ConfigValidationError(
+                "This release supports only gateway.tenant_mode='single'; "
+                "deploy one stack per tenant"
+            )
         if (
             check_references
             and self.gateway.default_profile
@@ -559,7 +578,11 @@ class AppConfig:
             )
         supported_provider_types = {"mock", "fake_static", "openai_compatible"}
         client_ids = [client.client_id for client in self.clients]
-        api_keys = [client.api_key for client in self.clients if client.enabled and client.api_key]
+        api_keys = [
+            client.api_key_hash or hashlib.sha256(client.api_key.encode()).hexdigest()
+            for client in self.clients
+            if client.enabled and (client.api_key or client.api_key_hash)
+        ]
         if len(client_ids) != len(set(client_ids)):
             raise ConfigValidationError("Duplicate client_id values are not allowed")
         if len(api_keys) != len(set(api_keys)):
@@ -567,6 +590,15 @@ class AppConfig:
         for client in self.clients:
             if not client.client_id:
                 raise ConfigValidationError("client_id must not be empty")
+            if client.enabled and not (client.api_key or client.api_key_hash):
+                raise ConfigValidationError(f"Enabled client '{client.client_id}' has no API key")
+            if client.api_key_hash and (
+                len(client.api_key_hash) != 64
+                or any(char not in "0123456789abcdef" for char in client.api_key_hash.lower())
+            ):
+                raise ConfigValidationError(
+                    f"Client '{client.client_id}' api_key_hash must be a SHA-256 hex digest"
+                )
             if client.rate_limit.requests_per_minute < 0:
                 raise ConfigValidationError("requests_per_minute must not be negative")
             if client.token_budget.max_tokens < 0:
@@ -580,6 +612,21 @@ class AppConfig:
                 )
             if provider.type == "openai_compatible" and not provider.http.base_url:
                 raise ConfigValidationError(f"Provider '{provider_id}' requires http.base_url")
+        production = self.gateway.environment.lower() in {"production", "prod"}
+        if production:
+            if any(client.api_key for client in self.clients):
+                raise ConfigValidationError(
+                    "Production clients must use api_key_hash, never api_key"
+                )
+            if self.admin.api_key:
+                raise ConfigValidationError("Production admin key must use admin.api_key_env")
+            if self.admin.enabled and not self.admin.api_key_env:
+                raise ConfigValidationError("Production admin API requires admin.api_key_env")
+            if any(
+                provider.enabled and provider.http.api_key
+                for provider in self.providers.values()
+            ):
+                raise ConfigValidationError("Production provider keys must use http.api_key_env")
         allowed_retry = {"provider_timeout", "provider_failed", "provider_bad_status"}
         invalid_retry = sorted(set(self.retry.retry_on) - allowed_retry)
         if invalid_retry:

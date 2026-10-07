@@ -20,7 +20,7 @@ def _redact(value: Any) -> Any:
     if isinstance(value, dict):
         redacted = {}
         for key, val in value.items():
-            if key in {"api_key", "x-admin-key"}:
+            if key in {"api_key", "api_key_hash", "api_key_env", "x-admin-key"}:
                 redacted[key] = "***" if val else ""
             else:
                 redacted[key] = _redact(val)

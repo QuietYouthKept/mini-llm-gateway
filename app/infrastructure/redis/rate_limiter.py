@@ -51,5 +51,8 @@ class RedisRateLimiter:
             raise RateLimitBackendUnavailableError() from exc
         return RateLimitResult(bool(allowed), int(remaining), max(0, int(retry_after)))
 
+    def healthcheck(self) -> bool:
+        return bool(self._client.ping())
+
     def close(self) -> None:
         self._client.close()

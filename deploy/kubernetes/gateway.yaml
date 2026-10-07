@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mini-llm-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-llm-gateway
+  labels:
+    app.kubernetes.io/name: mini-llm-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mini-llm-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mini-llm-gateway
+    spec:
+      serviceAccountName: mini-llm-gateway
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: registry.example.com/mini-llm-gateway:REPLACE_WITH_DIGEST
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - secretRef:
+                name: mini-llm-gateway-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 10001
+      volumes:
+        - name: config
+          configMap:
+            name: mini-llm-gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mini-llm-gateway
+spec:
+  selector:
+    app.kubernetes.io/name: mini-llm-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mini-llm-gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mini-llm-gateway
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mini-llm-gateway-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mini-llm-gateway
+  policyTypes: [Egress]
+  egress:
+    # Replace this permissive bootstrap rule with approved database, Redis,
+    # DNS, OTLP, and provider-egress destinations for the target cluster.
+    - to:
+        - namespaceSelector: {}

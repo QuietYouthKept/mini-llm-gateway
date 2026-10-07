@@ -7,6 +7,7 @@ reload a matter of rebuilding the container.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from dataclasses import dataclass
 from math import ceil
@@ -18,6 +19,7 @@ from app.application.services.fallback_service import FallbackService
 from app.application.services.guardrail_service import GuardrailService
 from app.application.services.prompt_cache import PromptCache
 from app.application.services.rate_limiter import RateLimiter
+from app.application.services.readiness_service import ReadinessService
 from app.application.services.request_log_service import RequestLogService
 from app.application.services.routing_service import RoutingService
 from app.application.services.singleflight import SingleFlight
@@ -67,6 +69,7 @@ class AppContainer:
     redis_url: str = ""
     cache_backend: str = "local"
     otlp_endpoint: str = ""
+    readiness: ReadinessService | None = None
 
     async def close(self, seen: set[int] | None = None) -> None:
         """Close owned provider transports on application shutdown."""
@@ -122,7 +125,11 @@ def build_container(
     client_repository.sync(config.clients)
 
     clients_by_id = {c.client_id: c for c in config.clients if c.enabled}
-    clients_by_key = {c.api_key: c for c in config.clients if c.enabled and c.api_key}
+    clients_by_key = {
+        client.api_key_hash or hashlib.sha256(client.api_key.encode()).hexdigest(): client
+        for client in config.clients
+        if client.enabled and (client.api_key or client.api_key_hash)
+    }
 
     profiles = {
         pid: profile_config_to_domain(pid, cfg) for pid, cfg in config.model_profiles.items()
@@ -324,4 +331,5 @@ def build_container(
             "redis" if os.getenv("GW_CACHE_BACKEND", "local").lower() == "redis" else "local"
         ),
         otlp_endpoint=otlp_endpoint,
+        readiness=(previous.readiness if previous is not None else ReadinessService()),
     )

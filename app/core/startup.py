@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from app.core.container import AppContainer, build_container
 from app.core.logging import setup_logging
@@ -47,10 +48,17 @@ def bootstrap(
         )
     )
     if db_path.startswith(("postgresql://", "postgres://")):
-        from app.infrastructure.persistence.postgresql.connection import migrate
+        from app.infrastructure.persistence.postgresql.connection import schema_is_current
 
-        migrate(db_path)
-        logger.info("PostgreSQL migrations applied")
+        # Production migrations run as a separately authorised deployment job.
+        # Opt-in auto-migration is retained only for an explicit local workflow.
+        if os.getenv("GW_AUTO_MIGRATE", "").lower() == "true":
+            from app.infrastructure.persistence.postgresql.connection import migrate
+
+            migrate(db_path, app_version="1.0.0rc1")
+        if not schema_is_current(db_path):
+            raise RuntimeError("PostgreSQL schema is not ready; run scripts/migrate_postgres.py")
+        logger.info("PostgreSQL schema ledger verified")
     else:
         init_db(db_path)
         logger.info("SQLite database initialized at %s", db_path)

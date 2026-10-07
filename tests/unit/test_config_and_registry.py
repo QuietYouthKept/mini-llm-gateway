@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.domain.ports.provider_port import ProviderPort
-from app.infrastructure.config.config_models import AppConfig
+from app.infrastructure.config.config_models import AppConfig, ConfigValidationError
 from app.infrastructure.providers.provider_registry import build_provider_registry
 
 
@@ -108,6 +110,25 @@ def test_app_config_from_dict_defaults() -> None:
     assert config.clients == []
     assert config.providers == {}
     assert config.model_profiles == {}
+
+
+def test_production_rejects_plaintext_client_and_admin_keys() -> None:
+    with pytest.raises(ConfigValidationError, match="api_key_hash"):
+        AppConfig.from_dict(
+            {
+                "gateway": {"environment": "production"},
+                "clients": [{"client_id": "c", "api_key": "plaintext"}],
+                "admin": {"enabled": False},
+            }
+        )
+    with pytest.raises(ConfigValidationError, match="api_key_env"):
+        AppConfig.from_dict(
+            {
+                "gateway": {"environment": "production"},
+                "clients": [{"client_id": "c", "api_key_hash": "a" * 64}],
+                "admin": {"enabled": True},
+            }
+        )
 
 
 def test_build_provider_registry_creates_correct_instances() -> None:

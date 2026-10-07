@@ -43,5 +43,8 @@ class RedisPromptCache:
             px=self._ttl_ms,
         )
 
+    def healthcheck(self) -> bool:
+        return bool(self._client.ping())
+
     def close(self) -> None:
         self._client.close()

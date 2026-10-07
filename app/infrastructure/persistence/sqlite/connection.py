@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
+import time
 from pathlib import Path
 
 from app.infrastructure.persistence.sqlite.schema import SCHEMA_SQL, SCHEMA_VERSION
+
+
+def schema_checksum() -> str:
+    """Checksum the schema bundle recorded in the SQLite migration ledger."""
+    return hashlib.sha256(SCHEMA_SQL.encode("utf-8")).hexdigest()
 
 
 def get_connection(db_path: str) -> sqlite3.Connection:
@@ -69,13 +76,20 @@ def init_db(db_path: str) -> None:
         conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations ("
             "  version INTEGER PRIMARY KEY,"
-            "  applied_at TEXT NOT NULL DEFAULT (datetime('now'))"
+            "  checksum TEXT,"
+            "  applied_at TEXT NOT NULL DEFAULT (datetime('now')),"
+            "  app_version TEXT,"
+            "  duration_ms INTEGER"
             ")"
         )
+        _ensure_column(conn, "schema_migrations", "checksum", "checksum TEXT")
+        _ensure_column(conn, "schema_migrations", "app_version", "app_version TEXT")
+        _ensure_column(conn, "schema_migrations", "duration_ms", "duration_ms INTEGER")
         row = conn.execute("SELECT MAX(version) FROM schema_migrations").fetchone()
         current_version = row[0] if row and row[0] else 0
 
         if current_version < SCHEMA_VERSION:
+            started = time.monotonic()
             conn.executescript(SCHEMA_SQL)
             for table, column, ddl in _COLUMN_MIGRATIONS:
                 _ensure_column(conn, table, column, ddl)
@@ -88,9 +102,34 @@ def init_db(db_path: str) -> None:
                 "ON token_budget_reservations(state, expires_at)"
             )
             conn.execute(
-                "INSERT OR REPLACE INTO schema_migrations (version) VALUES (?)",
-                (SCHEMA_VERSION,),
+                """
+                INSERT OR REPLACE INTO schema_migrations
+                (version, checksum, app_version, duration_ms)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    SCHEMA_VERSION,
+                    schema_checksum(),
+                    "1.0.0rc1",
+                    int((time.monotonic() - started) * 1000),
+                ),
             )
             conn.commit()
+        else:
+            recorded = conn.execute(
+                "SELECT checksum FROM schema_migrations WHERE version = ?", (SCHEMA_VERSION,)
+            ).fetchone()
+            # Pre-ledger local databases are backfilled once. A populated but
+            # different checksum means the installed schema bundle changed
+            # without a migration version bump and must not receive traffic.
+            if recorded and recorded[0] and recorded[0] != schema_checksum():
+                raise RuntimeError("SQLite schema migration checksum mismatch")
+            if recorded and not recorded[0]:
+                conn.execute(
+                    "UPDATE schema_migrations SET checksum = ?, app_version = ?, duration_ms = 0 "
+                    "WHERE version = ?",
+                    (schema_checksum(), "1.0.0rc1", SCHEMA_VERSION),
+                )
+                conn.commit()
     finally:
         conn.close()

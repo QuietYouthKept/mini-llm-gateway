@@ -175,6 +175,9 @@ cache/audit/metrics/trace`.
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/health` | Health check |
+| GET | `/live` | Process-only liveness (does not call dependencies) |
+| GET | `/ready` | Traffic readiness: DB/schema, mandatory Redis rate limit, and usable Provider |
+| GET | `/health/dependencies` | Admin-only, secret-free dependency status |
 | POST | `/v1/chat` | Gateway-native chat (verbose governance metadata) |
 | POST | `/v1/chat/completions` | OpenAI-compatible chat completions |
 | GET | `/v1/requests/{request_id}` | Request audit trail (with attempt chain) |
@@ -184,7 +187,9 @@ cache/audit/metrics/trace`.
 | POST | `/admin/reconcile-budget-reservations` | Explicitly reclaim expired crash leases (admin key) |
 
 Auth: `Authorization: Bearer <api-key>` or `x-api-key`. Admin endpoints use
-`x-admin-key: admin-key` (default).
+`x-admin-key`. The checked-in static keys are **local-demo only**. Production
+rejects plaintext client/admin/provider keys: use `clients[].api_key_hash`,
+`admin.api_key_env`, and `providers.*.http.api_key_env`.
 
 ## Demo and evidence
 
@@ -248,6 +253,20 @@ Redis/PostgreSQL/OTel containers, and a fresh copied checkout. See
 The RC snapshot is [docs/releases/v1.0.0-rc1-evidence.md](docs/releases/v1.0.0-rc1-evidence.md).
 
 ## Security and known limitations
+
+- **Single-tenant release boundary**: `gateway.tenant_mode` is fixed to
+  `single`. Deploy one database, Redis namespace, domain, and KMS/secret scope
+  per organization. Shared multi-tenant operation is rejected rather than
+  pretending rows and cache keys are tenant isolated.
+- **Migration control plane**: PostgreSQL startup verifies an immutable
+  checksummed `schema_migrations` ledger; it does not run DDL automatically.
+  Run `GW_DATABASE_URL=... python scripts/migrate_postgres.py` as an explicit
+  one-shot deployment job. SQLite retains a local checksum ledger for demos.
+- **Deployment manifests**: `docker-compose.yml` is development-only. The
+  Kubernetes baseline in `deploy/kubernetes/gateway.yaml` uses non-root,
+  read-only filesystem, resource limits, PDB, NetworkPolicy, and `/ready` /
+  `/live` probes. Replace its image placeholder with a signed digest and make
+  the egress policy specific to the target cluster before applying it.
 
 - **Local-first defaults**: SQLite budget/audit works across local processes;
   in-process rate limit/cache/breakers do not. Redis rate limit/cache and

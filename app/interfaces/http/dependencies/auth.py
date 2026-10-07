@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import os
 import time
 from typing import Annotated
 
@@ -15,10 +18,25 @@ from app.interfaces.http.dependencies.container import get_container
 
 
 def _extract_key(request: Request) -> str:
-    auth = request.headers.get("Authorization", "")
+    authorization_values = request.headers.getlist("Authorization")
+    api_key_values = request.headers.getlist("x-api-key")
+    if len(authorization_values) > 1 or len(api_key_values) > 1:
+        return ""
+    auth = authorization_values[0] if authorization_values else ""
     if auth.startswith("Bearer "):
         return auth[len("Bearer ") :].strip()
-    return request.headers.get("x-api-key", "").strip()
+    return api_key_values[0].strip() if api_key_values else ""
+
+
+def _lookup_client(container: AppContainer, api_key: str) -> ClientConfig | None:
+    candidate = hashlib.sha256(api_key.encode()).hexdigest()
+    # Compare every configured digest so an authentication failure does not
+    # reveal which key ID exists through a fast dictionary miss.
+    matched: ClientConfig | None = None
+    for digest, client in container.clients_by_key.items():
+        if hmac.compare_digest(candidate, digest):
+            matched = client
+    return matched
 
 
 async def require_api_key(
@@ -29,7 +47,7 @@ async def require_api_key(
     try:
         with container.tracer.span("auth.duration"):
             api_key = _extract_key(request)
-            client = container.clients_by_key.get(api_key) if api_key else None
+            client = _lookup_client(container, api_key) if api_key else None
             if client is None:
                 container.gateway_metrics.auth_failed.inc()
                 raise AuthFailedError(request_id=get_request_id())
@@ -44,6 +62,8 @@ async def require_admin(
 ) -> None:
     if not container.config.admin.enabled:
         raise AuthFailedError(message="Admin API is disabled", request_id=get_request_id())
-    provided = request.headers.get("x-admin-key", "").strip()
-    if provided != container.config.admin.api_key:
+    values = request.headers.getlist("x-admin-key")
+    provided = values[0].strip() if len(values) == 1 else ""
+    expected = container.config.admin.api_key or os.getenv(container.config.admin.api_key_env, "")
+    if not expected or not hmac.compare_digest(provided, expected):
         raise AuthFailedError(message="Invalid admin key", request_id=get_request_id())

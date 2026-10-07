@@ -9,3 +9,5 @@ services:
     environment:
       - GW_ENVIRONMENT=local
       - GW_LOG_LEVEL=INFO
+    # Development only. Production uses deploy/kubernetes/gateway.yaml with
+    # external PostgreSQL, Redis, secret references, and /ready probes.

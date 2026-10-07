@@ -8,6 +8,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gateway
+          POSTGRES_PASSWORD: gateway
+          POSTGRES_DB: gateway
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gateway -d gateway"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     strategy:
       matrix:
         python-version: ["3.11"]
@@ -19,13 +36,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" pip-audit
+        run: pip install -e ".[dev,production]" pip-audit
 
       - name: Lint
         run: ruff check .
 
-      - name: Test
-        run: pytest -q
+      - name: Test with branch coverage gate
+        run: pytest -q --cov=app --cov-branch --cov-fail-under=80
+
+      - name: PostgreSQL integration gate
+        run: python scripts/postgres_integration_probe.py --database-url postgresql://gateway:gateway@localhost:5432/gateway
 
       - name: Streaming consistency
         run: python scripts/check_streaming_consistency.py
@@ -41,3 +61,8 @@ jobs:
         # Audit every resolved third-party dependency while excluding only the
         # local editable project; discovered vulnerabilities still fail CI.
         run: pip-audit --skip-editable
+
+      - name: Repository hygiene gate
+        run: |
+          test -z "$(git ls-files | grep -E '(^|/)(__pycache__/|.*\.pyc$|.*\.egg-info/|data/.*\.db$|\.reasonix/)')"
+          git diff --check

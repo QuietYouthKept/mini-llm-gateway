@@ -2,6 +2,9 @@ gateway:
   name: mini-llm-gateway
   environment: local
   default_profile: fast-chat
+  # This release is deliberately single-tenant. Do not point multiple
+  # organizations at one deployment/database/Redis namespace.
+  tenant_mode: single
   # A real internet Provider needs more headroom than deterministic local mocks.
   request_timeout_ms: 5000
 
