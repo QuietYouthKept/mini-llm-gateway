@@ -60,9 +60,7 @@ class OpenTelemetryTraceRecorder(TraceRecorder):
         self._provider = TracerProvider(
             resource=Resource.create({"service.name": "mini-llm-gateway"})
         )
-        self._provider.add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-        )
+        self._provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
         self._otel_tracer = self._provider.get_tracer("mini-llm-gateway")
 
     @contextmanager

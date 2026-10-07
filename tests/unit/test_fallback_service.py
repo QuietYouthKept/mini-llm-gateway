@@ -38,10 +38,7 @@ def make_profile(
         profile_id=profile_id,
         routing=RoutingConfig(
             strategy="priority",
-            candidates=[
-                RoutingCandidate(provider=p, priority=i + 1)
-                for i, p in enumerate(chain)
-            ],
+            candidates=[RoutingCandidate(provider=p, priority=i + 1) for i, p in enumerate(chain)],
         ),
         fallback=FallbackConfig(
             enabled=fallback_enabled,
@@ -53,6 +50,7 @@ def make_profile(
 
 # ── success path (happy) ──
 
+
 @pytest.mark.asyncio
 async def test_fallback_first_provider_succeeds() -> None:
     registry = {
@@ -63,9 +61,7 @@ async def test_fallback_first_provider_succeeds() -> None:
     profile = make_profile(fallback_chain=["mock_fast"])
     candidates = routing.resolve_candidates(profile)
 
-    response, attempts = await service.execute(
-        make_request("hi"), profile, candidates
-    )
+    response, attempts = await service.execute(make_request("hi"), profile, candidates)
 
     assert response.provider_id == "mock_fast"
     assert len(attempts) == 1
@@ -74,6 +70,7 @@ async def test_fallback_first_provider_succeeds() -> None:
 
 
 # ── fallback chain: first fails, second succeeds ──
+
 
 @pytest.mark.asyncio
 async def test_fallback_first_error_second_succeeds() -> None:
@@ -86,9 +83,7 @@ async def test_fallback_first_error_second_succeeds() -> None:
     profile = make_profile(fallback_chain=["mock_error", "mock_stable"])
     candidates = routing.resolve_candidates(profile)
 
-    response, attempts = await service.execute(
-        make_request("test"), profile, candidates
-    )
+    response, attempts = await service.execute(make_request("test"), profile, candidates)
 
     assert response.provider_id == "mock_stable"
     assert len(attempts) == 2
@@ -99,6 +94,7 @@ async def test_fallback_first_error_second_succeeds() -> None:
 
 
 # ── fallback with timeout ──
+
 
 @pytest.mark.asyncio
 async def test_fallback_timeout_falls_to_next() -> None:
@@ -112,9 +108,7 @@ async def test_fallback_timeout_falls_to_next() -> None:
     profile = make_profile(fallback_chain=["mock_slow", "mock_fast"])
     candidates = routing.resolve_candidates(profile)
 
-    response, attempts = await service.execute(
-        make_request("test"), profile, candidates
-    )
+    response, attempts = await service.execute(make_request("test"), profile, candidates)
 
     assert response.provider_id == "mock_fast"
     assert len(attempts) == 2
@@ -124,6 +118,7 @@ async def test_fallback_timeout_falls_to_next() -> None:
 
 
 # ── fake_static as last resort ──
+
 
 @pytest.mark.asyncio
 async def test_fallback_fake_static_last_resort() -> None:
@@ -135,14 +130,10 @@ async def test_fallback_fake_static_last_resort() -> None:
     }
     service = FallbackService(registry)
     routing = RoutingService()
-    profile = make_profile(
-        fallback_chain=["mock_error", "mock_slow", "fake_static"]
-    )
+    profile = make_profile(fallback_chain=["mock_error", "mock_slow", "fake_static"])
     candidates = routing.resolve_candidates(profile)
 
-    response, attempts = await service.execute(
-        make_request("last resort"), profile, candidates
-    )
+    response, attempts = await service.execute(make_request("last resort"), profile, candidates)
 
     assert response.provider_id == "fake_static"
     assert len(attempts) == 3
@@ -152,6 +143,7 @@ async def test_fallback_fake_static_last_resort() -> None:
 
 
 # ── fallback exhausted ──
+
 
 @pytest.mark.asyncio
 async def test_fallback_exhausted_raises_error() -> None:
@@ -172,6 +164,7 @@ async def test_fallback_exhausted_raises_error() -> None:
 
 # ── fallback disabled: only first candidate tried ──
 
+
 @pytest.mark.asyncio
 async def test_fallback_disabled_stops_after_first() -> None:
     registry = {
@@ -185,12 +178,11 @@ async def test_fallback_disabled_stops_after_first() -> None:
     )
 
     with pytest.raises(FallbackExhaustedError):
-        await service.execute(
-            make_request("nofallback"), profile, ["mock_error", "mock_fast"]
-        )
+        await service.execute(make_request("nofallback"), profile, ["mock_error", "mock_fast"])
 
 
 # ── unknown provider in chain ──
+
 
 @pytest.mark.asyncio
 async def test_fallback_unknown_provider_skipped() -> None:
@@ -202,9 +194,7 @@ async def test_fallback_unknown_provider_skipped() -> None:
     profile = make_profile(fallback_chain=["ghost", "mock_fast"])
     candidates = routing.resolve_candidates(profile)
 
-    response, attempts = await service.execute(
-        make_request("ghost"), profile, candidates
-    )
+    response, attempts = await service.execute(make_request("ghost"), profile, candidates)
 
     assert response.provider_id == "mock_fast"
     assert len(attempts) == 2
@@ -214,6 +204,7 @@ async def test_fallback_unknown_provider_skipped() -> None:
 
 
 # ── attempt chain contains all metadata ──
+
 
 @pytest.mark.asyncio
 async def test_fallback_attempts_have_correct_order() -> None:
@@ -226,9 +217,7 @@ async def test_fallback_attempts_have_correct_order() -> None:
     profile = make_profile(fallback_chain=["mock_error", "mock_fast"])
     candidates = routing.resolve_candidates(profile)
 
-    _, attempts = await service.execute(
-        make_request("order"), profile, candidates
-    )
+    _, attempts = await service.execute(make_request("order"), profile, candidates)
 
     assert attempts[0].attempt_order == 0
     assert attempts[1].attempt_order == 1

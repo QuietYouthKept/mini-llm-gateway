@@ -5,9 +5,7 @@ from __future__ import annotations
 import contextvars
 import uuid
 
-request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "request_id", default=""
-)
+request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
 
 
 def set_request_id(request_id: str) -> None:

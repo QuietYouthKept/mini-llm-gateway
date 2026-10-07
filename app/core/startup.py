@@ -29,9 +29,7 @@ def bootstrap(
     config = load_config(path)
     setup_logging(level=settings.log_level, structured=config.observability.structured_json_logs)
 
-    logger.info(
-        "Bootstrapping %s in %s mode", config.gateway.name, config.gateway.environment
-    )
+    logger.info("Bootstrapping %s in %s mode", config.gateway.name, config.gateway.environment)
     logger.info(
         "Config loaded: %d clients, %d providers, %d model profiles",
         len(config.clients),

@@ -19,6 +19,10 @@ class GatewayMetrics:
         self.provider_latency = registry.histogram(
             "provider_attempt_duration_seconds", "Provider attempt latency in seconds."
         )
+        self.phase_duration = registry.histogram(
+            "phase_duration_seconds",
+            "Duration of a bounded gateway lifecycle phase in seconds.",
+        )
         self.fallbacks = registry.counter(
             "fallback_count_total", "Requests that used a non-primary provider."
         )
@@ -41,20 +45,14 @@ class GatewayMetrics:
             "circuit_open",
             "Circuit breaker state per provider (0 closed, 1 open, 2 half-open).",
         )
-        self.cache_hits = registry.counter(
-            "cache_hits_total", "Exact prompt-cache hits."
-        )
-        self.cache_misses = registry.counter(
-            "cache_misses_total", "Exact prompt-cache misses."
-        )
+        self.cache_hits = registry.counter("cache_hits_total", "Exact prompt-cache hits.")
+        self.cache_misses = registry.counter("cache_misses_total", "Exact prompt-cache misses.")
         self.cost_saved = registry.counter(
             "estimated_cost_saved_usd_total",
             "Estimated provider cost avoided by cache hits, in USD.",
         )
         self.retries = registry.counter("retry_count_total", "Retried provider attempts.")
-        self.audit_failures = registry.counter(
-            "audit_failures_total", "Audit writes that failed."
-        )
+        self.audit_failures = registry.counter("audit_failures_total", "Audit writes that failed.")
         self.redis_failures = registry.counter(
             "redis_failures_total", "Redis cache, singleflight, or limiter operation failures."
         )
@@ -70,6 +68,10 @@ class GatewayMetrics:
     def record_attempt(self, provider: str, status: str, latency_ms: int) -> None:
         self.provider_attempts.inc(labels=[("provider", provider), ("status", status)])
         self.provider_latency.observe(latency_ms / 1000.0, labels=[("provider", provider)])
+
+    def record_phase(self, phase: str, duration_s: float) -> None:
+        """Record one of the fixed, low-cardinality request lifecycle phases."""
+        self.phase_duration.observe(max(0.0, duration_s), labels=[("phase", phase)])
 
     def record_tokens(self, client: str, kind: str, count: int) -> None:
         if count:

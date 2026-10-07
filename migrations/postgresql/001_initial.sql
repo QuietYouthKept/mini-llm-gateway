@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS provider_attempts (
     latency_ms integer,
     error_code text,
     error_message text,
+    provider_request_id text,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 

@@ -17,6 +17,7 @@ class AttemptDetail:
     latency_ms: int
     error_code: str = ""
     error_message: str = ""
+    provider_request_id: str = ""
 
     @classmethod
     def from_attempt(cls, attempt: ProviderAttempt) -> AttemptDetail:
@@ -28,6 +29,7 @@ class AttemptDetail:
             latency_ms=attempt.latency_ms,
             error_code=attempt.error_code,
             error_message=attempt.error_message,
+            provider_request_id=attempt.provider_request_id,
         )
 
 

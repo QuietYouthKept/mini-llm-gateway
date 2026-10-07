@@ -54,10 +54,7 @@ def make_profile(chain: list[str]) -> ModelProfile:
         profile_id="test",
         routing=RoutingConfig(
             strategy="priority",
-            candidates=[
-                RoutingCandidate(provider=p, priority=i + 1)
-                for i, p in enumerate(chain)
-            ],
+            candidates=[RoutingCandidate(provider=p, priority=i + 1) for i, p in enumerate(chain)],
         ),
         fallback=FallbackConfig(enabled=True, trigger_on=[], chain=chain),
     )
@@ -69,9 +66,7 @@ async def test_fallback_survives_unexpected_provider_error() -> None:
     service = FallbackService(registry)
     profile = make_profile(["exploding", "mock_fast"])
 
-    response, attempts = await service.execute(
-        make_request(), profile, ["exploding", "mock_fast"]
-    )
+    response, attempts = await service.execute(make_request(), profile, ["exploding", "mock_fast"])
 
     assert response.provider_id == "mock_fast"
     assert attempts[0].status == "error"

@@ -1,0 +1,51 @@
+{
+  "requests": 4,
+  "successful_requests": 4,
+  "success_rate": 1.0,
+  "elapsed_seconds": 0.437,
+  "rps": 9.153,
+  "status_distribution": {
+    "200": 4
+  },
+  "error_distribution": {},
+  "latency_ms": {
+    "mean": 62.5,
+    "p50": 62.0,
+    "p95": 78.0,
+    "p99": 78.0
+  },
+  "provider_duration_ms": {
+    "mean": 42,
+    "p50": 46,
+    "p95": 46,
+    "p99": 46
+  },
+  "gateway_overhead_ms": {
+    "mean": 20.5,
+    "p50": 17.0,
+    "p95": 32.0,
+    "p99": 32.0
+  },
+  "client_queue_wait_ms": {
+    "p50": 78.0,
+    "p95": 203.0,
+    "p99": 203.0
+  },
+  "provider_queue_wait": "not implemented: providers are called directly; inspect provider.queue_wait trace spans",
+  "provider_calls_per_api_request": 1.0,
+  "retry_amplification_ratio": 0.0,
+  "cache": {
+    "hit_ratio": 0.0,
+    "estimated_cost_saved_usd": 0.0
+  },
+  "estimated_cost_usd": 0.000135,
+  "streaming": {
+    "ttft_ms": {
+      "p50": 47.0,
+      "p95": 63.0
+    },
+    "chunk_count": 4,
+    "inter_chunk_p95_ms": 0.0,
+    "client_disconnects": 4
+  }
+}

@@ -77,10 +77,7 @@ class TokenBudgetService:
                     f"estimated {estimated_tokens} tokens, {snap.remaining_tokens} remaining"
                 )
             )
-        if (
-            client.token_budget.max_cost_usd > 0
-            and estimated_cost_usd > snap.remaining_cost_usd
-        ):
+        if client.token_budget.max_cost_usd > 0 and estimated_cost_usd > snap.remaining_cost_usd:
             raise TokenBudgetExceededError(
                 message=f"Cost budget exceeded for client '{client.client_id}'"
             )
@@ -108,8 +105,7 @@ class TokenBudgetService:
         if not allowed:
             raise TokenBudgetExceededError(
                 message=(
-                    f"Token/cost budget cannot reserve request for client "
-                    f"'{client.client_id}'"
+                    f"Token/cost budget cannot reserve request for client '{client.client_id}'"
                 )
             )
         return self.snapshot(client)

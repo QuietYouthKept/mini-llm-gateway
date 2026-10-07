@@ -32,7 +32,6 @@ class TokenEstimator:
 
     def cost_usd(self, input_tokens: int, output_tokens: int) -> float:
         return round(
-            (input_tokens / 1000.0) * self._cost_in
-            + (output_tokens / 1000.0) * self._cost_out,
+            (input_tokens / 1000.0) * self._cost_in + (output_tokens / 1000.0) * self._cost_out,
             6,
         )

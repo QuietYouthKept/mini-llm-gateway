@@ -1,0 +1,9 @@
+sequence,started_at,request_id,status_code,latency_ms,client_queue_wait_ms,provider,provider_duration_ms,gateway_overhead_ms,provider_attempts,provider_request_ids,retry_count,cache_hit,estimated_cost_usd,error_code,input_tokens_target,output_tokens_target,ttft_ms,chunk_count,inter_chunk_p95_ms,disconnected
+0,2026-10-06T10:23:13.190230+00:00,a22a1fe28e4849f4bca42bf2835d42c8,200,94.0,0.0,,0,94.0,0,[],0,False,0.0,,128,16,78.0,4,16.0,False
+1,2026-10-06T10:23:13.197139+00:00,d0813253004d4ed09a0cc75ec900d549,200,78.0,0.0,,0,78.0,0,[],0,False,0.0,,8,64,62.0,6,16.0,False
+2,2026-10-06T10:23:13.284815+00:00,41043b1c2b644c08b2638b21bf999aac,200,78.0,78.0,,0,78.0,0,[],0,False,0.0,,8,16,62.0,4,16.0,False
+3,2026-10-06T10:23:13.286731+00:00,f2c80d4ca0cb47158e0dd33abb06983d,200,78.0,78.0,,0,78.0,0,[],0,False,0.0,,8,16,62.0,4,16.0,False
+4,2026-10-06T10:23:13.361842+00:00,f443de93a6f04dd5bab5d8bf9e57ff57,200,78.0,156.0,,0,78.0,0,[],0,False,0.0,,128,16,62.0,4,16.0,False
+5,2026-10-06T10:23:13.362868+00:00,f5b014efb734442281ad5ac24026c28c,200,78.0,156.0,,0,78.0,0,[],0,False,0.0,,128,64,62.0,16,16.0,False
+6,2026-10-06T10:23:13.438276+00:00,9e33d7aabb4a4a18969dcd7dac8c2cd2,200,62.0,234.0,,0,62.0,0,[],0,False,0.0,,8,16,47.0,4,15.0,False
+7,2026-10-06T10:23:13.440275+00:00,28bc5a56861848928286bc07dfa96acc,200,62.0,234.0,,0,62.0,0,[],0,False,0.0,,8,16,47.0,4,15.0,False

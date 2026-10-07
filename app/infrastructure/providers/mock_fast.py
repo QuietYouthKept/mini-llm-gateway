@@ -11,7 +11,8 @@ class MockFastProvider(BaseMockProvider):
         super().__init__(
             provider_id="mock_fast",
             provider_type=ProviderType.MOCK.value,
-            behavior=behavior or ProviderBehavior(
+            behavior=behavior
+            or ProviderBehavior(
                 latency_ms=80,
                 error_rate=0.0,
                 timeout_ms=1000,

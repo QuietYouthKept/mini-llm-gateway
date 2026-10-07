@@ -27,6 +27,7 @@ class GatewayError(Exception):
 
 # ── Gateway-level errors ──
 
+
 class AuthFailedError(GatewayError):
     def __init__(self, message: str = "Authentication failed", **kwargs: object) -> None:
         super().__init__(error_code="auth_failed", message=message, **kwargs)
@@ -126,9 +127,7 @@ class RequestDeadlineExceededError(GatewayError):
     def __init__(
         self, message: str = "Overall request deadline exceeded", **kwargs: object
     ) -> None:
-        super().__init__(
-            error_code="request_timeout", message=message, retryable=False, **kwargs
-        )
+        super().__init__(error_code="request_timeout", message=message, retryable=False, **kwargs)
 
 
 class ReplayUnavailableError(GatewayError):
@@ -139,6 +138,7 @@ class ReplayUnavailableError(GatewayError):
 
 
 # ── Provider-level errors ──
+
 
 class ProviderTimeoutError(GatewayError):
     def __init__(self, provider_id: str, **kwargs: object) -> None:

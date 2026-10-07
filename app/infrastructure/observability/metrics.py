@@ -48,9 +48,7 @@ class _Gauge(_Counter):
 class _Histogram:
     def __init__(self, buckets: tuple[float, ...]) -> None:
         self._buckets = tuple(buckets)
-        self._counts: dict[tuple, dict[float, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
+        self._counts: dict[tuple, dict[float, int]] = defaultdict(lambda: defaultdict(int))
         self._sums: dict[tuple, float] = defaultdict(float)
         self._count_total: dict[tuple, int] = defaultdict(int)
         self._lock = threading.Lock()
@@ -69,9 +67,7 @@ class _Histogram:
             out: list[tuple[str, tuple, float]] = []
             for key, total in self._count_total.items():
                 for b in self._buckets:
-                    out.append(
-                        ("bucket", key + ((("le", str(b)),)), float(self._counts[key][b]))
-                    )
+                    out.append(("bucket", key + ((("le", str(b)),)), float(self._counts[key][b])))
                 out.append(("bucket", key + ((("le", "+Inf"),)), float(total)))
                 out.append(("sum", key, self._sums[key]))
                 out.append(("count", key, float(total)))

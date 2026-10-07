@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS provider_attempts (
     latency_ms    INTEGER,
     error_code    TEXT,
     error_message TEXT,
+    provider_request_id TEXT,
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

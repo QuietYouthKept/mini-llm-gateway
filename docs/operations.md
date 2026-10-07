@@ -18,6 +18,13 @@ alerting. The budget-leak alert is enabled by emitting a reconciliation result
 from the maintenance job; it is intentionally not inferred from a request-path
 scan.
 
+Import `deploy/grafana/mini-llm-gateway-dashboard.json` into Grafana and select
+the Prometheus data source. It demonstrates the SLO signals above alongside
+provider latency, phase-level gateway latency, retry amplification, cache hit
+ratio, and budget lease recovery. The included alert rules cover the three
+operator drills: sustained provider failure/timeout, budget or audit storage
+failure, and Redis-dependent operation failure.
+
 ## State and failure matrix
 
 | State | Backend | Scope | Failure behavior |

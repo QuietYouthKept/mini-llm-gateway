@@ -14,7 +14,8 @@ class FakeStaticProvider(BaseMockProvider):
         super().__init__(
             provider_id="fake_static",
             provider_type=ProviderType.FAKE_STATIC.value,
-            behavior=behavior or ProviderBehavior(
+            behavior=behavior
+            or ProviderBehavior(
                 latency_ms=20,
                 error_rate=0.0,
                 timeout_ms=1000,

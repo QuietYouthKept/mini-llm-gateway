@@ -11,7 +11,8 @@ class MockSlowProvider(BaseMockProvider):
         super().__init__(
             provider_id="mock_slow",
             provider_type=ProviderType.MOCK.value,
-            behavior=behavior or ProviderBehavior(
+            behavior=behavior
+            or ProviderBehavior(
                 latency_ms=2000,
                 error_rate=0.0,
                 timeout_ms=1000,

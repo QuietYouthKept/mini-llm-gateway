@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from math import ceil
 from typing import Any
 
 from app.application.services.chat_service import ChatService
@@ -124,8 +125,7 @@ def build_container(
     clients_by_key = {c.api_key: c for c in config.clients if c.enabled and c.api_key}
 
     profiles = {
-        pid: profile_config_to_domain(pid, cfg)
-        for pid, cfg in config.model_profiles.items()
+        pid: profile_config_to_domain(pid, cfg) for pid, cfg in config.model_profiles.items()
     }
 
     providers = (
@@ -146,7 +146,17 @@ def build_container(
         )
     else:
         rate_limiter = RateLimiter()
-    budget_service = TokenBudgetService(budget_repository)
+    # The lease must outlive the request deadline. The small wall-clock buffer
+    # prevents a maintenance reconciler from reclaiming a still-active request
+    # at the boundary between the monotonic request timeout and DB time.
+    reservation_lease_seconds = max(
+        30,
+        ceil(config.gateway.request_timeout_ms / 1000) + 5,
+    )
+    budget_service = TokenBudgetService(
+        budget_repository,
+        reservation_lease_seconds=reservation_lease_seconds,
+    )
     estimator = TokenEstimator(
         chars_per_token=config.token_estimation.chars_per_token,
         min_tokens=config.token_estimation.min_tokens,
@@ -173,6 +183,13 @@ def build_container(
             max_spans=config.observability.max_spans,
         )
 
+    if previous is not None and previous.config.metrics.prefix == config.metrics.prefix:
+        metrics_registry = previous.metrics_registry
+        gateway_metrics = previous.gateway_metrics
+    else:
+        metrics_registry = MetricsRegistry(prefix=config.metrics.prefix)
+        gateway_metrics = GatewayMetrics(metrics_registry)
+
     circuit_breakers: dict[str, CircuitBreaker] = {}
     if config.circuit_breaker.enabled:
         for provider_id in providers:
@@ -196,11 +213,10 @@ def build_container(
         retry_on=config.retry.retry_on,
         request_timeout_ms=config.gateway.request_timeout_ms,
         tracer=tracer,
+        metrics=gateway_metrics,
     )
 
     guardrails = GuardrailService(config.guardrails)
-    log_service = RequestLogService(request_repository, config.logging)
-
     cache: PromptCachePort | None = None
     redis_cache = False
     if config.cache.enabled:
@@ -233,12 +249,12 @@ def build_container(
         else:
             cache = PromptCache(max_entries=config.cache.max_entries, ttl_ms=config.cache.ttl_ms)
 
-    if previous is not None and previous.config.metrics.prefix == config.metrics.prefix:
-        metrics_registry = previous.metrics_registry
-        gateway_metrics = previous.gateway_metrics
-    else:
-        metrics_registry = MetricsRegistry(prefix=config.metrics.prefix)
-        gateway_metrics = GatewayMetrics(metrics_registry)
+    log_service = RequestLogService(
+        request_repository,
+        config.logging,
+        tracer=tracer,
+        metrics=gateway_metrics,
+    )
     singleflight = previous.singleflight if previous is not None else SingleFlight()
     distributed_singleflight = None
     if cache is not None and redis_cache:
@@ -305,9 +321,7 @@ def build_container(
         tracer=tracer,
         redis_url=redis_url,
         cache_backend=(
-            "redis"
-            if os.getenv("GW_CACHE_BACKEND", "local").lower() == "redis"
-            else "local"
+            "redis" if os.getenv("GW_CACHE_BACKEND", "local").lower() == "redis" else "local"
         ),
         otlp_endpoint=otlp_endpoint,
     )

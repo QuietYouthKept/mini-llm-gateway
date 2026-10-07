@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -24,12 +25,17 @@ async def require_api_key(
     request: Request,
     container: Annotated[AppContainer, Depends(get_container)],
 ) -> ClientConfig:
-    api_key = _extract_key(request)
-    client = container.clients_by_key.get(api_key) if api_key else None
-    if client is None:
-        container.gateway_metrics.auth_failed.inc()
-        raise AuthFailedError(request_id=get_request_id())
-    return client
+    started = time.monotonic()
+    try:
+        with container.tracer.span("auth.duration"):
+            api_key = _extract_key(request)
+            client = container.clients_by_key.get(api_key) if api_key else None
+            if client is None:
+                container.gateway_metrics.auth_failed.inc()
+                raise AuthFailedError(request_id=get_request_id())
+            return client
+    finally:
+        container.gateway_metrics.record_phase("auth.duration", time.monotonic() - started)
 
 
 async def require_admin(

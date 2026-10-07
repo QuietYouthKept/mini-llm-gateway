@@ -15,21 +15,20 @@ def make_profile(candidates: list[tuple[str, int]]) -> ModelProfile:
         profile_id="test-profile",
         routing=RoutingConfig(
             strategy="priority",
-            candidates=[
-                RoutingCandidate(provider=pid, priority=p)
-                for pid, p in candidates
-            ],
+            candidates=[RoutingCandidate(provider=pid, priority=p) for pid, p in candidates],
         ),
     )
 
 
 def test_priority_routing_sorts_by_priority() -> None:
     service = RoutingService()
-    profile = make_profile([
-        ("c", 3),
-        ("a", 1),
-        ("b", 2),
-    ])
+    profile = make_profile(
+        [
+            ("c", 3),
+            ("a", 1),
+            ("b", 2),
+        ]
+    )
     result = service.resolve_candidates(profile)
     assert result == ["a", "b", "c"]
 
@@ -50,11 +49,13 @@ def test_priority_routing_empty_candidates() -> None:
 
 def test_priority_routing_same_priority_preserves_order() -> None:
     service = RoutingService()
-    profile = make_profile([
-        ("x", 1),
-        ("y", 1),
-        ("z", 1),
-    ])
+    profile = make_profile(
+        [
+            ("x", 1),
+            ("y", 1),
+            ("z", 1),
+        ]
+    )
     result = service.resolve_candidates(profile)
     assert len(result) == 3
     assert set(result) == {"x", "y", "z"}

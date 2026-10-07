@@ -33,6 +33,7 @@ class ChatCompletionsRequestIn(BaseModel):
 
 # ── verbose (debug) response for /v1/chat ──
 
+
 class AttemptOut(BaseModel):
     provider_id: str
     attempt_order: int
@@ -41,6 +42,7 @@ class AttemptOut(BaseModel):
     latency_ms: int = 0
     error_code: str = ""
     error_message: str = ""
+    provider_request_id: str | None = None
 
 
 class ChatResponseOut(BaseModel):
@@ -69,6 +71,7 @@ class ChatResponseOut(BaseModel):
 
 
 # ── OpenAI-compatible response for /v1/chat/completions ──
+
 
 class CompletionMessage(BaseModel):
     role: str = "assistant"

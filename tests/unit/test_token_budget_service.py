@@ -127,3 +127,22 @@ def test_reconcile_reclaims_only_expired_reserved_rows(tmp_path) -> None:
     assert service.reconcile_expired_reservations() == 0
     assert service.snapshot(client).reserved_tokens == 0
     assert service.snapshot(client).used_tokens == 20
+
+
+def test_expired_reservation_cannot_settle_before_maintenance_runs(tmp_path) -> None:
+    db = str(tmp_path / "expired-settlement.db")
+    init_db(db)
+    client = make_client(100)
+    ClientRepository(db).sync([client])
+    service = TokenBudgetService(TokenBudgetRepository(db), reservation_lease_seconds=1)
+    service.reserve("expired", client, 40)
+    with get_connection(db) as conn:
+        conn.execute(
+            "UPDATE token_budget_reservations SET expires_at = datetime('now', '-1 second') "
+            "WHERE reservation_id = 'expired'"
+        )
+        conn.commit()
+    with pytest.raises(BudgetSettlementExceededError):
+        service.settle("expired", client, 20, 0.0)
+    assert service.snapshot(client).used_tokens == 0
+    assert service.snapshot(client).reserved_tokens == 0

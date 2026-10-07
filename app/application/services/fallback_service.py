@@ -13,6 +13,7 @@ import logging
 import random
 import time
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from app.application.services.circuit_breaker import CircuitBreaker
 from app.application.services.failure_policy import FailurePolicy
@@ -60,6 +61,7 @@ class FallbackService:
         clock: Callable[[], float] = time.monotonic,
         sleeper: Callable[[float], Awaitable[None]] = asyncio.sleep,
         tracer: TraceRecorder | None = None,
+        metrics: Any | None = None,
     ) -> None:
         self._registry = provider_registry
         self._circuit_breakers = circuit_breakers or {}
@@ -71,6 +73,7 @@ class FallbackService:
         self._clock = clock
         self._sleep = sleeper
         self._tracer = tracer or TraceRecorder(enabled=False)
+        self._metrics = metrics
 
     async def execute(
         self,
@@ -156,14 +159,31 @@ class FallbackService:
                 )
                 return None, attempts, True
 
+            # Providers are invoked directly today, so queue wait is intentionally
+            # measured as the time to enter the call rather than inventing a queue.
+            # A future bounded provider pool can keep this span and report a real wait.
+            queue_started = self._clock()
             with self._tracer.span(
-                "provider.attempt",
+                "provider.queue_wait",
+                {"provider": provider.provider_id, "queueing": False},
+            ):
+                pass
+            self._record_phase("provider.queue_wait", self._clock() - queue_started)
+            provider_started = self._clock()
+            with self._tracer.span(
+                "provider.duration",
                 {"provider": provider.provider_id, "retry_index": retry_index},
-            ) as span:
-                response, attempt = await self._call_provider(
-                    provider, request, order, retry_index, deadline_at
-                )
-                span.attributes["status"] = attempt.status
+            ) as duration_span:
+                with self._tracer.span(
+                    "provider.attempt",
+                    {"provider": provider.provider_id, "retry_index": retry_index},
+                ) as attempt_span:
+                    response, attempt = await self._call_provider(
+                        provider, request, order, retry_index, deadline_at
+                    )
+                    attempt_span.attributes["status"] = attempt.status
+                duration_span.attributes["status"] = attempt.status
+            self._record_phase("provider.duration", self._clock() - provider_started)
             attempts.append(attempt)
 
             decision = self._policy.decide(attempt.error_code, fallback_on)
@@ -217,6 +237,7 @@ class FallbackService:
                     "provider_id": response.provider_id,
                     "model": response.model,
                 },
+                provider_request_id=response.metadata.get("provider_request_id", ""),
             )
             return response, attempt
         except TimeoutError:
@@ -263,10 +284,14 @@ class FallbackService:
             return None, attempt
 
     def _backoff_ms(self, retry_index: int) -> int:
-        base = self._retry_base_delay_ms * (2 ** retry_index)
+        base = self._retry_base_delay_ms * (2**retry_index)
         base = min(base, self._retry_max_delay_ms)
         jitter = random.uniform(0.8, 1.2)
         return int(base * jitter)
 
     def _remaining(self, deadline_at: float) -> float:
         return max(0.0, deadline_at - self._clock())
+
+    def _record_phase(self, phase: str, duration_s: float) -> None:
+        if self._metrics is not None:
+            self._metrics.record_phase(phase, duration_s)

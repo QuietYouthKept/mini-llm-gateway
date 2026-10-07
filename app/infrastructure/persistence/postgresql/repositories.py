@@ -102,7 +102,8 @@ class PostgresTokenBudgetRepository:
     def settle(self, reservation_id: str, tokens: int, cost_usd: float) -> bool:
         with connect(self._database_url) as conn:
             reservation = conn.execute(
-                """SELECT client_id, period, tokens_reserved, cost_reserved_usd, state
+                """SELECT client_id, period, tokens_reserved, cost_reserved_usd, state,
+                expires_at <= now() AS expired
                 FROM token_budget_reservations WHERE reservation_id=%s FOR UPDATE""",
                 (reservation_id,),
             ).fetchone()
@@ -113,9 +114,17 @@ class PostgresTokenBudgetRepository:
                     f"Cannot settle reservation '{reservation_id}' in state "
                     f"'{reservation['state']}'"
                 )
-            if tokens > reservation["tokens_reserved"] or cost_usd > float(
-                reservation["cost_reserved_usd"]
-            ) + 1e-12:
+            if reservation["expired"]:
+                conn.execute(
+                    "UPDATE token_budget_reservations SET state='released', released_at=now() "
+                    "WHERE reservation_id=%s AND state='reserved'",
+                    (reservation_id,),
+                )
+                return False
+            if (
+                tokens > reservation["tokens_reserved"]
+                or cost_usd > float(reservation["cost_reserved_usd"]) + 1e-12
+            ):
                 conn.rollback()
                 return False
             conn.execute(
@@ -167,13 +176,35 @@ class PostgresTokenBudgetRepository:
 
 class PostgresRequestLogRepository:
     _REQUEST_COLUMNS = (
-        "request_id", "client_id", "model_profile", "endpoint", "selected_provider",
-        "fallback_used", "status", "status_code", "input_tokens", "output_tokens",
-        "estimated_input_tokens", "estimated_output_tokens", "actual_input_tokens",
-        "actual_output_tokens", "usage_source", "estimated_tokens", "estimated_cost_usd",
-        "cost_saved_usd", "budget_before", "budget_after", "duration_ms", "error_code",
-        "error_message", "cache_hit", "cache_key", "decision_trace", "replay_payload",
-        "request_body", "response_body",
+        "request_id",
+        "client_id",
+        "model_profile",
+        "endpoint",
+        "selected_provider",
+        "fallback_used",
+        "status",
+        "status_code",
+        "input_tokens",
+        "output_tokens",
+        "estimated_input_tokens",
+        "estimated_output_tokens",
+        "actual_input_tokens",
+        "actual_output_tokens",
+        "usage_source",
+        "estimated_tokens",
+        "estimated_cost_usd",
+        "cost_saved_usd",
+        "budget_before",
+        "budget_after",
+        "duration_ms",
+        "error_code",
+        "error_message",
+        "cache_hit",
+        "cache_key",
+        "decision_trace",
+        "replay_payload",
+        "request_body",
+        "response_body",
     )
 
     def __init__(self, database_url: str) -> None:
@@ -202,9 +233,9 @@ class PostgresRequestLogRepository:
                 conn.execute(
                     """INSERT INTO provider_attempts
                     (request_id,provider_id,attempt_order,retry_index,status,status_code,
-                     latency_ms,error_code,error_message)
+                     latency_ms,error_code,error_message,provider_request_id)
                     VALUES (%(request_id)s,%(provider_id)s,%(attempt_order)s,%(retry_index)s,
-                    %(status)s,%(status_code)s,%(latency_ms)s,%(error_code)s,%(error_message)s)""",
+                    %(status)s,%(status_code)s,%(latency_ms)s,%(error_code)s,%(error_message)s,%(provider_request_id)s)""",
                     attempt,
                 )
 
@@ -219,7 +250,8 @@ class PostgresRequestLogRepository:
             result["attempts"] = list(
                 conn.execute(
                     """SELECT provider_id,attempt_order,retry_index,status,status_code,
-                    latency_ms,error_code,error_message,created_at FROM provider_attempts
+                    latency_ms,error_code,error_message,provider_request_id,created_at
+                    FROM provider_attempts
                     WHERE request_id=%s ORDER BY attempt_order,retry_index""",
                     (request_id,),
                 ).fetchall()

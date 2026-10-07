@@ -52,6 +52,7 @@ _COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
         "usage_source",
         "usage_source TEXT NOT NULL DEFAULT 'estimated'",
     ),
+    ("provider_attempts", "provider_request_id", "provider_request_id TEXT"),
 ]
 
 

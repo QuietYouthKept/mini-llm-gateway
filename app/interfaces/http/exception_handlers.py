@@ -30,9 +30,7 @@ async def gateway_error_handler(request: Request, exc: GatewayError) -> JSONResp
     return JSONResponse(status_code=status_code, content=body, headers=headers)
 
 
-async def validation_error_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
         status_code=422,
         content={

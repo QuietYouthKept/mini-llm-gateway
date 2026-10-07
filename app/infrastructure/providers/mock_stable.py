@@ -11,7 +11,8 @@ class MockStableProvider(BaseMockProvider):
         super().__init__(
             provider_id="mock_stable",
             provider_type=ProviderType.MOCK.value,
-            behavior=behavior or ProviderBehavior(
+            behavior=behavior
+            or ProviderBehavior(
                 latency_ms=180,
                 error_rate=0.0,
                 timeout_ms=1000,

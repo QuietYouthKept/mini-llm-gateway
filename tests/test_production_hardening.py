@@ -96,6 +96,25 @@ def test_cache_stores_governed_output_not_raw_response(tmp_path) -> None:
     assert provider.calls == 1
 
 
+def test_reservation_input_floor_covers_provider_protocol_overhead(tmp_path) -> None:
+    config = make_test_config()
+    config.token_estimation.reservation_input_floor = 128
+    container = _build_test_container(tmp_path, config)
+    provider = CountingProvider(usage={"prompt_tokens": 98, "completion_tokens": 16})
+    container.chat_service._fallback._registry["mock_fast"] = provider
+
+    with TestClient(create_app(container)) as client:
+        response = client.post(
+            "/v1/chat",
+            json=chat_payload("fast-chat", "short prompt"),
+            headers=auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["actual_input_tokens"] == 98
+    assert response.json()["actual_output_tokens"] == 16
+
+
 def test_replay_and_request_payload_persistence_are_independent_and_safe(tmp_path) -> None:
     config = make_test_config()
     config.logging.persist_request_body = False

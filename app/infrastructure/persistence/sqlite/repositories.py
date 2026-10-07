@@ -107,16 +107,11 @@ class TokenBudgetRepository:
                 (client_id, period, client_id, period, client_id, period, client_id, period),
             ).fetchone()
             token_ok = (
-                int(usage["used_tokens"])
-                + int(usage["reserved_tokens"])
-                + tokens
-                <= limit_tokens
+                int(usage["used_tokens"]) + int(usage["reserved_tokens"]) + tokens <= limit_tokens
             )
             cost_ok = (
                 limit_cost_usd <= 0
-                or float(usage["used_cost"])
-                + float(usage["reserved_cost"])
-                + cost_usd
+                or float(usage["used_cost"]) + float(usage["reserved_cost"]) + cost_usd
                 <= limit_cost_usd
             )
             if not token_ok or not cost_ok:
@@ -148,7 +143,8 @@ class TokenBudgetRepository:
         try:
             conn.execute("BEGIN IMMEDIATE")
             reservation = conn.execute(
-                "SELECT client_id, period, tokens_reserved, cost_reserved_usd, state "
+                "SELECT client_id, period, tokens_reserved, cost_reserved_usd, state, "
+                "expires_at <= datetime('now') AS expired "
                 "FROM token_budget_reservations "
                 "WHERE reservation_id = ?",
                 (reservation_id,),
@@ -160,9 +156,18 @@ class TokenBudgetRepository:
                     f"Cannot settle reservation '{reservation_id}' in state "
                     f"'{reservation['state']}'"
                 )
-            if tokens > int(reservation["tokens_reserved"]) or cost_usd > float(
-                reservation["cost_reserved_usd"]
-            ) + 1e-12:
+            if reservation["expired"]:
+                conn.execute(
+                    "UPDATE token_budget_reservations SET state = 'released', "
+                    "released_at = datetime('now') WHERE reservation_id = ? AND state = 'reserved'",
+                    (reservation_id,),
+                )
+                conn.commit()
+                return False
+            if (
+                tokens > int(reservation["tokens_reserved"])
+                or cost_usd > float(reservation["cost_reserved_usd"]) + 1e-12
+            ):
                 conn.rollback()
                 return False
             conn.execute(
@@ -254,37 +259,37 @@ class RequestLogRepository:
     @staticmethod
     def _insert_request(conn, row: dict[str, Any]) -> None:  # noqa: ANN001
         conn.execute(
-                "INSERT INTO request_logs ("
-                "request_id, client_id, model_profile, endpoint, selected_provider, "
-                "fallback_used, status, status_code, input_tokens, output_tokens, "
-                "estimated_input_tokens, estimated_output_tokens, actual_input_tokens, "
-                "actual_output_tokens, usage_source, "
-                "estimated_tokens, estimated_cost_usd, cost_saved_usd, "
-                "budget_before, budget_after, duration_ms, error_code, error_message, "
-                "cache_hit, cache_key, decision_trace, replay_payload, "
-                "request_body, response_body"
-                ") VALUES ("
-                ":request_id, :client_id, :model_profile, :endpoint, :selected_provider, "
-                ":fallback_used, :status, :status_code, :input_tokens, :output_tokens, "
-                ":estimated_input_tokens, :estimated_output_tokens, :actual_input_tokens, "
-                ":actual_output_tokens, :usage_source, "
-                ":estimated_tokens, :estimated_cost_usd, :cost_saved_usd, "
-                ":budget_before, :budget_after, :duration_ms, :error_code, :error_message, "
-                ":cache_hit, :cache_key, :decision_trace, :replay_payload, "
-                ":request_body, :response_body"
-                ")",
-                row,
-            )
+            "INSERT INTO request_logs ("
+            "request_id, client_id, model_profile, endpoint, selected_provider, "
+            "fallback_used, status, status_code, input_tokens, output_tokens, "
+            "estimated_input_tokens, estimated_output_tokens, actual_input_tokens, "
+            "actual_output_tokens, usage_source, "
+            "estimated_tokens, estimated_cost_usd, cost_saved_usd, "
+            "budget_before, budget_after, duration_ms, error_code, error_message, "
+            "cache_hit, cache_key, decision_trace, replay_payload, "
+            "request_body, response_body"
+            ") VALUES ("
+            ":request_id, :client_id, :model_profile, :endpoint, :selected_provider, "
+            ":fallback_used, :status, :status_code, :input_tokens, :output_tokens, "
+            ":estimated_input_tokens, :estimated_output_tokens, :actual_input_tokens, "
+            ":actual_output_tokens, :usage_source, "
+            ":estimated_tokens, :estimated_cost_usd, :cost_saved_usd, "
+            ":budget_before, :budget_after, :duration_ms, :error_code, :error_message, "
+            ":cache_hit, :cache_key, :decision_trace, :replay_payload, "
+            ":request_body, :response_body"
+            ")",
+            row,
+        )
 
     @staticmethod
     def _insert_attempt(conn, row: dict[str, Any]) -> None:  # noqa: ANN001
         conn.execute(
             "INSERT INTO provider_attempts ("
             "request_id, provider_id, attempt_order, retry_index, status, "
-            "status_code, latency_ms, error_code, error_message"
+            "status_code, latency_ms, error_code, error_message, provider_request_id"
             ") VALUES ("
             ":request_id, :provider_id, :attempt_order, :retry_index, :status, "
-            ":status_code, :latency_ms, :error_code, :error_message"
+            ":status_code, :latency_ms, :error_code, :error_message, :provider_request_id"
             ")",
             row,
         )
@@ -330,7 +335,7 @@ class RequestLogRepository:
 
             attempts = conn.execute(
                 "SELECT provider_id, attempt_order, retry_index, status, status_code, "
-                "latency_ms, error_code, error_message, created_at "
+                "latency_ms, error_code, error_message, provider_request_id, created_at "
                 "FROM provider_attempts WHERE request_id = ? ORDER BY attempt_order, retry_index",
                 (request_id,),
             ).fetchall()

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "run_id": "deepseek-smoke-05",
+  "created_at": "2026-10-05T17:14:20.570587+00:00",
+  "git_commit": "af9cbe32dd16cb93bea081d750abcbc4ca232e6f",
+  "git_worktree": {
+    "dirty": true,
+    "diff_sha256": "f6a19de2d4789cccf02bd75f9a149535810aca15ea594311e32fe7132e7b1d6c"
+  },
+  "config": {
+    "path": "config\\config.yaml",
+    "sha256": "858140651795cc1ea8646464b7161ebcb6bf9a50623984b930d36c0bd61708ea"
+  },
+  "runtime": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "cpu_count": 24,
+    "machine": "AMD64"
+  },
+  "provider": {
+    "mode": "real",
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "comparison_group": "real"
+  },
+  "workload": {
+    "url": "http://127.0.0.1:8000",
+    "profile": "deepseek-chat",
+    "concurrency": 1,
+    "requests": 20,
+    "duration_seconds": null,
+    "warmup_requests": 10,
+    "shape": "constant",
+    "seed": 42,
+    "input_tokens": [
+      8,
+      32,
+      128
+    ],
+    "output_tokens": [
+      16,
+      64
+    ],
+    "cache_target_ratio": 0.0,
+    "workload_label": "deepseek-smoke-05"
+  },
+  "privacy": {
+    "api_key_recorded": false,
+    "prompt_text_recorded": false,
+    "completion_text_recorded": false
+  }
+}

@@ -22,8 +22,6 @@ def migrate(database_url: str) -> None:
     with connect(database_url) as conn:
         # Multiple replicas may boot simultaneously. Serialize DDL so
         # CREATE OR REPLACE cannot race in PostgreSQL system catalogs.
-        conn.execute(
-            "SELECT pg_advisory_xact_lock(hashtext('mini-llm-gateway-migrations'))"
-        )
+        conn.execute("SELECT pg_advisory_xact_lock(hashtext('mini-llm-gateway-migrations'))")
         for path in paths:
             conn.execute(path.read_text(encoding="utf-8"), prepare=False)

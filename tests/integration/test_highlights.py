@@ -17,21 +17,15 @@ def test_chat_returns_decision_trace(client: TestClient) -> None:
     steps = [s["step"] for s in trace]
     assert "profile_resolved" in steps
     assert "provider_selected" in steps
-    assert any(
-        s["step"] == "provider_selected" and s["provider"] == "mock_fast" for s in trace
-    )
+    assert any(s["step"] == "provider_selected" and s["provider"] == "mock_fast" for s in trace)
 
 
 def test_fallback_decision_trace_explains_skip(client: TestClient) -> None:
     resp = client.post("/v1/chat", json=chat_payload("fallback-chat"), headers=auth())
     assert resp.status_code == 200
     trace = resp.json()["decision_trace"]
-    assert any(
-        s["step"] == "provider_failed" and s["provider"] == "mock_error" for s in trace
-    )
-    assert any(
-        s["step"] == "provider_selected" and s["provider"] == "mock_fast" for s in trace
-    )
+    assert any(s["step"] == "provider_failed" and s["provider"] == "mock_error" for s in trace)
+    assert any(s["step"] == "provider_selected" and s["provider"] == "mock_fast" for s in trace)
 
 
 def test_cache_miss_then_hit(client: TestClient) -> None:
@@ -64,9 +58,7 @@ async def test_replay_reproduces_decision(container: AppContainer) -> None:
     decision = await container.chat_service.replay(
         request,
         "fast-chat",
-        recorded_attempts=[
-            {"provider_id": "mock_fast", "status": "success", "retry_index": 0}
-        ],
+        recorded_attempts=[{"provider_id": "mock_fast", "status": "success", "retry_index": 0}],
     )
     assert decision["selected_provider"] == "mock_fast"
     assert decision["fallback_used"] is False

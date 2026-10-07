@@ -1,0 +1,73 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "targets": [{"expr": "sum(rate(llm_gateway_requests_total[5m]))", "legendFormat": "requests/s", "refId": "A"}],
+      "title": "Gateway throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(llm_gateway_phase_duration_seconds_bucket{phase=~\"routing.duration|budget.reserve.duration|audit.persist.duration\"}[5m])))", "legendFormat": "gateway phase p95", "refId": "A"}],
+      "title": "Gateway phase p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, provider) (rate(llm_gateway_provider_attempt_duration_seconds_bucket[5m])))", "legendFormat": "{{provider}}", "refId": "A"}],
+      "title": "Provider-attempt p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "id": 4,
+      "targets": [{"expr": "sum(rate(llm_gateway_requests_total{status!~\"success|rate_limit_exceeded|token_budget_exceeded|guardrail_blocked\"}[5m])) / clamp_min(sum(rate(llm_gateway_requests_total[5m])), 1)", "legendFormat": "non-policy errors", "refId": "A"}],
+      "title": "Non-policy error ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "id": 5,
+      "targets": [
+        {"expr": "sum(rate(llm_gateway_retry_count_total[5m])) / clamp_min(sum(rate(llm_gateway_requests_total[5m])), 1)", "legendFormat": "retries/request", "refId": "A"},
+        {"expr": "sum(rate(llm_gateway_provider_attempts_total[5m])) / clamp_min(sum(rate(llm_gateway_requests_total[5m])), 1)", "legendFormat": "provider calls/request", "refId": "B"}
+      ],
+      "title": "Retry amplification",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "id": 6,
+      "targets": [
+        {"expr": "sum(rate(llm_gateway_cache_hits_total[5m])) / clamp_min(sum(rate(llm_gateway_cache_hits_total[5m]) + rate(llm_gateway_cache_misses_total[5m])), 1)", "legendFormat": "hit ratio", "refId": "A"},
+        {"expr": "sum(increase(llm_gateway_budget_reservation_leaks_total[15m]))", "legendFormat": "reclaimed reservations", "refId": "B"}
+      ],
+      "title": "Cache and budget safety",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["llm", "gateway", "slo"],
+  "templating": {"list": [{"current": {}, "hide": 0, "includeAll": false, "label": "Prometheus", "multi": false, "name": "DS_PROMETHEUS", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "skipUrlSync": false, "type": "datasource"}]},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "mini-llm-gateway SLO",
+  "uid": "mini-llm-gateway-slo",
+  "version": 1
+}

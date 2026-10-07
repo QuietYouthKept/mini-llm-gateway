@@ -26,6 +26,7 @@ def make_request(content: str = "hello") -> ChatRequest:
 
 # ── mock_fast ──
 
+
 @pytest.mark.asyncio
 async def test_mock_fast_returns_response() -> None:
     provider = MockFastProvider()
@@ -54,6 +55,7 @@ async def test_mock_provider_honors_completion_envelope() -> None:
 
 # ── mock_stable ──
 
+
 @pytest.mark.asyncio
 async def test_mock_stable_returns_response() -> None:
     provider = MockStableProvider()
@@ -63,6 +65,7 @@ async def test_mock_stable_returns_response() -> None:
 
 
 # ── mock_slow (always timeouts) ──
+
 
 @pytest.mark.asyncio
 async def test_mock_slow_triggers_timeout() -> None:
@@ -75,6 +78,7 @@ async def test_mock_slow_triggers_timeout() -> None:
 
 # ── mock_error (always errors) ──
 
+
 @pytest.mark.asyncio
 async def test_mock_error_triggers_failure() -> None:
     provider = MockErrorProvider()
@@ -85,6 +89,7 @@ async def test_mock_error_triggers_failure() -> None:
 
 
 # ── fake_static (always works) ──
+
 
 @pytest.mark.asyncio
 async def test_fake_static_always_succeeds() -> None:
@@ -102,6 +107,7 @@ async def test_fake_static_has_correct_type() -> None:
 
 
 # ── custom behavior ──
+
 
 @pytest.mark.asyncio
 async def test_provider_respects_custom_behavior() -> None:
