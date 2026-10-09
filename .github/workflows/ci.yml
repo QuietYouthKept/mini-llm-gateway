@@ -34,9 +34,9 @@ jobs:
       matrix:
         python-version: ["3.11"]
     env:
-      GW_WAVE3_EVIDENCE_DIR: evidence-out
-      WAVE3_POSTGRES_URL: postgresql://gateway@localhost:5432/gateway
-      WAVE3_REDIS_URL: redis://localhost:6379/0
+      GATEWAY_CI_EVIDENCE_DIR: evidence-out
+      GATEWAY_POSTGRES_URL: postgresql://gateway@localhost:5432/gateway
+      GATEWAY_REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +60,9 @@ jobs:
             python --version
             python -m pip --version
             uv --version
+            python -m pytest --version
+            python -m pip show pytest-cov coverage
+            .venv/bin/coverage --version
             python -m pip freeze
             git rev-parse HEAD
             psql --version || true
@@ -100,16 +103,24 @@ jobs:
         if: always()
         run: |
           set +e
-          .venv/bin/pytest -q --junitxml=evidence-out/pytest-junit.xml --cov=app --cov-branch --cov-report=xml:evidence-out/coverage/coverage.xml --cov-report=html:evidence-out/coverage/html --cov-fail-under=80 > evidence-out/pytest.log 2>&1
-          code=$?
-          echo "$code" > evidence-out/status/pytest.exitcode
+          export COVERAGE_FILE=evidence-out/coverage/.coverage-pytest
+          .venv/bin/pytest -q --junitxml=evidence-out/pytest-junit.xml --cov=app --cov-branch --cov-precision=2 --cov-report=xml:evidence-out/coverage/coverage.xml --cov-report=html:evidence-out/coverage/html > evidence-out/pytest.log 2>&1
+          pytest_code=$?
+          echo "$pytest_code" > evidence-out/status/pytest.exitcode
+          .venv/bin/coverage report --data-file="$COVERAGE_FILE" --fail-under=80 --precision=2 > evidence-out/coverage-gate.log 2>&1
+          coverage_code=$?
+          echo "$coverage_code" > evidence-out/status/coverage-gate.exitcode
           cat evidence-out/pytest.log
-          exit "$code"
+          cat evidence-out/coverage-gate.log
+          if [ "$pytest_code" -ne 0 ] || [ "$coverage_code" -ne 0 ]; then
+            exit 1
+          fi
+          exit 0
 
       - name: PostgreSQL integration and repository coverage
         if: always()
         env:
-          DATABASE_URL: ${{ env.WAVE3_POSTGRES_URL }}
+          DATABASE_URL: ${{ env.GATEWAY_POSTGRES_URL }}
         run: |
           set +e
           .venv/bin/coverage run --branch --data-file=evidence-out/postgres/.coverage --source=app.infrastructure.persistence.postgresql -m scripts.postgres_integration_probe --database-url "$DATABASE_URL" > evidence-out/postgres/integration.json 2> evidence-out/postgres/integration.stderr
@@ -127,7 +138,7 @@ jobs:
       - name: Redis adapter integration and adapter coverage
         if: always()
         env:
-          REDIS_URL: ${{ env.WAVE3_REDIS_URL }}
+          REDIS_URL: ${{ env.GATEWAY_REDIS_URL }}
         run: |
           set +e
           .venv/bin/coverage run --branch --data-file=evidence-out/redis/.coverage --source=app.infrastructure.redis -m scripts.redis_adapter_integration_probe --redis-url "$REDIS_URL" > evidence-out/redis/adapters.json 2> evidence-out/redis/adapters.stderr
@@ -145,8 +156,8 @@ jobs:
       - name: Redis two-replica HTTP integration
         if: always()
         env:
-          DATABASE_URL: ${{ env.WAVE3_POSTGRES_URL }}
-          REDIS_URL: ${{ env.WAVE3_REDIS_URL }}
+          DATABASE_URL: ${{ env.GATEWAY_POSTGRES_URL }}
+          REDIS_URL: ${{ env.GATEWAY_REDIS_URL }}
         run: |
           set +e
           .venv/bin/python scripts/redis_two_replica_integration_probe.py --database-url "$DATABASE_URL" --redis-url "$REDIS_URL" > evidence-out/redis/two-replica.json 2> evidence-out/redis/two-replica.stderr
@@ -228,7 +239,7 @@ jobs:
         if: always() && steps.evidence-manifest.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: wave3-ci-evidence-${{ github.sha }}-run-${{ github.run_id }}
+          name: gateway-ci-evidence-${{ github.sha }}-run-${{ github.run_id }}
           path: evidence-out/
           if-no-files-found: error
           include-hidden-files: false
@@ -270,7 +281,7 @@ jobs:
         if: always() && steps.evidence-zip-validation.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
-          name: wave3-evidence-validation-${{ github.sha }}-run-${{ github.run_id }}
+          name: gateway-evidence-validation-${{ github.sha }}-run-${{ github.run_id }}
           path: evidence-out/artifact-validation.json
           if-no-files-found: error
           retention-days: 30
