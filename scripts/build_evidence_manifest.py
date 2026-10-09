@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.evidence_policy import is_public_artifact_path
 
 
 def sha256(path: Path) -> str:
@@ -31,6 +35,26 @@ def command(*args: str) -> str:
         return "unavailable"
 
 
+def collect_public_evidence_files(evidence_dir: Path) -> tuple[list[Path], list[str]]:
+    files: list[Path] = []
+    rejected: list[str] = []
+    generated_files = {"manifest.json", "manifest.sha256", "artifact-validation.json"}
+    for path in evidence_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(evidence_dir).as_posix()
+        if relative in generated_files:
+            continue
+        if any(part.startswith(".") for part in Path(relative).parts):
+            continue
+        if is_public_artifact_path(relative):
+            files.append(path)
+        else:
+            rejected.append(relative)
+    files.sort(key=lambda path: path.relative_to(evidence_dir).as_posix())
+    return files, sorted(rejected)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--directory", type=Path, required=True)
@@ -45,7 +69,12 @@ def main() -> int:
                 results[path.stem] = {"exit_code": int(path.read_text(encoding="utf-8").strip())}
             except ValueError:
                 results[path.stem] = {"exit_code": None, "status": "invalid_status_file"}
-    files = [path for path in evidence_dir.rglob("*") if path.is_file() and path.name != "manifest.json"]
+    files, rejected = collect_public_evidence_files(evidence_dir)
+    if rejected:
+        print("Evidence contains visible files outside the public allowlist:")
+        print("\n".join(rejected))
+        return 2
+
     manifest = {
         "schema_version": 1,
         "created_at_utc": datetime.now(UTC).isoformat(),

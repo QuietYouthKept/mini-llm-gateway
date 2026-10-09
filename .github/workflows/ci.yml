@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   test:
@@ -217,15 +218,59 @@ jobs:
           exit "$code"
 
       - name: Build Evidence Manifest
+        id: evidence-manifest
         if: always()
         run: |
           python scripts/build_evidence_manifest.py --directory evidence-out
 
       - name: Upload reviewable CI evidence
-        if: always()
+        id: evidence-upload
+        if: always() && steps.evidence-manifest.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: wave3-ci-evidence-${{ github.sha }}-run-${{ github.run_id }}
           path: evidence-out/
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 30
+
+      - name: Download and validate the uploaded evidence ZIP
+        id: evidence-zip-validation
+        if: always() && steps.evidence-upload.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.evidence-upload.outputs.artifact-id }}
+        run: |
+          set +e
+          archive="$RUNNER_TEMP/wave3-evidence-${ARTIFACT_ID}.zip"
+          download_url=$(curl --fail --silent --show-error --output /dev/null --write-out '%{redirect_url}' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip")
+          api_code=$?
+          download_code=0
+          if [ "$api_code" -ne 0 ] || [ -z "$download_url" ]; then
+            download_code=1
+          else
+            curl --fail --silent --show-error --location --max-redirs 3 \
+              --retry 5 --retry-delay 1 --retry-all-errors \
+              "$download_url" --output "$archive"
+            download_code=$?
+          fi
+          .venv/bin/python scripts/validate_evidence_artifact.py \
+            --archive "$archive" \
+            --output evidence-out/artifact-validation.json
+          validation_code=$?
+          if [ "$download_code" -ne 0 ]; then
+            exit "$download_code"
+          fi
+          exit "$validation_code"
+
+      - name: Upload machine-readable evidence validation result
+        if: always() && steps.evidence-zip-validation.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave3-evidence-validation-${{ github.sha }}-run-${{ github.run_id }}
+          path: evidence-out/artifact-validation.json
           if-no-files-found: error
           retention-days: 30
