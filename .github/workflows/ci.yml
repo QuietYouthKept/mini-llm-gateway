@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,7 +17,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: gateway
-          POSTGRES_PASSWORD: gateway
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: gateway
         ports: ["5432:5432"]
         options: >-
@@ -29,6 +32,10 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"]
+    env:
+      GW_WAVE3_EVIDENCE_DIR: evidence-out
+      WAVE3_POSTGRES_URL: postgresql://gateway@localhost:5432/gateway
+      WAVE3_REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
 
@@ -36,40 +43,189 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: pip install -e ".[dev,production]" pip-audit "setuptools>=83.0.0"
+      - name: Prepare public evidence directory
+        run: mkdir -p evidence-out/status evidence-out/coverage evidence-out/postgres evidence-out/redis evidence-out/http-sse evidence-out/provider
 
-      - name: Lint
-        run: ruff check .
+      - name: Install locked dependencies
+        run: |
+          pip install "uv==0.11.23"
+          uv sync --frozen --extra dev --extra production
+          uv pip install --python .venv/bin/python "pip-audit==2.9.0"
 
-      - name: Compile source and tests
-        run: python -m compileall -q app tests eval scripts
+      - name: Record sanitized environment and dependency versions
+        if: always()
+        run: |
+          {
+            python --version
+            python -m pip --version
+            uv --version
+            python -m pip freeze
+            git rev-parse HEAD
+            psql --version || true
+            redis-cli --version || true
+          } > evidence-out/environment.txt
 
-      - name: Credential hygiene
-        run: python scripts/secret_scan.py
+      - name: Ruff
+        if: always()
+        run: |
+          set +e
+          .venv/bin/ruff check . > evidence-out/ruff.log 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/ruff.exitcode
+          cat evidence-out/ruff.log
+          exit "$code"
 
-      - name: Test with branch coverage gate
-        run: pytest -q --cov=app --cov-branch --cov-fail-under=80
+      - name: Compileall
+        if: always()
+        run: |
+          set +e
+          .venv/bin/python -m compileall -q app tests eval scripts > evidence-out/compileall.log 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/compileall.exitcode
+          cat evidence-out/compileall.log
+          exit "$code"
 
-      - name: PostgreSQL integration gate
-        run: python scripts/postgres_integration_probe.py --database-url postgresql://gateway:gateway@localhost:5432/gateway
+      - name: Secret scan
+        if: always()
+        run: |
+          set +e
+          .venv/bin/python scripts/secret_scan.py > evidence-out/secret-scan.txt 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/secret-scan.exitcode
+          cat evidence-out/secret-scan.txt
+          exit "$code"
 
-      - name: Streaming consistency
-        run: python scripts/check_streaming_consistency.py
+      - name: Full pytest and application branch coverage
+        if: always()
+        run: |
+          set +e
+          .venv/bin/pytest -q --junitxml=evidence-out/pytest-junit.xml --cov=app --cov-branch --cov-report=xml:evidence-out/coverage/coverage.xml --cov-report=html:evidence-out/coverage/html --cov-fail-under=80 > evidence-out/pytest.log 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/pytest.exitcode
+          cat evidence-out/pytest.log
+          exit "$code"
+
+      - name: PostgreSQL integration and repository coverage
+        if: always()
+        env:
+          DATABASE_URL: ${{ env.WAVE3_POSTGRES_URL }}
+        run: |
+          set +e
+          .venv/bin/coverage run --branch --data-file=evidence-out/postgres/.coverage --source=app.infrastructure.persistence.postgresql -m scripts.postgres_integration_probe --database-url "$DATABASE_URL" > evidence-out/postgres/integration.json 2> evidence-out/postgres/integration.stderr
+          code=$?
+          echo "$code" > evidence-out/status/postgres-integration.exitcode
+          .venv/bin/coverage report --data-file=evidence-out/postgres/.coverage -m > evidence-out/postgres/coverage.txt 2>&1
+          .venv/bin/coverage json --data-file=evidence-out/postgres/.coverage -o evidence-out/postgres/coverage.json
+          .venv/bin/coverage xml --data-file=evidence-out/postgres/.coverage -o evidence-out/postgres/coverage.xml
+          .venv/bin/coverage html --data-file=evidence-out/postgres/.coverage -d evidence-out/postgres/coverage-html
+          cat evidence-out/postgres/integration.json
+          cat evidence-out/postgres/coverage.txt
+          cat evidence-out/postgres/integration.stderr
+          exit "$code"
+
+      - name: Redis adapter integration and adapter coverage
+        if: always()
+        env:
+          REDIS_URL: ${{ env.WAVE3_REDIS_URL }}
+        run: |
+          set +e
+          .venv/bin/coverage run --branch --data-file=evidence-out/redis/.coverage --source=app.infrastructure.redis -m scripts.redis_adapter_integration_probe --redis-url "$REDIS_URL" > evidence-out/redis/adapters.json 2> evidence-out/redis/adapters.stderr
+          code=$?
+          echo "$code" > evidence-out/status/redis-adapters.exitcode
+          .venv/bin/coverage report --data-file=evidence-out/redis/.coverage -m > evidence-out/redis/coverage.txt 2>&1
+          .venv/bin/coverage json --data-file=evidence-out/redis/.coverage -o evidence-out/redis/coverage.json
+          .venv/bin/coverage xml --data-file=evidence-out/redis/.coverage -o evidence-out/redis/coverage.xml
+          .venv/bin/coverage html --data-file=evidence-out/redis/.coverage -d evidence-out/redis/coverage-html
+          cat evidence-out/redis/adapters.json
+          cat evidence-out/redis/coverage.txt
+          cat evidence-out/redis/adapters.stderr
+          exit "$code"
+
+      - name: Redis two-replica HTTP integration
+        if: always()
+        env:
+          DATABASE_URL: ${{ env.WAVE3_POSTGRES_URL }}
+          REDIS_URL: ${{ env.WAVE3_REDIS_URL }}
+        run: |
+          set +e
+          .venv/bin/python scripts/redis_two_replica_integration_probe.py --database-url "$DATABASE_URL" --redis-url "$REDIS_URL" > evidence-out/redis/two-replica.json 2> evidence-out/redis/two-replica.stderr
+          code=$?
+          echo "$code" > evidence-out/status/redis-two-replica.exitcode
+          cat evidence-out/redis/two-replica.json
+          cat evidence-out/redis/two-replica.stderr
+          exit "$code"
+
+      - name: HTTP and SSE E2E result
+        if: always()
+        run: |
+          set +e
+          .venv/bin/pytest -q --junitxml=evidence-out/http-sse/junit.xml tests/integration/test_uvicorn_streaming_e2e.py > evidence-out/http-sse/result.log 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/http-sse.exitcode
+          cat evidence-out/http-sse/result.log
+          exit "$code"
+
+      - name: Provider contract result
+        if: always()
+        run: |
+          set +e
+          .venv/bin/pytest -q --junitxml=evidence-out/provider/junit.xml tests/unit/test_openai_compatible_provider.py tests/unit/test_openai_compatible_provider_contract.py > evidence-out/provider/result.log 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/provider-contract.exitcode
+          cat evidence-out/provider/result.log
+          exit "$code"
 
       - name: Functional evaluation
-        run: python eval/run_eval.py
+        if: always()
+        run: |
+          set +e
+          .venv/bin/python eval/run_eval.py > evidence-out/functional-eval.txt 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/functional-eval.exitcode
+          cat evidence-out/functional-eval.txt
+          exit "$code"
 
       - name: Security evaluation
-        run: python eval/run_eval.py --cases eval/security_cases.yaml
+        if: always()
+        run: |
+          set +e
+          .venv/bin/python eval/run_eval.py --cases eval/security_cases.yaml > evidence-out/security-eval.txt 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/security-eval.exitcode
+          cat evidence-out/security-eval.txt
+          exit "$code"
 
       - name: Dependency audit
-        # The gateway is installed editable for CI and is not a PyPI package.
-        # Audit every resolved third-party dependency while excluding only the
-        # local editable project; discovered vulnerabilities still fail CI.
-        run: pip-audit --skip-editable
-
-      - name: Repository hygiene gate
+        if: always()
         run: |
-          test -z "$(git ls-files | grep -E '(^|/)(__pycache__/|.*\.pyc$|.*\.egg-info/|data/.*\.db$|\.reasonix/)')"
-          git diff --check
+          set +e
+          .venv/bin/pip-audit --skip-editable --format=json > evidence-out/dependency-audit.json 2> evidence-out/dependency-audit.stderr
+          code=$?
+          echo "$code" > evidence-out/status/dependency-audit.exitcode
+          cat evidence-out/dependency-audit.json
+          cat evidence-out/dependency-audit.stderr
+          exit "$code"
+
+      - name: Repository hygiene and diff check
+        if: always()
+        run: |
+          set +e
+          test -z "$(git ls-files | grep -E '(^|/)(__pycache__/|.*\.pyc$|.*\.egg-info/|data/.*\.db$|\.reasonix/)' )" && git diff --check > evidence-out/diff-check.log 2>&1
+          code=$?
+          echo "$code" > evidence-out/status/repository-hygiene.exitcode
+          cat evidence-out/diff-check.log
+          exit "$code"
+
+      - name: Build Evidence Manifest
+        if: always()
+        run: |
+          python scripts/build_evidence_manifest.py --directory evidence-out
+
+      - name: Upload reviewable CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave3-ci-evidence-${{ github.sha }}-run-${{ github.run_id }}
+          path: evidence-out/
+          if-no-files-found: error
+          retention-days: 30
