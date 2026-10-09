@@ -33,6 +33,11 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def opaque_alpha_suffix() -> str:
+    """Make unique cache inputs without digit runs that resemble phone numbers."""
+    return uuid.uuid4().hex.translate(str.maketrans("0123456789", "abcdefghij"))
+
+
 def wait_live(url: str, process: subprocess.Popen[Any]) -> None:
     deadline = time.monotonic() + 25
     while time.monotonic() < deadline:
@@ -180,7 +185,7 @@ def main() -> int:
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="gateway-wave3-redis-") as temporary:
         directory = Path(temporary)
-        suffix = uuid.uuid4().hex
+        suffix = opaque_alpha_suffix()
         config_path = fixture_config(directory, suffix)
         environment = os.environ.copy()
         environment.update(
