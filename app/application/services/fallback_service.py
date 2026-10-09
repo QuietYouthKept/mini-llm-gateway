@@ -130,6 +130,10 @@ class FallbackService:
         error.attempts = attempts  # type: ignore[attr-defined]
         raise error
 
+    def decide_failure(self, error_code: str, fallback_on: list[str]):
+        """Expose the shared failure taxonomy to streaming selection."""
+        return self._policy.decide(error_code, fallback_on)
+
     async def _try_provider(
         self,
         provider: ProviderPort,

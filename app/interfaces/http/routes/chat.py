@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -35,13 +36,48 @@ def _sse(event: str, data: dict[str, Any]) -> str:
     )
 
 
-def _stream_response(session) -> StreamingResponse:  # noqa: ANN001
-    async def events():
-        async for item in session.events:
-            yield _sse(item.event, item.data)
+class _SessionSSEIterator:
+    """Own stream finalization even if ASGI closes before first iteration."""
 
-    return StreamingResponse(
-        events(),
+    def __init__(self, session: Any) -> None:
+        self._session = session
+        self._closed = False
+
+    def __aiter__(self) -> AsyncIterator[str]:
+        return self
+
+    async def __anext__(self) -> str:
+        try:
+            item = await anext(self._session.events)
+            return _sse(item.event, item.data)
+        except StopAsyncIteration:
+            await self.aclose()
+            raise
+
+    async def aclose(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        await self._session.aclose()
+
+
+class _SessionStreamingResponse(StreamingResponse):
+    def __init__(self, body_iterator: _SessionSSEIterator, **kwargs: Any) -> None:
+        self._session_iterator = body_iterator
+        super().__init__(body_iterator, **kwargs)
+
+    async def stream_response(self, send: Any) -> None:
+        try:
+            await super().stream_response(send)
+        finally:
+            await self._session_iterator.aclose()
+
+
+def _stream_response(session: Any) -> StreamingResponse:
+    iterator = _SessionSSEIterator(session)
+
+    return _SessionStreamingResponse(
+        iterator,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

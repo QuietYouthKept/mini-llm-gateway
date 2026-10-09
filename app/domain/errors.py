@@ -72,6 +72,20 @@ class BudgetSettlementExceededError(GatewayError):
         )
 
 
+class StreamFinalizationUnknownError(GatewayError):
+    """The database may have committed; reconciliation must determine the outcome."""
+
+    def __init__(
+        self, message: str = "Stream finalization outcome is unknown", **kwargs: object
+    ) -> None:
+        super().__init__(
+            error_code="stream_finalization_unknown",
+            message=message,
+            retryable=True,
+            **kwargs,
+        )
+
+
 class ModelProfileNotFoundError(GatewayError):
     def __init__(self, profile_id: str, **kwargs: object) -> None:
         super().__init__(
@@ -192,6 +206,7 @@ ERROR_HTTP_STATUS: dict[str, int] = {
     "rate_limit_backend_unavailable": 503,
     "token_budget_exceeded": 429,
     "budget_settlement_exceeded": 502,
+    "stream_finalization_unknown": 503,
     "model_profile_not_found": 404,
     "config_error": 500,
     "internal_error": 500,

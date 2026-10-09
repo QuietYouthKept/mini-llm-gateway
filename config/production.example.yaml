@@ -1,0 +1,40 @@
+# This is a validation example, not a deployable secret source.
+# Inject every *_env value through the platform secret manager and workload identity.
+gateway:
+  environment: production
+  default_profile: primary-chat
+  request_timeout_ms: 15000
+
+clients:
+  - client_id: gateway-client
+    api_key_hash: "replace-with-a-sha256-digest"
+    rate_limit:
+      requests_per_minute: 60
+    token_budget:
+      period: daily
+      max_tokens: 100000
+
+admin:
+  enabled: true
+  api_key_env: GATEWAY_ADMIN_API_KEY
+
+providers:
+  primary:
+    type: openai_compatible
+    enabled: true
+    http:
+      base_url: https://api.example-provider.com/v1
+      allowed_hosts: [api.example-provider.com]
+      api_key_env: PROVIDER_API_KEY
+      model: replace-with-provider-model
+      timeout_ms: 10000
+
+model_profiles:
+  primary-chat:
+    routing:
+      strategy: priority
+      candidates:
+        - provider: primary
+          priority: 1
+    fallback:
+      enabled: false

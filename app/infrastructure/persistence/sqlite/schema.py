@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 9
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS token_budget_usage (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id   TEXT NOT NULL REFERENCES clients(client_id),
     period      TEXT NOT NULL,
-    tokens_used INTEGER NOT NULL DEFAULT 0,
-    cost_used_usd REAL NOT NULL DEFAULT 0,
+    tokens_used INTEGER NOT NULL DEFAULT 0 CHECK (tokens_used >= 0),
+    cost_used_usd REAL NOT NULL DEFAULT 0 CHECK (cost_used_usd >= 0),
     last_updated TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(client_id, period)
 );
@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS token_budget_reservations (
     reservation_id TEXT PRIMARY KEY,
     client_id      TEXT NOT NULL REFERENCES clients(client_id),
     period         TEXT NOT NULL,
-    tokens_reserved INTEGER NOT NULL,
-    cost_reserved_usd REAL NOT NULL DEFAULT 0,
+    tokens_reserved INTEGER NOT NULL CHECK (tokens_reserved >= 0),
+    cost_reserved_usd REAL NOT NULL DEFAULT 0 CHECK (cost_reserved_usd >= 0),
     state          TEXT NOT NULL DEFAULT 'reserved'
                    CHECK (state IN ('reserved', 'settled', 'released')),
     created_at     TEXT NOT NULL DEFAULT (datetime('now')),
@@ -92,6 +92,17 @@ CREATE TABLE IF NOT EXISTS provider_attempts (
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS stream_finalizations (
+    reservation_id TEXT PRIMARY KEY REFERENCES token_budget_reservations(reservation_id),
+    request_id TEXT NOT NULL UNIQUE REFERENCES request_logs(request_id),
+    operation TEXT NOT NULL CHECK (operation IN ('settle', 'release')),
+    payload_fingerprint TEXT NOT NULL,
+    tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    budget_after INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS config_events (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     event_type TEXT NOT NULL,
@@ -107,4 +118,25 @@ CREATE INDEX IF NOT EXISTS idx_budget_reservations_client_period
 ON token_budget_reservations(client_id, period);
 CREATE INDEX IF NOT EXISTS idx_budget_reservations_expiry
 ON token_budget_reservations(state, expires_at);
+
+CREATE TRIGGER IF NOT EXISTS token_budget_usage_nonnegative_insert
+BEFORE INSERT ON token_budget_usage
+WHEN NEW.tokens_used < 0 OR NEW.cost_used_usd < 0
+BEGIN
+    SELECT RAISE(ABORT, 'token budget usage must be non-negative');
+END;
+
+CREATE TRIGGER IF NOT EXISTS token_budget_usage_nonnegative_update
+BEFORE UPDATE OF tokens_used, cost_used_usd ON token_budget_usage
+WHEN NEW.tokens_used < 0 OR NEW.cost_used_usd < 0
+BEGIN
+    SELECT RAISE(ABORT, 'token budget usage must be non-negative');
+END;
+
+CREATE TRIGGER IF NOT EXISTS token_budget_reservation_nonnegative_insert
+BEFORE INSERT ON token_budget_reservations
+WHEN NEW.tokens_reserved < 0 OR NEW.cost_reserved_usd < 0
+BEGIN
+    SELECT RAISE(ABORT, 'token budget reservation must be non-negative');
+END;
 """

@@ -16,7 +16,22 @@ def _migration_paths() -> list[Path]:
 
 
 def _checksum(path: Path) -> str:
+    """Hash canonical SQL bytes so Git's CRLF conversion cannot fork a ledger."""
+    return hashlib.sha256(_canonical_migration_bytes(path)).hexdigest()
+
+
+def _legacy_checksum(path: Path) -> str:
+    """Recognize ledgers created before checksums were newline-normalized."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _canonical_migration_bytes(path: Path) -> bytes:
+    return path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def _accepted_checksums(path: Path) -> set[str]:
+    """Canonical checksum plus the pre-0.4 raw-byte form for safe upgrades."""
+    return {_checksum(path), _legacy_checksum(path)}
 
 
 def _ensure_ledger(conn) -> None:  # noqa: ANN001
@@ -56,7 +71,7 @@ def migrate(database_url: str, *, app_version: str = "unknown") -> None:
             ).fetchone()
             if row:
                 stored = row["checksum"] if isinstance(row, dict) else row[0]
-                if stored != checksum:
+                if stored not in _accepted_checksums(path):
                     raise RuntimeError(
                         f"Migration checksum mismatch for {version}; "
                         "published migrations are immutable"
@@ -76,7 +91,7 @@ def migrate(database_url: str, *, app_version: str = "unknown") -> None:
 def schema_is_current(database_url: str) -> bool:
     """Return false for an unreachable, incomplete, or checksum-mismatched schema."""
     try:
-        expected = {path.stem: _checksum(path) for path in _migration_paths()}
+        expected = {path.stem: _accepted_checksums(path) for path in _migration_paths()}
         with connect(database_url) as conn:
             rows = conn.execute("SELECT version, checksum FROM schema_migrations").fetchall()
         applied = {
@@ -85,6 +100,8 @@ def schema_is_current(database_url: str) -> bool:
             )
             for row in rows
         }
-        return applied == expected
+        return set(applied) == set(expected) and all(
+            applied[version] in checksums for version, checksums in expected.items()
+        )
     except Exception:
         return False

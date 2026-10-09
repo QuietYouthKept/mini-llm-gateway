@@ -107,15 +107,21 @@ def test_streaming_returns_sse_and_audits_completion(client: TestClient) -> None
     assert audit["cache_hit"] == 0
 
 
-def test_streaming_provider_failure_is_an_sse_error(client: TestClient) -> None:
+def test_streaming_provider_failure_before_first_token_falls_back(client: TestClient) -> None:
     payload = chat_payload("fallback-chat")
     payload["stream"] = True
     response = client.post("/v1/chat", json=payload, headers=auth())
     assert response.status_code == 200
-    assert "event: error" in response.text
-    assert '"code":"provider_failed"' in response.text
+    assert "event: message" in response.text
+    assert "event: done" in response.text
+    assert "event: error" not in response.text
     audit = client.get(f"/v1/requests/{response.headers['x-request-id']}", headers=auth()).json()
-    assert audit["status"] == "provider_error"
+    assert audit["status"] == "completed"
+    assert audit["fallback_used"] == 1
+    assert [attempt["provider_id"] for attempt in audit["attempts"]] == [
+        "mock_error",
+        "mock_fast",
+    ]
 
 
 def test_audit_lookup(client: TestClient) -> None:

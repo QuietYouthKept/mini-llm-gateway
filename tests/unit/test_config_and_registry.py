@@ -121,12 +121,122 @@ def test_production_rejects_plaintext_client_and_admin_keys() -> None:
                 "admin": {"enabled": False},
             }
         )
+
+
+def test_production_admin_requires_environment_key() -> None:
     with pytest.raises(ConfigValidationError, match="api_key_env"):
         AppConfig.from_dict(
             {
                 "gateway": {"environment": "production"},
                 "clients": [{"client_id": "c", "api_key_hash": "a" * 64}],
                 "admin": {"enabled": True},
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    ("base_url", "message"),
+    [
+        ("http://api.example.test", "must use HTTPS"),
+        ("https://127.0.0.1", "private or local"),
+        ("not a URL", "absolute HTTP"),
+    ],
+)
+def test_production_rejects_unsafe_provider_urls(base_url: str, message: str) -> None:
+    with pytest.raises(ConfigValidationError, match=message):
+        AppConfig.from_dict(
+            {
+                "gateway": {"environment": "production"},
+                "clients": [{"client_id": "client", "api_key_hash": "a" * 64}],
+                "admin": {"enabled": False},
+                "providers": {
+                    "provider": {
+                        "type": "openai_compatible",
+                        "http": {
+                            "base_url": base_url,
+                            "api_key_env": "PROVIDER_KEY",
+                            "allowed_hosts": ["api.example.test", "127.0.0.1"],
+                        },
+                    }
+                },
+            }
+        )
+
+
+def test_provider_host_allowlist_rejects_unapproved_hostname() -> None:
+    with pytest.raises(ConfigValidationError, match="allowed_hosts"):
+        AppConfig.from_dict(
+            {
+                "providers": {
+                    "provider": {
+                        "type": "openai_compatible",
+                        "http": {
+                            "base_url": "https://api.example.test",
+                            "allowed_hosts": ["approved.example.test"],
+                        },
+                    }
+                }
+            }
+        )
+
+
+def test_production_provider_requires_nonempty_allowlist() -> None:
+    with pytest.raises(ConfigValidationError, match="non-empty http.allowed_hosts"):
+        AppConfig.from_dict(
+            {
+                "gateway": {"environment": "production"},
+                "clients": [{"client_id": "client", "api_key_hash": "a" * 64}],
+                "admin": {"enabled": False},
+                "providers": {
+                    "provider": {
+                        "type": "openai_compatible",
+                        "http": {
+                            "base_url": "https://api.example.test",
+                            "api_key_env": "PROVIDER_KEY",
+                        },
+                    }
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://user:password@api.example.test",
+        "https://127.1",
+        "https://2130706433",
+        "https://0x7f000001",
+    ],
+)
+def test_provider_url_rejects_userinfo_and_ambiguous_ip(base_url: str) -> None:
+    with pytest.raises(ConfigValidationError, match="absolute HTTP|ambiguous IP"):
+        AppConfig.from_dict(
+            {
+                "providers": {
+                    "provider": {
+                        "type": "openai_compatible",
+                        "http": {"base_url": base_url},
+                    }
+                }
+            }
+        )
+
+
+@pytest.mark.parametrize("allowed_hosts", ["api.example.test", {"api.example.test": True}, 1])
+def test_provider_allowlist_must_be_a_list(allowed_hosts: object) -> None:
+    with pytest.raises(ConfigValidationError, match="must be a list"):
+        AppConfig.from_dict(
+            {
+                "providers": {
+                    "provider": {
+                        "type": "openai_compatible",
+                        "http": {
+                            "base_url": "https://api.example.test",
+                            "allowed_hosts": allowed_hosts,
+                        },
+                    }
+                }
             }
         )
 

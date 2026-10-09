@@ -27,7 +27,11 @@ from app.application.services.token_budget_service import TokenBudgetService
 from app.application.services.token_estimator import TokenEstimator
 from app.domain.models.model_profile import ModelProfile
 from app.domain.ports.provider_port import ProviderPort
-from app.domain.ports.repositories import PromptCachePort, RateLimiterPort
+from app.domain.ports.repositories import (
+    PromptCachePort,
+    RateLimiterPort,
+    StreamingFinalizationRepositoryPort,
+)
 from app.infrastructure.config.config_models import AppConfig, ClientConfig
 from app.infrastructure.config.mapper import profile_config_to_domain
 from app.infrastructure.observability.gateway_metrics import GatewayMetrics
@@ -37,6 +41,7 @@ from app.infrastructure.persistence.sqlite.repositories import (
     ClientRepository,
     ConfigEventRepository,
     RequestLogRepository,
+    SQLiteStreamingFinalizationRepository,
     TokenBudgetRepository,
 )
 from app.infrastructure.providers.provider_registry import build_provider_registry
@@ -58,6 +63,7 @@ class AppContainer:
     circuit_breakers: dict[str, CircuitBreaker]
     guardrails: GuardrailService
     log_service: RequestLogService
+    stream_finalizer: StreamingFinalizationRepositoryPort
     config_events: Any
     chat_service: ChatService
     metrics_registry: MetricsRegistry
@@ -110,17 +116,20 @@ def build_container(
             PostgresClientRepository,
             PostgresConfigEventRepository,
             PostgresRequestLogRepository,
+            PostgresStreamingFinalizationRepository,
             PostgresTokenBudgetRepository,
         )
 
         client_repository = PostgresClientRepository(db_path)
         budget_repository = PostgresTokenBudgetRepository(db_path)
         request_repository = PostgresRequestLogRepository(db_path)
+        stream_finalizer = PostgresStreamingFinalizationRepository(db_path)
         config_events = PostgresConfigEventRepository(db_path)
     else:
         client_repository = ClientRepository(db_path)
         budget_repository = TokenBudgetRepository(db_path)
         request_repository = RequestLogRepository(db_path)
+        stream_finalizer = SQLiteStreamingFinalizationRepository(db_path)
         config_events = ConfigEventRepository(db_path)
     client_repository.sync(config.clients)
 
@@ -296,6 +305,7 @@ def build_container(
         circuit_breakers=circuit_breakers,
         guardrails=guardrails,
         log_service=log_service,
+        stream_finalizer=stream_finalizer,
         metrics=gateway_metrics,
         cache=cache,
         singleflight=singleflight,
@@ -318,6 +328,7 @@ def build_container(
         circuit_breakers=circuit_breakers,
         guardrails=guardrails,
         log_service=log_service,
+        stream_finalizer=stream_finalizer,
         config_events=config_events,
         chat_service=chat_service,
         metrics_registry=metrics_registry,

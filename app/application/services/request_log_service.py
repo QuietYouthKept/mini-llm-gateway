@@ -189,6 +189,76 @@ class RequestLogService:
     def get(self, request_id: str) -> dict[str, Any] | None:
         return self._repo.get_request(request_id)
 
+    def build_stream_record(
+        self,
+        *,
+        request_id: str,
+        client_id: str,
+        model_profile: str,
+        endpoint: str,
+        selected_provider: str | None,
+        status: str,
+        status_code: int,
+        usage: dict[str, Any],
+        estimated_input: int,
+        estimated_output: int,
+        estimated_cost_usd: float,
+        budget_before: int,
+        duration_ms: int,
+        attempts: list[ProviderAttempt],
+        decision_trace: list[dict[str, Any]],
+        replay_payload: Any,
+        response_content: str,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Build, but do not persist, an audit payload for atomic finalization."""
+        billed_input = int(usage.get("billed_input", 0))
+        billed_output = int(usage.get("billed_output", 0))
+        row = {
+            "request_id": request_id,
+            "client_id": client_id,
+            "model_profile": model_profile,
+            "endpoint": endpoint,
+            "selected_provider": selected_provider,
+            "fallback_used": 1 if len(attempts) > 1 else 0,
+            "status": status,
+            "status_code": status_code,
+            "input_tokens": billed_input,
+            "output_tokens": billed_output,
+            "estimated_input_tokens": estimated_input,
+            "estimated_output_tokens": estimated_output,
+            "actual_input_tokens": usage.get("actual_input"),
+            "actual_output_tokens": usage.get("actual_output"),
+            "usage_source": usage.get("source", "estimated"),
+            "estimated_tokens": estimated_input + estimated_output,
+            "estimated_cost_usd": estimated_cost_usd,
+            "cost_saved_usd": 0.0,
+            "budget_before": budget_before,
+            "budget_after": None,
+            "duration_ms": duration_ms,
+            "error_code": error_code,
+            "error_message": error_message,
+            "cache_hit": 0,
+            "cache_key": None,
+            "decision_trace": self._serialize(decision_trace),
+            "replay_payload": self._serialize(replay_payload)
+            if self._config.persist_replay_payload
+            else None,
+            "request_body": self._serialize(replay_payload)
+            if self._config.persist_request_body
+            else None,
+            "response_body": self._serialize({"content": response_content})
+            if self._config.persist_response_body
+            else None,
+        }
+        attempt_rows = (
+            [self._attempt_row(request_id, attempt) for attempt in attempts]
+            if self._config.persist_attempts
+            else []
+        )
+        return row, attempt_rows
+
     def _persist(self, row: dict[str, Any], attempts: list[dict[str, Any]]) -> None:
         """Keep audit persistence visible without coupling repositories to tracing."""
         started = time.monotonic()

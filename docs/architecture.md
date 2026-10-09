@@ -86,6 +86,24 @@ Hot reload swaps the container snapshot atomically. Compatible state is reused;
 incompatible retired containers remain alive for in-flight requests and are
 closed once at application shutdown.
 
+## Streaming lifecycle
+
+Streaming admission runs before the SSE response begins. The stream is never
+cached. Before a non-empty `message` event, the gateway can move through the
+configured provider fallback chain for eligible provider failures, open
+circuits, or a missing provider, provided the request deadline remains. Once a
+message is emitted, it pins that provider: later failure emits a single SSE
+`error` event and is audited as a partial outcome. See
+[ADR-0005](adr/0005-streaming-failure-contract.md) for the full public
+contract and accounting rules.
+
+Terminal streaming persistence is one transaction: reservation transition,
+request audit, provider attempts, and a unique finalization receipt. Receipts
+make a lost database acknowledgement queryable without trying a second
+settlement. Lease reconciliation writes an explicit zero-usage
+`orphaned_released` audit/receipt rather than silently releasing a crashed
+stream reservation.
+
 ## Key decisions
 
 - [ADR-0001: Clean Architecture](adr/0001-clean-architecture.md)

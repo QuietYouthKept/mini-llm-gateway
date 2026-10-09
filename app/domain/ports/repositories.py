@@ -2,7 +2,49 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol
+
+
+@dataclass(frozen=True)
+class FinalizeStreamCommand:
+    """One idempotent terminal stream decision, bound to its audit payload."""
+
+    reservation_id: str
+    request_id: str
+    operation: Literal["settle", "release"]
+    tokens: int
+    cost_usd: float
+    payload_fingerprint: str
+    request_row: dict[str, Any]
+    attempts: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class FinalizationReceipt:
+    reservation_id: str
+    request_id: str
+    operation: Literal["settle", "release"]
+    payload_fingerprint: str
+    state: Literal["settled", "released"]
+    tokens: int
+    cost_usd: float
+    budget_after: int | None
+    already_applied: bool
+
+
+class FinalizationConflictError(ValueError):
+    """A reused idempotency key carries a different terminal payload."""
+
+
+class FinalizationRejectedError(ValueError):
+    """The database definitely rejected the requested terminal transition."""
+
+
+class StreamingFinalizationRepositoryPort(Protocol):
+    def finalize_stream(self, command: FinalizeStreamCommand) -> FinalizationReceipt: ...
+
+    def get_finalization(self, reservation_id: str) -> FinalizationReceipt | None: ...
 
 
 class BudgetRepositoryPort(Protocol):

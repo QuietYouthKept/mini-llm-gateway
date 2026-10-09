@@ -7,8 +7,10 @@ gateway can be configured to do. Parsing happens in AppConfig.from_dict.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 
 class ConfigValidationError(ValueError):
@@ -62,6 +64,8 @@ class HTTPProviderConfig:
     model: str = ""
     timeout_ms: int = 15000
     headers: dict[str, str] = field(default_factory=dict)
+    allowed_hosts: list[str] = field(default_factory=list)
+    allow_private_network: bool = False
 
 
 @dataclass
@@ -331,7 +335,16 @@ class AppConfig:
             )
             _reject_unknown(
                 http_raw,
-                {"base_url", "api_key", "api_key_env", "model", "timeout_ms", "headers"},
+                {
+                    "base_url",
+                    "api_key",
+                    "api_key_env",
+                    "model",
+                    "timeout_ms",
+                    "headers",
+                    "allowed_hosts",
+                    "allow_private_network",
+                },
                 f"providers.{pid}.http",
             )
             providers[pid] = ProviderConfig(
@@ -352,6 +365,8 @@ class AppConfig:
                     model=http_raw.get("model", ""),
                     timeout_ms=http_raw.get("timeout_ms", 15000),
                     headers=http_raw.get("headers", {}),
+                    allowed_hosts=http_raw.get("allowed_hosts", []),
+                    allow_private_network=http_raw.get("allow_private_network", False),
                 ),
             )
 
@@ -623,10 +638,20 @@ class AppConfig:
             if self.admin.enabled and not self.admin.api_key_env:
                 raise ConfigValidationError("Production admin API requires admin.api_key_env")
             if any(
-                provider.enabled and provider.http.api_key
-                for provider in self.providers.values()
+                provider.enabled and provider.http.api_key for provider in self.providers.values()
             ):
                 raise ConfigValidationError("Production provider keys must use http.api_key_env")
+            if any(
+                provider.enabled and provider.type in {"mock", "fake_static"}
+                for provider in self.providers.values()
+            ):
+                raise ConfigValidationError("Production configuration cannot enable mock providers")
+            if any(client.client_id in {"demo", "rl", "tiny"} for client in self.clients):
+                raise ConfigValidationError("Production configuration cannot use demo client IDs")
+        for provider_id, provider in self.providers.items():
+            if provider.type != "openai_compatible" or not provider.enabled:
+                continue
+            self._validate_provider_url(provider_id, provider.http, production)
         allowed_retry = {"provider_timeout", "provider_failed", "provider_bad_status"}
         invalid_retry = sorted(set(self.retry.retry_on) - allowed_retry)
         if invalid_retry:
@@ -675,3 +700,73 @@ class AppConfig:
                 raise ConfigValidationError(
                     f"Profile '{profile_id}' has fallback enabled but no providers"
                 )
+
+    @staticmethod
+    def _validate_provider_url(
+        provider_id: str, http: HTTPProviderConfig, production: bool
+    ) -> None:
+        if not isinstance(http.allow_private_network, bool):
+            raise ConfigValidationError(
+                f"Provider '{provider_id}' http.allow_private_network must be boolean"
+            )
+        if not isinstance(http.allowed_hosts, list) or not all(
+            isinstance(host, str) and host for host in http.allowed_hosts
+        ):
+            raise ConfigValidationError(
+                f"Provider '{provider_id}' http.allowed_hosts must be a list of hostnames"
+            )
+        parsed = urlparse(http.base_url)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ConfigValidationError(
+                f"Provider '{provider_id}' http.base_url must be an absolute HTTP(S) URL"
+            )
+        hostname = parsed.hostname.lower().rstrip(".")
+        allowlist = {host.lower().rstrip(".") for host in http.allowed_hosts}
+        if production and not allowlist:
+            raise ConfigValidationError(
+                f"Production provider '{provider_id}' requires a non-empty http.allowed_hosts"
+            )
+        if allowlist and hostname not in allowlist:
+            raise ConfigValidationError(
+                f"Provider '{provider_id}' hostname '{hostname}' is not in http.allowed_hosts"
+            )
+        if production and parsed.scheme != "https":
+            raise ConfigValidationError(f"Production provider '{provider_id}' must use HTTPS")
+        try:
+            address = ipaddress.ip_address(hostname)
+        except ValueError:
+            address = None
+        # Do not let legacy numeric IPv4 spellings (127.1, 2130706433,
+        # 0x7f000001) pass as DNS names. Resolver interpretation varies by OS.
+        numeric_like = (
+            hostname.isdigit()
+            or hostname.lower().startswith("0x")
+            or (
+                all(part.isdigit() for part in hostname.split("."))
+                and 1 < len(hostname.split(".")) < 5
+            )
+        )
+        if address is None and numeric_like:
+            raise ConfigValidationError(
+                f"Provider '{provider_id}' http.base_url uses an ambiguous IP address"
+            )
+        private_hostname = hostname in {"localhost", "localhost.localdomain"}
+        if address is not None:
+            private_hostname = (
+                address.is_private
+                or address.is_loopback
+                or address.is_link_local
+                or address.is_multicast
+                or address.is_unspecified
+                or address.is_reserved
+            )
+        if production and private_hostname and not http.allow_private_network:
+            raise ConfigValidationError(
+                f"Production provider '{provider_id}' cannot target private or local "
+                "network addresses"
+            )

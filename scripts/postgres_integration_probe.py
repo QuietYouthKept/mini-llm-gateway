@@ -5,15 +5,18 @@ from __future__ import annotations
 import argparse
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 from app.application.services.request_log_service import RequestLogService
 from app.application.services.token_budget_service import TokenBudgetService
 from app.domain.models.provider import ProviderAttempt
+from app.domain.ports.repositories import FinalizeStreamCommand
 from app.infrastructure.config.config_models import ClientConfig, LoggingConfig, TokenBudgetConfig
 from app.infrastructure.persistence.postgresql.connection import connect, migrate
 from app.infrastructure.persistence.postgresql.repositories import (
     PostgresClientRepository,
     PostgresRequestLogRepository,
+    PostgresStreamingFinalizationRepository,
     PostgresTokenBudgetRepository,
 )
 
@@ -27,7 +30,12 @@ def run(database_url: str) -> dict:
         api_key=f"pg-probe-key-{suffix}",
         token_budget=TokenBudgetConfig(period="daily", max_tokens=100),
     )
-    PostgresClientRepository(database_url).sync([client])
+    final_client = ClientConfig(
+        client_id=f"pg-final-{suffix}",
+        api_key=f"pg-final-key-{suffix}",
+        token_budget=TokenBudgetConfig(period="daily", max_tokens=100),
+    )
+    PostgresClientRepository(database_url).sync([client, final_client])
     budget = TokenBudgetService(PostgresTokenBudgetRepository(database_url))
     budget.commit(client, 80, 0.0)
 
@@ -93,6 +101,142 @@ def run(database_url: str) -> dict:
         attempt_rows = conn.execute(
             "SELECT count(*) AS count FROM provider_attempts WHERE request_id=%s", (request_id,)
         ).fetchone()["count"]
+
+    final_budget = TokenBudgetService(PostgresTokenBudgetRepository(database_url))
+    final_reservation = f"pg-final-res-{suffix}"
+    final_request = f"pg-final-request-{suffix}"
+    final_budget.reserve(final_reservation, final_client, 30, 0.0)
+    final_logger = RequestLogService(repository, LoggingConfig())
+    final_row, final_attempts = final_logger.build_stream_record(
+        request_id=final_request,
+        client_id=final_client.client_id,
+        model_profile="probe",
+        endpoint="/probe",
+        selected_provider="probe-provider",
+        status="completed",
+        status_code=200,
+        usage={
+            "billed_input": 6,
+            "billed_output": 4,
+            "actual_input": 6,
+            "actual_output": 4,
+            "source": "provider",
+        },
+        estimated_input=6,
+        estimated_output=4,
+        estimated_cost_usd=0.0,
+        budget_before=100,
+        duration_ms=1,
+        attempts=[],
+        decision_trace=[],
+        replay_payload=None,
+        response_content="probe",
+    )
+    finalizer = PostgresStreamingFinalizationRepository(database_url)
+    command = FinalizeStreamCommand(
+        reservation_id=final_reservation,
+        request_id=final_request,
+        operation="settle",
+        tokens=10,
+        cost_usd=0.0,
+        payload_fingerprint=f"fingerprint-{suffix}",
+        request_row=final_row,
+        attempts=final_attempts,
+    )
+    first_receipt = finalizer.finalize_stream(command)
+    second_receipt = finalizer.finalize_stream(command)
+    with connect(database_url) as conn:
+        final_request_rows = conn.execute(
+            "SELECT count(*) AS count FROM request_logs WHERE request_id=%s",
+            (final_request,),
+        ).fetchone()["count"]
+        final_usage = conn.execute(
+            "SELECT tokens_used FROM token_budget_usage WHERE client_id=%s",
+            (final_client.client_id,),
+        ).fetchone()["tokens_used"]
+
+    concurrent_reservation = f"pg-concurrent-res-{suffix}"
+    concurrent_request = f"pg-concurrent-request-{suffix}"
+    final_budget.reserve(concurrent_reservation, final_client, 30, 0.0)
+    concurrent_row, concurrent_attempts = final_logger.build_stream_record(
+        request_id=concurrent_request,
+        client_id=final_client.client_id,
+        model_profile="probe",
+        endpoint="/probe",
+        selected_provider="probe-provider",
+        status="completed",
+        status_code=200,
+        usage={
+            "billed_input": 6,
+            "billed_output": 4,
+            "actual_input": 6,
+            "actual_output": 4,
+            "source": "provider",
+        },
+        estimated_input=6,
+        estimated_output=4,
+        estimated_cost_usd=0.0,
+        budget_before=90,
+        duration_ms=1,
+        attempts=[],
+        decision_trace=[],
+        replay_payload=None,
+        response_content="probe",
+    )
+    concurrent_command = FinalizeStreamCommand(
+        reservation_id=concurrent_reservation,
+        request_id=concurrent_request,
+        operation="settle",
+        tokens=10,
+        cost_usd=0.0,
+        payload_fingerprint=f"concurrent-fingerprint-{suffix}",
+        request_row=concurrent_row,
+        attempts=concurrent_attempts,
+    )
+    barrier = Barrier(2)
+
+    def finalize_concurrently():  # noqa: ANN202
+        barrier.wait()
+        return PostgresStreamingFinalizationRepository(database_url).finalize_stream(
+            concurrent_command
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        concurrent_receipts = list(pool.map(lambda _: finalize_concurrently(), range(2)))
+    with connect(database_url) as conn:
+        concurrent_request_rows = conn.execute(
+            "SELECT count(*) AS count FROM request_logs WHERE request_id=%s",
+            (concurrent_request,),
+        ).fetchone()["count"]
+    negative_usage_rejected = False
+    try:
+        with connect(database_url) as conn:
+            conn.execute(
+                "UPDATE token_budget_usage SET tokens_used=-1 WHERE client_id=%s",
+                (final_client.client_id,),
+            )
+    except Exception:
+        negative_usage_rejected = True
+
+    orphan_request = f"pg-orphan-request-{suffix}"
+    orphan_reservation = f"{orphan_request}:lease"
+    final_budget.reserve(orphan_reservation, final_client, 5, 0.0)
+    with connect(database_url) as conn:
+        conn.execute(
+            "UPDATE token_budget_reservations SET expires_at=now() - interval '1 second' "
+            "WHERE reservation_id=%s",
+            (orphan_reservation,),
+        )
+    orphan_reclaimed = final_budget.reconcile_expired_reservations()
+    with connect(database_url) as conn:
+        orphan_audit = conn.execute(
+            "SELECT status,error_code FROM request_logs WHERE request_id=%s",
+            (orphan_request,),
+        ).fetchone()
+        orphan_receipt = conn.execute(
+            "SELECT operation FROM stream_finalizations WHERE reservation_id=%s",
+            (orphan_reservation,),
+        ).fetchone()
     return {
         "migrations_twice": True,
         "budget_admitted": sum(admitted),
@@ -104,6 +248,19 @@ def run(database_url: str) -> dict:
         "audit_failure_injected": rollback_observed,
         "request_rows_after_failure": request_rows,
         "attempt_rows_after_failure": attempt_rows,
+        "finalization_state": first_receipt.state,
+        "finalization_replay_idempotent": second_receipt.already_applied,
+        "finalization_request_rows": final_request_rows,
+        "finalization_tokens_used": final_usage,
+        "concurrent_finalization_states": [receipt.state for receipt in concurrent_receipts],
+        "concurrent_finalization_replay_seen": any(
+            receipt.already_applied for receipt in concurrent_receipts
+        ),
+        "concurrent_finalization_request_rows": concurrent_request_rows,
+        "negative_usage_rejected": negative_usage_rejected,
+        "orphan_reclaimed": orphan_reclaimed,
+        "orphan_audit": dict(orphan_audit) if orphan_audit else None,
+        "orphan_receipt": orphan_receipt["operation"] if orphan_receipt else None,
     }
 
 
@@ -119,6 +276,18 @@ def main() -> int:
         and result["audit_failure_injected"]
         and result["request_rows_after_failure"] == 0
         and result["attempt_rows_after_failure"] == 0
+        and result["finalization_state"] == "settled"
+        and result["finalization_replay_idempotent"]
+        and result["finalization_request_rows"] == 1
+        and result["finalization_tokens_used"] == 10
+        and result["concurrent_finalization_states"] == ["settled", "settled"]
+        and result["concurrent_finalization_replay_seen"]
+        and result["concurrent_finalization_request_rows"] == 1
+        and result["negative_usage_rejected"]
+        and result["orphan_reclaimed"] >= 1
+        and result["orphan_audit"]
+        == {"status": "orphaned_released", "error_code": "reservation_lease_expired"}
+        and result["orphan_receipt"] == "release"
     )
     return 0 if passed else 1
 

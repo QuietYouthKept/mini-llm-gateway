@@ -50,6 +50,11 @@ For a production-like local stack, install `.[production]`, configure
 `GW_DATABASE_URL`, `GW_REDIS_URL`, and `GW_CACHE_BACKEND=redis`, then use the
 backend guide and the two-replica probes in `scripts/`.
 
+`config/config.yaml` is a local demonstration configuration. Start production
+configuration from [config/production.example.yaml](config/production.example.yaml):
+it rejects plaintext credentials, mock providers, demo client IDs, non-HTTPS
+provider URLs, and unapproved or private IP endpoints by default.
+
 ## Architecture
 
 ```mermaid
@@ -286,9 +291,26 @@ The RC snapshot is [docs/releases/v1.0.0-rc1-evidence.md](docs/releases/v1.0.0-r
 - **Guardrails are heuristics**, not a guarantee against prompt injection or PII
   leakage — they provide configurable policy hooks + audit logs.
 - **Streaming** uses SSE (`event: message`, `usage`, `done`) with incremental
-  output guardrails. It is intentionally uncached: a later policy violation
-  can stop future chunks but cannot retract text already delivered. Client
-  cancellation settles observed output rather than releasing the full budget.
+  output guardrails. Before its first non-empty chunk it may select the next
+  eligible fallback provider; after that chunk the provider is pinned and a
+  failure is reported as one `event: error`, never a transparent retry. It is
+  intentionally uncached: a later policy violation can stop future chunks but
+  cannot retract text already delivered. Client cancellation settles observed
+  output rather than releasing the full budget. See
+  [ADR-0005](docs/adr/0005-streaming-failure-contract.md).
+
+## Reproducible verification baseline
+
+From a clean Git checkout, capture the commit-bound local test and evaluation
+baseline with:
+
+```bash
+python scripts/capture_baseline.py
+```
+
+The command refuses a dirty worktree and writes a manifest plus individual logs
+to `evidence/baseline/<UTC run id>/`. It records only environment metadata and
+hashes; it never records secrets.
 
 ## Project structure
 

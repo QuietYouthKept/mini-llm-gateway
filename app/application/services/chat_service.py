@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import time
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from typing import Any
+from typing import Any, Literal
 
 from app.application.dto.chat_dto import AttemptDetail, ChatOutcome
 from app.application.services.circuit_breaker import CircuitBreaker, CircuitState
@@ -22,13 +24,17 @@ from app.application.services.token_budget_service import TokenBudgetService
 from app.application.services.token_estimator import TokenEstimator
 from app.core.request_context import get_request_id
 from app.domain.errors import (
+    BudgetSettlementExceededError,
+    FallbackExhaustedError,
     GatewayError,
     GuardrailBlockedError,
     InternalError,
     ModelProfileNotFoundError,
+    ProviderTimeoutError,
     RateLimitExceededError,
     ReplayUnavailableError,
     RequestDeadlineExceededError,
+    StreamFinalizationUnknownError,
     StreamingNotSupportedError,
     http_status_for,
 )
@@ -40,7 +46,15 @@ from app.domain.ports.provider_port import (
     ChatResponse,
     ProviderPort,
 )
-from app.domain.ports.repositories import PromptCachePort, RateLimiterPort
+from app.domain.ports.repositories import (
+    FinalizationConflictError,
+    FinalizationReceipt,
+    FinalizationRejectedError,
+    FinalizeStreamCommand,
+    PromptCachePort,
+    RateLimiterPort,
+    StreamingFinalizationRepositoryPort,
+)
 from app.infrastructure.config.config_models import AppConfig, ClientConfig
 from app.infrastructure.observability.gateway_metrics import GatewayMetrics
 from app.infrastructure.observability.tracing import TraceRecorder
@@ -50,6 +64,7 @@ _CIRCUIT_STATE_VALUE = {
     CircuitState.OPEN: 1,
     CircuitState.HALF_OPEN: 2,
 }
+_MAX_PROVIDER_USAGE_TOKENS = 2_147_483_647
 
 
 @dataclass
@@ -64,6 +79,25 @@ class StreamingSession:
 
     request_id: str
     events: AsyncIterator[StreamEvent]
+    close_unstarted: Callable[[], None]
+
+    async def aclose(self) -> None:
+        closer = getattr(self.events, "aclose", None)
+        if closer is not None:
+            await closer()
+        self.close_unstarted()
+
+
+@dataclass(frozen=True)
+class _StreamFinalization:
+    receipt: FinalizationReceipt
+    usage: dict[str, Any]
+    accounting_error: GatewayError | None = None
+
+
+@dataclass
+class _StreamLifecycle:
+    started: bool = False
 
 
 class ChatService:
@@ -81,6 +115,7 @@ class ChatService:
         circuit_breakers: dict[str, CircuitBreaker],
         guardrails: GuardrailService,
         log_service: RequestLogService,
+        stream_finalizer: StreamingFinalizationRepositoryPort,
         metrics: GatewayMetrics,
         cache: PromptCachePort | None = None,
         singleflight: SingleFlight | None = None,
@@ -99,6 +134,7 @@ class ChatService:
         self._circuit_breakers = circuit_breakers
         self._guardrails = guardrails
         self._log_service = log_service
+        self._stream_finalizer = stream_finalizer
         self._metrics = metrics
         self._cache = cache
         self._cache_enabled = config.cache.enabled and cache is not None
@@ -525,28 +561,78 @@ class ChatService:
                 self._estimator.cost_usd(reserved_input, max(0, request.max_tokens)),
             )
         trace.append(DecisionStep(step="budget_reserved"))
-        candidates = self._routing.resolve_candidates(profile)
-        provider = self._providers.get(candidates[0]) if candidates else None
-        if provider is None:
-            self._budget.release(reservation_id)
-            raise InternalError("No streaming provider is available", request_id=request_id)
-        return StreamingSession(
-            request_id=request_id,
-            events=self._stream_events(
+        try:
+            candidates = self._routing.resolve_candidates(profile)
+            if not candidates:
+                raise InternalError("No streaming provider is available", request_id=request_id)
+            if not profile.fallback.enabled:
+                candidates = candidates[:1]
+            lifecycle = _StreamLifecycle()
+            return StreamingSession(
                 request_id=request_id,
-                request=request,
+                events=self._stream_events(
+                    request_id=request_id,
+                    request=request,
+                    client=client,
+                    endpoint=endpoint,
+                    profile_id=profile_id,
+                    candidates=candidates,
+                    reservation_id=reservation_id,
+                    estimated_input=estimated_input,
+                    budget_before=budget_before.remaining_tokens,
+                    trace=trace,
+                    replay_payload=replay_payload,
+                    start=start,
+                    lifecycle=lifecycle,
+                ),
+                close_unstarted=lambda: self._finalize_unstarted_stream(
+                    request_id=request_id,
+                    reservation_id=reservation_id,
+                    client=client,
+                    endpoint=endpoint,
+                    profile_id=profile_id,
+                    estimated_input=estimated_input,
+                    budget_before=budget_before.remaining_tokens,
+                    trace=trace,
+                    replay_payload=replay_payload,
+                    start=start,
+                    lifecycle=lifecycle,
+                ),
+            )
+        except Exception as exc:
+            error = (
+                exc
+                if isinstance(exc, GatewayError)
+                else InternalError(message=str(exc), request_id=request_id)
+            )
+            duration_ms = int((time.monotonic() - start) * 1000)
+            failure_trace = [
+                *trace,
+                DecisionStep(step="error", reason=error.error_code, meta={"phase": "admission"}),
+            ]
+            self._finalize_stream(
+                request_id=request_id,
+                reservation_id=reservation_id,
+                operation="release",
                 client=client,
                 endpoint=endpoint,
                 profile_id=profile_id,
-                provider=provider,
-                reservation_id=reservation_id,
+                provider=None,
+                provider_usage=None,
                 estimated_input=estimated_input,
+                content="",
                 budget_before=budget_before.remaining_tokens,
-                trace=trace,
+                duration_ms=duration_ms,
+                attempts=[],
+                trace=failure_trace,
                 replay_payload=replay_payload,
-                start=start,
-            ),
-        )
+                status="admission_failed",
+                status_code=http_status_for(error.error_code),
+                error_code=error.error_code,
+                error_message=str(error),
+            )
+            self._record_error_metrics(error, endpoint, duration_ms)
+            raise error from exc
 
     async def _stream_events(
         self,
@@ -556,88 +642,190 @@ class ChatService:
         client: ClientConfig,
         endpoint: str,
         profile_id: str,
-        provider: ProviderPort,
+        candidates: list[str],
         reservation_id: str,
         estimated_input: int,
         budget_before: int,
         trace: list[DecisionStep],
         replay_payload: dict[str, Any],
         start: float,
+        lifecycle: _StreamLifecycle,
     ) -> AsyncIterator[StreamEvent]:
-        """Forward provider chunks and make budget/audit completion cancellation-safe."""
+        """Stream provider output and persist one atomic terminal decision."""
+        lifecycle.started = True
         content = ""
         provider_usage: dict[str, int] | None = None
         finish_reason = "stop"
-        provider_request_id = ""
-        started = time.monotonic()
-        attempt = ProviderAttempt(
-            provider_id=provider.provider_id, attempt_order=0, status="success"
-        )
-        try:
-            try:
-                async with asyncio.timeout(self._config.gateway.request_timeout_ms / 1000.0):
-                    async for chunk in provider.stream_chat(request):
-                        provider_request_id = chunk.provider_request_id or provider_request_id
-                        provider_usage = chunk.usage or provider_usage
-                        finish_reason = chunk.finish_reason or finish_reason
-                        if not chunk.delta:
-                            continue
-                        candidate = content + chunk.delta
-                        decision = self._guardrails.check_output(candidate)
-                        if not decision.allowed:
-                            raise GuardrailBlockedError(
-                                message=f"Streaming output blocked ({decision.reason})",
-                                request_id=request_id,
-                            )
-                        # Low-latency mode checks before each release; already sent
-                        # deltas cannot be retracted if a later window is blocked.
-                        content = decision.content if decision.content is not None else candidate
-                        yield StreamEvent(
-                            event="message",
-                            data={
-                                "delta": chunk.delta,
-                                "request_id": request_id,
-                                "index": chunk.index,
-                            },
-                        )
-            except TimeoutError as exc:
-                raise RequestDeadlineExceededError(request_id=request_id) from exc
+        attempts: list[ProviderAttempt] = []
+        provider: ProviderPort | None = None
+        active_attempt: ProviderAttempt | None = None
+        first_token_sent = False
+        provider_invoked = False
+        finalized = False
+        deadline_at = start + self._config.gateway.request_timeout_ms / 1000.0
 
-            usage, budget_after = self._settle_stream(
-                reservation_id, client, provider, provider_usage, estimated_input, content
-            )
-            attempt.latency_ms = int((time.monotonic() - started) * 1000)
-            attempt.provider_request_id = provider_request_id
-            trace.extend(self._build_provider_trace([provider.provider_id], [attempt]))
+        try:
+            for order, provider_id in enumerate(candidates):
+                if deadline_at <= time.monotonic():
+                    raise RequestDeadlineExceededError(request_id=request_id)
+                candidate = self._providers.get(provider_id)
+                if candidate is None:
+                    attempts.append(
+                        ProviderAttempt(
+                            provider_id=provider_id,
+                            attempt_order=order,
+                            status="error",
+                            error_code="provider_not_found",
+                            error_message="Provider is not available in the registry",
+                        )
+                    )
+                    continue
+                circuit = self._circuit_breakers.get(provider_id)
+                if circuit is not None and not circuit.allow_request():
+                    attempts.append(
+                        ProviderAttempt(
+                            provider_id=provider_id,
+                            attempt_order=order,
+                            status="circuit_open",
+                            error_code="circuit_open",
+                            error_message="circuit breaker is open",
+                        )
+                    )
+                    continue
+
+                provider = candidate
+                provider_usage = None
+                provider_invoked = True
+                attempt_started = time.monotonic()
+                attempt = ProviderAttempt(
+                    provider_id=provider_id,
+                    attempt_order=order,
+                    status="success",
+                )
+                active_attempt = attempt
+                attempt_finish_reason = "stop"
+                try:
+                    async with asyncio.timeout(deadline_at - time.monotonic()):
+                        async for chunk in candidate.stream_chat(request):
+                            if chunk.provider_request_id:
+                                attempt.provider_request_id = chunk.provider_request_id
+                            if chunk.usage:
+                                provider_usage = chunk.usage
+                            attempt_finish_reason = chunk.finish_reason or attempt_finish_reason
+                            if not chunk.delta:
+                                continue
+                            candidate_content = content + chunk.delta
+                            decision = self._guardrails.check_output(candidate_content)
+                            if not decision.allowed:
+                                raise GuardrailBlockedError(
+                                    message=f"Streaming output blocked ({decision.reason})",
+                                    request_id=request_id,
+                                )
+                            content = (
+                                decision.content
+                                if decision.content is not None
+                                else candidate_content
+                            )
+                            first_token_sent = True
+                            yield StreamEvent(
+                                event="message",
+                                data={
+                                    "delta": chunk.delta,
+                                    "request_id": request_id,
+                                    "index": chunk.index,
+                                },
+                            )
+                except TimeoutError:
+                    exc = ProviderTimeoutError(provider_id=provider_id, request_id=request_id)
+                    self._handle_stream_candidate_failure(
+                        exc,
+                        attempt,
+                        attempt_started,
+                        circuit,
+                        attempts,
+                        trace,
+                        first_token_sent,
+                    )
+                    active_attempt = None
+                    if not first_token_sent and self._stream_can_fallback(exc, profile_id):
+                        provider = None
+                        provider_invoked = False
+                        continue
+                    raise exc from None
+                except Exception as exc:
+                    self._handle_stream_candidate_failure(
+                        exc,
+                        attempt,
+                        attempt_started,
+                        circuit,
+                        attempts,
+                        trace,
+                        first_token_sent,
+                    )
+                    active_attempt = None
+                    if not first_token_sent and self._stream_can_fallback(exc, profile_id):
+                        provider = None
+                        provider_invoked = False
+                        continue
+                    raise
+
+                attempt.latency_ms = int((time.monotonic() - attempt_started) * 1000)
+                attempts.append(attempt)
+                active_attempt = None
+                finish_reason = attempt_finish_reason
+                if circuit is not None:
+                    circuit.record_success()
+                break
+            else:
+                error = FallbackExhaustedError(profile_id=profile_id, request_id=request_id)
+                error.attempts = attempts  # type: ignore[attr-defined]
+                raise error
+
+            if provider is None:
+                raise FallbackExhaustedError(profile_id=profile_id, request_id=request_id)
+            trace.extend(self._build_provider_trace(candidates, attempts))
             trace.append(
-                DecisionStep(step="budget_settled", meta={"usage_source": usage["source"]})
+                DecisionStep(
+                    step="budget_finalization_requested",
+                    meta={
+                        "observed_chars": len(content),
+                        "observed_output_tokens": self._estimator.estimate_text(content),
+                    },
+                )
             )
             duration_ms = int((time.monotonic() - start) * 1000)
-            self._record_stream_audit(
-                request_id,
-                client,
-                endpoint,
-                profile_id,
-                provider,
-                attempt,
-                usage,
-                estimated_input,
-                content,
-                budget_before,
-                budget_after.remaining_tokens,
-                duration_ms,
-                trace,
-                replay_payload,
+            terminal = self._finalize_stream(
+                request_id=request_id,
+                reservation_id=reservation_id,
+                operation="settle",
+                client=client,
+                endpoint=endpoint,
+                profile_id=profile_id,
+                provider=provider,
+                provider_usage=provider_usage,
+                estimated_input=estimated_input,
+                content=content,
+                budget_before=budget_before,
+                duration_ms=duration_ms,
+                attempts=attempts,
+                trace=trace,
+                replay_payload=replay_payload,
                 status="completed",
                 status_code=200,
             )
+            finalized = True
+            if terminal.accounting_error is not None:
+                self._record_error_metrics(terminal.accounting_error, endpoint, duration_ms)
+                yield self._stream_error_event(terminal.accounting_error, request_id)
+                return
+            usage = terminal.usage
             self._record_success_metrics(
                 endpoint,
                 client,
                 usage["billed_input"],
                 usage["billed_output"],
-                [attempt],
-                False,
+                attempts,
+                len(attempts) > 1,
                 duration_ms,
             )
             yield StreamEvent(
@@ -648,153 +836,425 @@ class ChatService:
                     "usage_source": usage["source"],
                 },
             )
-            yield StreamEvent(
-                event="done", data={"finish_reason": finish_reason, "request_id": request_id}
-            )
-        except asyncio.CancelledError:
-            usage, budget_after = self._settle_stream(
-                reservation_id, client, provider, provider_usage, estimated_input, content
-            )
-            attempt.status = "cancelled"
-            attempt.latency_ms = int((time.monotonic() - started) * 1000)
-            attempt.provider_request_id = provider_request_id
-            trace.append(DecisionStep(step="cancelled", meta={"partial_chars": len(content)}))
-            self._record_stream_audit(
-                request_id,
-                client,
-                endpoint,
-                profile_id,
-                provider,
-                attempt,
-                usage,
-                estimated_input,
-                content,
-                budget_before,
-                budget_after.remaining_tokens,
-                int((time.monotonic() - start) * 1000),
-                trace,
-                replay_payload,
-                status="cancelled",
-                status_code=499,
-            )
-            raise
-        except Exception as exc:
-            try:
-                self._settle_stream(
-                    reservation_id, client, provider, provider_usage, estimated_input, content
-                )
-            except Exception:
-                self._budget.release(reservation_id)
-            attempt.status = "error"
-            attempt.error_code = getattr(exc, "error_code", "provider_failed")
-            attempt.error_message = str(exc)
-            attempt.latency_ms = int((time.monotonic() - started) * 1000)
-            attempt.provider_request_id = provider_request_id
-            trace.append(
+            yield StreamEvent("done", {"finish_reason": finish_reason, "request_id": request_id})
+        except (asyncio.CancelledError, GeneratorExit):
+            if finalized:
+                raise
+            if active_attempt is not None and active_attempt not in attempts:
+                active_attempt.status = "cancelled"
+                active_attempt.latency_ms = int((time.monotonic() - start) * 1000)
+                attempts.append(active_attempt)
+            duration_ms = int((time.monotonic() - start) * 1000)
+            cancel_trace = [
+                *trace,
+                *self._build_provider_trace(candidates, attempts),
                 DecisionStep(
-                    step="error", reason=attempt.error_code, meta={"partial_chars": len(content)}
+                    step="cancelled",
+                    meta={
+                        "observed_chars": len(content),
+                        "observed_output_tokens": self._estimator.estimate_text(content),
+                    },
+                ),
+            ]
+            try:
+                terminal = self._finalize_stream(
+                    request_id=request_id,
+                    reservation_id=reservation_id,
+                    operation=(
+                        "settle" if provider is not None and provider_invoked else "release"
+                    ),
+                    client=client,
+                    endpoint=endpoint,
+                    profile_id=profile_id,
+                    provider=provider,
+                    provider_usage=provider_usage,
+                    estimated_input=estimated_input,
+                    content=content,
+                    budget_before=budget_before,
+                    duration_ms=duration_ms,
+                    attempts=attempts,
+                    trace=cancel_trace,
+                    replay_payload=replay_payload,
+                    status="cancelled",
+                    status_code=499,
+                    error_code="client_cancelled",
+                    error_message="Client cancelled request",
                 )
+                finalized = True
+                if terminal.accounting_error is not None:
+                    self._record_error_metrics(terminal.accounting_error, endpoint, duration_ms)
+            except StreamFinalizationUnknownError as exc:
+                self._record_error_metrics(exc, endpoint, duration_ms)
+            raise
+        except StreamFinalizationUnknownError as exc:
+            duration_ms = int((time.monotonic() - start) * 1000)
+            self._record_error_metrics(exc, endpoint, duration_ms)
+            yield self._stream_error_event(exc, request_id)
+        except Exception as exc:
+            if finalized:
+                raise
+            error_code = getattr(exc, "error_code", "provider_failed")
+            duration_ms = int((time.monotonic() - start) * 1000)
+            error_trace = [
+                *trace,
+                *self._build_provider_trace(candidates, attempts),
+                DecisionStep(
+                    step="error",
+                    reason=error_code,
+                    meta={
+                        "observed_chars": len(content),
+                        "observed_output_tokens": self._estimator.estimate_text(content),
+                    },
+                ),
+            ]
+            status = "guardrail_blocked" if error_code == "guardrail_blocked" else "provider_error"
+            if content:
+                status = f"partial_{status}"
+            try:
+                terminal = self._finalize_stream(
+                    request_id=request_id,
+                    reservation_id=reservation_id,
+                    operation=(
+                        "settle" if provider is not None and provider_invoked else "release"
+                    ),
+                    client=client,
+                    endpoint=endpoint,
+                    profile_id=profile_id,
+                    provider=provider,
+                    provider_usage=provider_usage,
+                    estimated_input=estimated_input,
+                    content=content,
+                    budget_before=budget_before,
+                    duration_ms=duration_ms,
+                    attempts=attempts,
+                    trace=error_trace,
+                    replay_payload=replay_payload,
+                    status=status,
+                    status_code=http_status_for(error_code),
+                    error_code=error_code,
+                    error_message=str(exc),
+                )
+                finalized = True
+                outbound_error: BaseException = terminal.accounting_error or exc
+            except StreamFinalizationUnknownError as finalization_error:
+                outbound_error = finalization_error
+            metric_error = (
+                outbound_error
+                if isinstance(outbound_error, GatewayError)
+                else InternalError(request_id=request_id)
             )
-            self._log_service.record_error(
-                request_id=request_id,
-                client_id=client.client_id,
-                model_profile=profile_id,
-                endpoint=endpoint,
-                status_code=http_status_for(attempt.error_code),
-                error_code=attempt.error_code,
-                error_message=attempt.error_message,
-                duration_ms=int((time.monotonic() - start) * 1000),
-                attempts=[attempt],
-                decision_trace=[step.to_dict() for step in trace],
-                status="provider_error",
-            )
-            self._record_error_metrics(
-                exc if isinstance(exc, GatewayError) else InternalError(),
-                endpoint,
-                int((time.monotonic() - start) * 1000),
-            )
-            yield StreamEvent(
-                event="error",
-                data={
-                    "code": attempt.error_code,
-                    "message": "stream terminated",
-                    "request_id": request_id,
-                },
-            )
+            self._record_error_metrics(metric_error, endpoint, duration_ms)
+            yield self._stream_error_event(outbound_error, request_id)
 
-    def _settle_stream(
+    def _finalize_unstarted_stream(
         self,
-        reservation_id: str,
-        client: ClientConfig,
-        provider: ProviderPort,
-        provider_usage: dict[str, int] | None,
-        estimated_input: int,
-        content: str,
-    ) -> tuple[dict[str, Any], Any]:
-        response = ChatResponse(
-            content=content, provider_id=provider.provider_id, usage=provider_usage or {}
-        )
-        usage = self._resolve_usage(
-            response, estimated_input, self._estimator.estimate_text(content)
-        )
-        budget_after = self._budget.settle(
-            reservation_id,
-            client,
-            usage["billed_input"] + usage["billed_output"],
-            self._estimator.cost_usd(usage["billed_input"], usage["billed_output"]),
-        )
-        return usage, budget_after
-
-    def _record_stream_audit(
-        self,
+        *,
         request_id: str,
+        reservation_id: str,
         client: ClientConfig,
         endpoint: str,
         profile_id: str,
-        provider: ProviderPort,
-        attempt: ProviderAttempt,
-        usage: dict[str, Any],
+        estimated_input: int,
+        budget_before: int,
+        trace: list[DecisionStep],
+        replay_payload: dict[str, Any],
+        start: float,
+        lifecycle: _StreamLifecycle,
+    ) -> None:
+        if lifecycle.started:
+            return
+        try:
+            if self._stream_finalizer.get_finalization(reservation_id) is not None:
+                return
+        except Exception as exc:
+            raise StreamFinalizationUnknownError(request_id=request_id) from exc
+        self._finalize_stream(
+            request_id=request_id,
+            reservation_id=reservation_id,
+            operation="release",
+            client=client,
+            endpoint=endpoint,
+            profile_id=profile_id,
+            provider=None,
+            provider_usage=None,
+            estimated_input=estimated_input,
+            content="",
+            budget_before=budget_before,
+            duration_ms=int((time.monotonic() - start) * 1000),
+            attempts=[],
+            trace=[*trace, DecisionStep(step="cancelled", reason="stream_not_consumed")],
+            replay_payload=replay_payload,
+            status="cancelled",
+            status_code=499,
+            error_code="client_cancelled",
+            error_message="Stream was closed before consumption started",
+        )
+
+    def _finalize_stream(
+        self,
+        *,
+        request_id: str,
+        reservation_id: str,
+        operation: Literal["settle", "release"],
+        client: ClientConfig,
+        endpoint: str,
+        profile_id: str,
+        provider: ProviderPort | None,
+        provider_usage: dict[str, int] | None,
         estimated_input: int,
         content: str,
         budget_before: int,
-        budget_after: int,
         duration_ms: int,
+        attempts: list[ProviderAttempt],
         trace: list[DecisionStep],
         replay_payload: dict[str, Any],
-        *,
         status: str,
         status_code: int,
-    ) -> None:
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> _StreamFinalization:
         estimated_output = self._estimator.estimate_text(content)
-        self._log_service.record_success(
+        if operation == "settle":
+            if provider is None:
+                raise ValueError("settlement requires an invoked provider")
+            usage = self._resolve_usage(
+                ChatResponse(
+                    content=content,
+                    provider_id=provider.provider_id,
+                    usage=provider_usage or {},
+                ),
+                estimated_input,
+                estimated_output,
+            )
+        else:
+            usage = self._empty_stream_usage()
+        cost_usd = self._estimator.cost_usd(usage["billed_input"], usage["billed_output"])
+        command = self._build_finalization_command(
+            request_id=request_id,
+            reservation_id=reservation_id,
+            operation=operation,
+            client=client,
+            endpoint=endpoint,
+            profile_id=profile_id,
+            provider=provider,
+            usage=usage,
+            estimated_input=estimated_input,
+            estimated_output=estimated_output,
+            cost_usd=cost_usd,
+            content=content,
+            budget_before=budget_before,
+            duration_ms=duration_ms,
+            attempts=attempts,
+            trace=trace,
+            replay_payload=replay_payload,
+            status=status,
+            status_code=status_code,
+            error_code=error_code,
+            error_message=error_message,
+        )
+        try:
+            receipt = self._submit_finalization(command)
+            return _StreamFinalization(receipt=receipt, usage=usage)
+        except FinalizationRejectedError as exc:
+            if operation != "settle":
+                raise StreamFinalizationUnknownError(request_id=request_id) from exc
+
+        accounting_error = BudgetSettlementExceededError(request_id=request_id)
+        released_usage = self._empty_stream_usage()
+        release_command = self._build_finalization_command(
+            request_id=request_id,
+            reservation_id=reservation_id,
+            operation="release",
+            client=client,
+            endpoint=endpoint,
+            profile_id=profile_id,
+            provider=provider,
+            usage=released_usage,
+            estimated_input=estimated_input,
+            estimated_output=estimated_output,
+            cost_usd=0.0,
+            content=content,
+            budget_before=budget_before,
+            duration_ms=duration_ms,
+            attempts=attempts,
+            trace=[
+                *trace,
+                DecisionStep(
+                    step="accounting_failed",
+                    reason=accounting_error.error_code,
+                    meta={"settlement_rejected": True},
+                ),
+            ],
+            replay_payload=replay_payload,
+            status="accounting_failed",
+            status_code=http_status_for(accounting_error.error_code),
+            error_code=accounting_error.error_code,
+            error_message=str(accounting_error),
+        )
+        receipt = self._submit_finalization(release_command)
+        return _StreamFinalization(
+            receipt=receipt,
+            usage=released_usage,
+            accounting_error=accounting_error,
+        )
+
+    def _build_finalization_command(
+        self,
+        *,
+        request_id: str,
+        reservation_id: str,
+        operation: Literal["settle", "release"],
+        client: ClientConfig,
+        endpoint: str,
+        profile_id: str,
+        provider: ProviderPort | None,
+        usage: dict[str, Any],
+        estimated_input: int,
+        estimated_output: int,
+        cost_usd: float,
+        content: str,
+        budget_before: int,
+        duration_ms: int,
+        attempts: list[ProviderAttempt],
+        trace: list[DecisionStep],
+        replay_payload: dict[str, Any],
+        status: str,
+        status_code: int,
+        error_code: str | None,
+        error_message: str | None,
+    ) -> FinalizeStreamCommand:
+        row, attempt_rows = self._log_service.build_stream_record(
             request_id=request_id,
             client_id=client.client_id,
             model_profile=profile_id,
             endpoint=endpoint,
-            selected_provider=provider.provider_id,
-            fallback_used=False,
+            selected_provider=provider.provider_id if provider is not None else None,
+            status=status,
             status_code=status_code,
-            input_tokens=usage["billed_input"],
-            output_tokens=usage["billed_output"],
-            estimated_tokens=estimated_input + estimated_output,
-            estimated_cost_usd=self._estimator.cost_usd(
-                usage["billed_input"], usage["billed_output"]
-            ),
-            estimated_input_tokens=estimated_input,
-            estimated_output_tokens=estimated_output,
-            actual_input_tokens=usage["actual_input"],
-            actual_output_tokens=usage["actual_output"],
-            usage_source=usage["source"],
+            usage=usage,
+            estimated_input=estimated_input,
+            estimated_output=estimated_output,
+            estimated_cost_usd=cost_usd,
             budget_before=budget_before,
-            budget_after=budget_after,
             duration_ms=duration_ms,
-            attempts=[attempt],
-            request_body=replay_payload,
-            response_body={"content": content},
+            attempts=attempts,
             decision_trace=[step.to_dict() for step in trace],
             replay_payload=replay_payload,
-            status=status,
+            response_content=content,
+            error_code=error_code,
+            error_message=error_message,
         )
+        tokens = int(usage["billed_input"]) + int(usage["billed_output"])
+        payload = {
+            "reservation_id": reservation_id,
+            "request_id": request_id,
+            "operation": operation,
+            "tokens": tokens,
+            "cost_usd": cost_usd,
+            "request_row": row,
+            "attempts": attempt_rows,
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        return FinalizeStreamCommand(
+            reservation_id=reservation_id,
+            request_id=request_id,
+            operation=operation,
+            tokens=tokens,
+            cost_usd=cost_usd,
+            payload_fingerprint=fingerprint,
+            request_row=row,
+            attempts=attempt_rows,
+        )
+
+    def _submit_finalization(self, command: FinalizeStreamCommand) -> FinalizationReceipt:
+        try:
+            return self._stream_finalizer.finalize_stream(command)
+        except FinalizationRejectedError:
+            raise
+        except FinalizationConflictError as exc:
+            raise StreamFinalizationUnknownError(request_id=command.request_id) from exc
+        except Exception as exc:
+            try:
+                receipt = self._stream_finalizer.get_finalization(command.reservation_id)
+            except Exception as query_exc:
+                raise StreamFinalizationUnknownError(request_id=command.request_id) from query_exc
+            if (
+                receipt is not None
+                and receipt.request_id == command.request_id
+                and receipt.operation == command.operation
+                and receipt.payload_fingerprint == command.payload_fingerprint
+            ):
+                return receipt
+            raise StreamFinalizationUnknownError(request_id=command.request_id) from exc
+
+    @staticmethod
+    def _empty_stream_usage() -> dict[str, Any]:
+        return {
+            "billed_input": 0,
+            "billed_output": 0,
+            "actual_input": None,
+            "actual_output": None,
+            "source": "not_billed",
+        }
+
+    @staticmethod
+    def _stream_error_event(exc: BaseException, request_id: str) -> StreamEvent:
+        return StreamEvent(
+            event="error",
+            data={
+                "code": getattr(exc, "error_code", "provider_failed"),
+                "message": "stream terminated",
+                "request_id": request_id,
+            },
+        )
+
+    def _handle_stream_candidate_failure(
+        self,
+        exc: Exception,
+        attempt: ProviderAttempt,
+        attempt_started: float,
+        circuit: CircuitBreaker | None,
+        attempts: list[ProviderAttempt],
+        trace: list[DecisionStep],
+        first_token_sent: bool,
+    ) -> None:
+        """Record a failed stream attempt before deciding whether it may fall back."""
+        error_code = getattr(exc, "error_code", "provider_failed")
+        attempt.status = {
+            "provider_timeout": "timeout",
+            "provider_bad_status": "bad_status",
+        }.get(error_code, "error")
+        attempt.error_code = error_code
+        attempt.error_message = str(exc)
+        attempt.latency_ms = int((time.monotonic() - attempt_started) * 1000)
+        attempts.append(attempt)
+        # Stream policy shares FailurePolicy with buffered fallback. The circuit
+        # records provider failures even after first token, while the caller
+        # prevents an unsafe switch once output has been released.
+        if circuit is not None and error_code in {
+            "provider_timeout",
+            "provider_failed",
+            "provider_bad_status",
+        }:
+            circuit.record_failure()
+        trace.append(
+            DecisionStep(
+                step="provider_stream_failed",
+                reason=error_code,
+                meta={
+                    "provider": attempt.provider_id,
+                    "attempt_order": attempt.attempt_order,
+                    "after_first_token": first_token_sent,
+                },
+            )
+        )
+
+    def _stream_can_fallback(self, exc: Exception, profile_id: str) -> bool:
+        profile = self._profiles[profile_id]
+        error_code = getattr(exc, "error_code", "provider_failed")
+        return self._fallback.decide_failure(error_code, profile.fallback.trigger_on).fallbackable
 
     def _serve_cache_hit(
         self,
@@ -952,33 +1412,70 @@ class ChatService:
         estimated_input: int,
         estimated_output: int,
     ) -> dict[str, Any]:
-        usage = response.usage or {}
-        prompt = int(usage.get("prompt_tokens", 0) or 0)
-        completion = int(usage.get("completion_tokens", 0) or 0)
-        total = int(usage.get("total_tokens", 0) or 0)
-        if prompt > 0 or completion > 0:
-            return {
-                "billed_input": prompt,
-                "billed_output": completion,
-                "actual_input": prompt,
-                "actual_output": completion,
-                "source": "provider",
-            }
-        if total > 0:
-            billed_input = min(estimated_input, total)
-            return {
-                "billed_input": billed_input,
-                "billed_output": total - billed_input,
-                "actual_input": None,
-                "actual_output": None,
-                "source": "provider_total",
-            }
+        """Use provider usage only when the complete reported shape is trustworthy.
+
+        A provider can omit usage entirely, but it must not make a request
+        appear cheaper by sending partial, negative, non-integral, or
+        self-contradictory counters.  Those cases deliberately fall back to
+        the bounded local estimate and retain a distinct audit source.
+        """
+        usage = response.usage if isinstance(response.usage, dict) else {}
+        estimated_input = max(0, int(estimated_input))
+        estimated_output = max(0, int(estimated_output))
+        keys = ("prompt_tokens", "completion_tokens", "total_tokens")
+        present = {key: key in usage for key in keys}
+
+        def read(key: str) -> int | None:
+            value = usage.get(key)
+            if isinstance(value, bool) or not isinstance(value, int):
+                return None
+            if value < 0 or value > _MAX_PROVIDER_USAGE_TOKENS:
+                return None
+            return value
+
+        if present["prompt_tokens"] or present["completion_tokens"]:
+            prompt = read("prompt_tokens")
+            completion = read("completion_tokens")
+            total = read("total_tokens") if present["total_tokens"] else None
+            if (
+                prompt is not None
+                and completion is not None
+                and (total is None or total == prompt + completion)
+            ):
+                return {
+                    "billed_input": prompt,
+                    "billed_output": completion,
+                    "actual_input": prompt,
+                    "actual_output": completion,
+                    "source": "provider",
+                }
+            return ChatService._estimated_usage(estimated_input, estimated_output, invalid=True)
+
+        if present["total_tokens"]:
+            total = read("total_tokens")
+            if total is not None:
+                billed_input = min(estimated_input, total)
+                return {
+                    "billed_input": billed_input,
+                    "billed_output": total - billed_input,
+                    "actual_input": None,
+                    "actual_output": None,
+                    "source": "provider_total",
+                }
+            return ChatService._estimated_usage(estimated_input, estimated_output, invalid=True)
+
+        return ChatService._estimated_usage(estimated_input, estimated_output, invalid=False)
+
+    @staticmethod
+    def _estimated_usage(
+        estimated_input: int, estimated_output: int, *, invalid: bool
+    ) -> dict[str, Any]:
         return {
             "billed_input": estimated_input,
             "billed_output": estimated_output,
             "actual_input": None,
             "actual_output": None,
-            "source": "estimated",
+            "source": "estimated_invalid_provider_usage" if invalid else "estimated",
         }
 
     def _enforce_streaming(self, request: ChatRequest, request_id: str) -> None:
