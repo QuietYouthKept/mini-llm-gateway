@@ -57,8 +57,8 @@ class ReadinessService:
             ("database", True, lambda: self._database_check(container.db_path)),
         ]
         if container.redis_url:
-            checks.append(("redis_rate_limit", True, self._redis_check(container)))
-            checks.append(("redis_cache", False, self._redis_cache_check(container)))
+            checks.append(("redis_rate_limit", True, lambda: self._redis_check(container)))
+            checks.append(("redis_cache", False, lambda: self._redis_cache_check(container)))
         checks.append(("providers", True, lambda: self._providers_check(container)))
         results = await asyncio.gather(
             *(self._run_check(name, required, check) for name, required, check in checks)

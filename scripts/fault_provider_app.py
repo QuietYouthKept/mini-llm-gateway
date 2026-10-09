@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 from typing import Any
 
 from fastapi import FastAPI, Header, Response
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
@@ -18,6 +20,30 @@ async def health() -> dict[str, str]:
 
 @app.post("/v1/chat/completions", response_model=None)
 async def chat(payload: dict, x_fault_mode: str = Header(default="success")) -> Any:
+    if payload.get("stream"):
+        async def frames():
+            if x_fault_mode == "timeout":
+                await asyncio.sleep(1.0)
+            frame = {
+                "id": "synthetic-fault-provider-request",
+                "model": "fault-fixture",
+                "choices": [{"delta": {"content": "partial from fault fixture"}, "finish_reason": None}],
+            }
+            yield f"data: {json.dumps(frame)}\n\n"
+            if x_fault_mode == "stream_then_error":
+                await asyncio.sleep(0.02)
+                yield "data: {malformed-json-frame}\n\n"
+                return
+            final = {
+                "id": "synthetic-fault-provider-request",
+                "model": "fault-fixture",
+                "choices": [{"delta": {}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 4, "total_tokens": 7},
+            }
+            yield f"data: {json.dumps(final)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(frames(), media_type="text/event-stream")
     if x_fault_mode == "timeout":
         await asyncio.sleep(2.0)
     if x_fault_mode == "500":

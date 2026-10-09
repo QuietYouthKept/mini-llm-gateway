@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import time
 from pathlib import Path
 
 
 def _migration_paths() -> list[Path]:
-    root = Path(__file__).resolve().parents[4]
-    paths = sorted((root / "migrations" / "postgresql").glob("*.sql"))
+    configured_path = os.getenv("GW_MIGRATIONS_PATH", "").strip()
+    if configured_path:
+        migration_directory = Path(configured_path)
+    else:
+        root = Path(__file__).resolve().parents[4]
+        migration_directory = root / "migrations" / "postgresql"
+    paths = sorted(migration_directory.glob("*.sql"))
     if not paths:
         raise RuntimeError("No PostgreSQL migrations found")
     return paths
@@ -54,7 +60,7 @@ def connect(database_url: str):  # noqa: ANN201
         from psycopg.rows import dict_row
     except ImportError as exc:  # pragma: no cover - environment gate
         raise RuntimeError("PostgreSQL backend requires psycopg[binary]") from exc
-    return psycopg.connect(database_url, row_factory=dict_row)
+    return psycopg.connect(database_url, connect_timeout=2, row_factory=dict_row)
 
 
 def migrate(database_url: str, *, app_version: str = "unknown") -> None:

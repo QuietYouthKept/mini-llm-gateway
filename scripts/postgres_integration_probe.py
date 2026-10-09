@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
@@ -148,7 +149,7 @@ def run(database_url: str) -> dict:
         estimated_cost_usd=0.0,
         budget_before=100,
         duration_ms=1,
-        attempts=[],
+        attempts=[ProviderAttempt(provider_id="probe-provider", attempt_order=0, status="success")],
         decision_trace=[],
         replay_payload=None,
         response_content="probe",
@@ -164,8 +165,68 @@ def run(database_url: str) -> dict:
         request_row=final_row,
         attempts=final_attempts,
     )
-    first_receipt = finalizer.finalize_stream(command)
-    second_receipt = finalizer.finalize_stream(command)
+    with connect(database_url) as conn:
+        from psycopg import sql
+
+        conn.execute(
+            sql.SQL("""CREATE OR REPLACE FUNCTION gateway_probe_fail_finalization_audit()
+            RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+              IF NEW.request_id={} THEN
+                RAISE EXCEPTION 'injected finalization audit failure';
+              END IF;
+              RETURN NEW;
+            END $$""").format(sql.Literal(final_request))
+        )
+        conn.execute(
+            """CREATE TRIGGER gateway_probe_finalization_audit_failure
+            BEFORE INSERT ON provider_attempts FOR EACH ROW
+            EXECUTE FUNCTION gateway_probe_fail_finalization_audit()"""
+        )
+    finalization_rollback_observed = False
+    try:
+        finalizer.finalize_stream(command)
+    except Exception:
+        finalization_rollback_observed = True
+    finally:
+        with connect(database_url) as conn:
+            conn.execute(
+                "DROP TRIGGER gateway_probe_finalization_audit_failure ON provider_attempts"
+            )
+            conn.execute("DROP FUNCTION gateway_probe_fail_finalization_audit()")
+    with connect(database_url) as conn:
+        rollback_reservation_state = conn.execute(
+            "SELECT state FROM token_budget_reservations WHERE reservation_id=%s",
+            (final_reservation,),
+        ).fetchone()["state"]
+        rollback_finalization_rows = conn.execute(
+            "SELECT count(*) AS count FROM stream_finalizations WHERE reservation_id=%s",
+            (final_reservation,),
+        ).fetchone()["count"]
+        rollback_request_rows = conn.execute(
+            "SELECT count(*) AS count FROM request_logs WHERE request_id=%s",
+            (final_request,),
+        ).fetchone()["count"]
+
+    class LostCommitAcknowledgement:
+        """Model a dropped client acknowledgement after the real DB commit."""
+
+        def __init__(self) -> None:
+            self.lost = False
+
+        def finalize_stream(self, finalize_command):  # noqa: ANN001, ANN201
+            receipt = finalizer.finalize_stream(finalize_command)
+            if not self.lost:
+                self.lost = True
+                raise OSError("injected connection loss after PostgreSQL commit")
+            return receipt
+
+    unknown_result_observed = False
+    try:
+        LostCommitAcknowledgement().finalize_stream(command)
+    except OSError:
+        unknown_result_observed = True
+    recovered_receipt = finalizer.get_finalization(final_reservation)
+    replay_receipt = finalizer.finalize_stream(command)
     with connect(database_url) as conn:
         final_request_rows = conn.execute(
             "SELECT count(*) AS count FROM request_logs WHERE request_id=%s",
@@ -274,8 +335,15 @@ def run(database_url: str) -> dict:
         "audit_failure_injected": rollback_observed,
         "request_rows_after_failure": request_rows,
         "attempt_rows_after_failure": attempt_rows,
-        "finalization_state": first_receipt.state,
-        "finalization_replay_idempotent": second_receipt.already_applied,
+        "finalization_audit_failure_injected": finalization_rollback_observed,
+        "rollback_reservation_state": rollback_reservation_state,
+        "rollback_finalization_rows": rollback_finalization_rows,
+        "rollback_request_rows": rollback_request_rows,
+        "commit_unknown_observed": unknown_result_observed,
+        "commit_unknown_receipt_recovered": recovered_receipt is not None,
+        "finalization_state": recovered_receipt.state if recovered_receipt else None,
+        "finalization_replay_idempotent": replay_receipt.already_applied,
+        "finalization_tokens": replay_receipt.tokens,
         "finalization_request_rows": final_request_rows,
         "finalization_tokens_used": final_usage,
         "concurrent_finalization_states": [receipt.state for receipt in concurrent_receipts],
@@ -295,7 +363,7 @@ def main() -> int:
     parser.add_argument("--database-url", required=True)
     args = parser.parse_args()
     result = run(args.database_url)
-    print(result)
+    print(json.dumps(result, indent=2, sort_keys=True))
     passed = (
         result["budget_admitted"] == 1
         and result["within_limit"]
@@ -305,8 +373,15 @@ def main() -> int:
         and result["audit_failure_injected"]
         and result["request_rows_after_failure"] == 0
         and result["attempt_rows_after_failure"] == 0
+        and result["finalization_audit_failure_injected"]
+        and result["rollback_reservation_state"] == "reserved"
+        and result["rollback_finalization_rows"] == 0
+        and result["rollback_request_rows"] == 0
+        and result["commit_unknown_observed"]
+        and result["commit_unknown_receipt_recovered"]
         and result["finalization_state"] == "settled"
         and result["finalization_replay_idempotent"]
+        and result["finalization_tokens"] == 10
         and result["finalization_request_rows"] == 1
         and result["finalization_tokens_used"] == 10
         and result["concurrent_finalization_states"] == ["settled", "settled"]

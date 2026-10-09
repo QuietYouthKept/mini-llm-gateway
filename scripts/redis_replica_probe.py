@@ -9,7 +9,14 @@ import json
 import httpx
 
 
-async def run(url_a: str, url_b: str) -> dict:
+async def run(
+    url_a: str,
+    url_b: str,
+    *,
+    rate_api_key: str = "redis-rate-key",
+    cache_api_key: str = "redis-cache-key",
+    cache_nonce: str = "",
+) -> dict:
     async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
         rate_payloads = [
             {
@@ -24,25 +31,28 @@ async def run(url_a: str, url_b: str) -> dict:
             base = url_a if index % 2 == 0 else url_b
             response = await client.post(
                 f"{base}/v1/chat",
-                headers={"Authorization": "Bearer redis-rate-key"},
+                headers={"Authorization": f"Bearer {rate_api_key}"},
                 json=payload,
             )
             statuses.append(response.status_code)
 
         cache_payload = {
             "profile": "fast-chat",
-            "messages": [{"role": "user", "content": "redis cross replica exact cache"}],
+            "messages": [{
+                "role": "user",
+                "content": f"redis cross replica exact cache {cache_nonce}",
+            }],
             "max_tokens": 16,
         }
         first, second = await asyncio.gather(
             client.post(
                 f"{url_a}/v1/chat",
-                headers={"Authorization": "Bearer redis-cache-key"},
+                headers={"Authorization": f"Bearer {cache_api_key}"},
                 json=cache_payload,
             ),
             client.post(
                 f"{url_b}/v1/chat",
-                headers={"Authorization": "Bearer redis-cache-key"},
+                headers={"Authorization": f"Bearer {cache_api_key}"},
                 json=cache_payload,
             ),
         )
