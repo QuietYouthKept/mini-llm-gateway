@@ -41,6 +41,12 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Compile source and tests
+        run: python -m compileall -q app tests eval scripts
+
+      - name: Credential hygiene
+        run: python scripts/secret_scan.py
+
       - name: Test with branch coverage gate
         run: pytest -q --cov=app --cov-branch --cov-fail-under=80
 
