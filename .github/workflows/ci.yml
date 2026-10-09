@@ -253,7 +253,7 @@ jobs:
           ARTIFACT_ID: ${{ steps.evidence-upload.outputs.artifact-id }}
         run: |
           set +e
-          archive="$RUNNER_TEMP/wave3-evidence-${ARTIFACT_ID}.zip"
+          archive="$RUNNER_TEMP/gateway-evidence-${ARTIFACT_ID}.zip"
           download_url=$(curl --fail --silent --show-error --output /dev/null --write-out '%{redirect_url}' \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
