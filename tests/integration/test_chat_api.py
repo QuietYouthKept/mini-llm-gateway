@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 from fastapi.testclient import TestClient
 
 from tests.conftest import auth, chat_payload
@@ -16,6 +18,33 @@ def test_chat_success(client: TestClient) -> None:
     assert body["request_id"]
     assert body["estimated_tokens"] > 0
     assert resp.headers.get("x-request-id") == body["request_id"]
+
+
+def test_non_stream_settlement_and_audit_share_finalization_receipt(
+    client: TestClient, container
+) -> None:
+    response = client.post("/v1/chat", json=chat_payload("fast-chat"), headers=auth())
+    assert response.status_code == 200
+    request_id = response.json()["request_id"]
+    with sqlite3.connect(container.db_path) as conn:
+        receipt_count = conn.execute(
+            "SELECT count(*) FROM stream_finalizations WHERE request_id = ?", (request_id,)
+        ).fetchone()[0]
+        reservation_states = conn.execute(
+            "SELECT r.state FROM token_budget_reservations r "
+            "JOIN stream_finalizations f USING (reservation_id) WHERE f.request_id = ?",
+            (request_id,),
+        ).fetchall()
+        request_count = conn.execute(
+            "SELECT count(*) FROM request_logs WHERE request_id = ?", (request_id,)
+        ).fetchone()[0]
+        attempt_count = conn.execute(
+            "SELECT count(*) FROM provider_attempts WHERE request_id = ?", (request_id,)
+        ).fetchone()[0]
+    assert receipt_count == 1
+    assert reservation_states == [("settled",)]
+    assert request_count == 1
+    assert attempt_count == 1
 
 
 def test_chat_fallback(client: TestClient) -> None:

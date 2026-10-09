@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from math import ceil
 from typing import Any
 
+from app.application.services.blocking_io import BoundedBlockingIO
 from app.application.services.chat_service import ChatService
 from app.application.services.circuit_breaker import CircuitBreaker
 from app.application.services.fallback_service import FallbackService
@@ -76,6 +77,7 @@ class AppContainer:
     cache_backend: str = "local"
     otlp_endpoint: str = ""
     readiness: ReadinessService | None = None
+    blocking_io: BoundedBlockingIO | None = None
 
     async def close(self, seen: set[int] | None = None) -> None:
         """Close owned provider transports on application shutdown."""
@@ -103,6 +105,8 @@ class AppContainer:
                 result = closer()
                 if hasattr(result, "__await__"):
                     await result
+        if self.blocking_io is not None:
+            await self.blocking_io.aclose()
 
 
 def build_container(
@@ -110,6 +114,7 @@ def build_container(
     db_path: str,
     previous: AppContainer | None = None,
 ) -> AppContainer:
+    blocking_io = BoundedBlockingIO()
     is_postgres = db_path.startswith(("postgresql://", "postgres://"))
     if is_postgres:
         from app.infrastructure.persistence.postgresql.repositories import (
@@ -311,6 +316,7 @@ def build_container(
         singleflight=singleflight,
         distributed_singleflight=distributed_singleflight,
         tracer=tracer,
+        blocking_io=blocking_io,
     )
 
     return AppContainer(
@@ -343,4 +349,5 @@ def build_container(
         ),
         otlp_endpoint=otlp_endpoint,
         readiness=(previous.readiness if previous is not None else ReadinessService()),
+        blocking_io=blocking_io,
     )

@@ -12,6 +12,10 @@ from app.domain.errors import GatewayError, http_status_for
 
 async def gateway_error_handler(request: Request, exc: GatewayError) -> JSONResponse:
     status_code = http_status_for(exc.error_code)
+    if exc.error_code in {"database_unavailable", "stream_finalization_unknown"}:
+        # A second audit attempt cannot resolve a DB outage or uncertain commit;
+        # the durable lease/receipt recovery path owns those states.
+        request.scope["gateway.audit_skipped"] = True
     headers: dict[str, str] = {}
 
     if exc.error_code == "rate_limit_exceeded":

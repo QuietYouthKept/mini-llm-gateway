@@ -54,13 +54,31 @@ def _ensure_ledger(conn) -> None:  # noqa: ANN001
     )
 
 
-def connect(database_url: str):  # noqa: ANN201
+def connect(
+    database_url: str,
+    *,
+    connect_timeout: int = 1,
+    statement_timeout_ms: int = 3000,
+    lock_timeout_ms: int = 1000,
+):  # noqa: ANN201
     try:
         import psycopg
         from psycopg.rows import dict_row
     except ImportError as exc:  # pragma: no cover - environment gate
         raise RuntimeError("PostgreSQL backend requires psycopg[binary]") from exc
-    return psycopg.connect(database_url, connect_timeout=2, row_factory=dict_row)
+    # Bound both network establishment and server-side waits.  A Python
+    # executor protects the event loop, but without server deadlines a finite
+    # worker lane could remain pinned forever by a lock or stalled query.
+    return psycopg.connect(
+        database_url,
+        connect_timeout=max(1, connect_timeout),
+        options=(
+            f"-c statement_timeout={max(1, statement_timeout_ms)} "
+            f"-c lock_timeout={max(1, lock_timeout_ms)} "
+            "-c idle_in_transaction_session_timeout=5000"
+        ),
+        row_factory=dict_row,
+    )
 
 
 def migrate(database_url: str, *, app_version: str = "unknown") -> None:
@@ -94,11 +112,11 @@ def migrate(database_url: str, *, app_version: str = "unknown") -> None:
             )
 
 
-def schema_is_current(database_url: str) -> bool:
+def schema_is_current(database_url: str, *, connect_timeout: int = 1) -> bool:
     """Return false for an unreachable, incomplete, or checksum-mismatched schema."""
     try:
         expected = {path.stem: _accepted_checksums(path) for path in _migration_paths()}
-        with connect(database_url) as conn:
+        with connect(database_url, connect_timeout=connect_timeout) as conn:
             rows = conn.execute("SELECT version, checksum FROM schema_migrations").fetchall()
         applied = {
             (row["version"] if isinstance(row, dict) else row[0]): (

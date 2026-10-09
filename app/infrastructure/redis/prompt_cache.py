@@ -13,7 +13,13 @@ class RedisPromptCache:
             import redis
         except ImportError as exc:  # pragma: no cover - environment gate
             raise RuntimeError("Redis backend requires the 'redis' package") from exc
-        self._client = redis.Redis.from_url(url, decode_responses=True, protocol=2)
+        self._client = redis.Redis.from_url(
+            url,
+            decode_responses=True,
+            protocol=2,
+            socket_connect_timeout=2.0,
+            socket_timeout=2.0,
+        )
         self._ttl_ms = max(1, ttl_ms)
         self._prefix = prefix
         self._client.ping()

@@ -7,12 +7,16 @@ import hashlib
 import json
 import time
 import uuid
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 from app.application.dto.chat_dto import AttemptDetail, ChatOutcome
+from app.application.services.blocking_io import (
+    BlockingIOOverloadedError,
+    BoundedBlockingIO,
+)
 from app.application.services.circuit_breaker import CircuitBreaker, CircuitState
 from app.application.services.fallback_service import FallbackService
 from app.application.services.guardrail_service import GuardrailService
@@ -25,6 +29,7 @@ from app.application.services.token_estimator import TokenEstimator
 from app.core.request_context import get_request_id
 from app.domain.errors import (
     BudgetSettlementExceededError,
+    DatabaseUnavailableError,
     FallbackExhaustedError,
     GatewayError,
     GuardrailBlockedError,
@@ -79,13 +84,13 @@ class StreamingSession:
 
     request_id: str
     events: AsyncIterator[StreamEvent]
-    close_unstarted: Callable[[], None]
+    close_unstarted: Callable[[], Awaitable[None]]
 
     async def aclose(self) -> None:
         closer = getattr(self.events, "aclose", None)
         if closer is not None:
             await closer()
-        self.close_unstarted()
+        await self.close_unstarted()
 
 
 @dataclass(frozen=True)
@@ -121,6 +126,7 @@ class ChatService:
         singleflight: SingleFlight | None = None,
         distributed_singleflight: Any | None = None,
         tracer: TraceRecorder | None = None,
+        blocking_io: BoundedBlockingIO | None = None,
     ) -> None:
         self._config = config
         self._profiles = profiles
@@ -141,6 +147,7 @@ class ChatService:
         self._singleflight = singleflight or SingleFlight()
         self._distributed_singleflight = distributed_singleflight
         self._tracer = tracer or TraceRecorder(enabled=False)
+        self._blocking_io = blocking_io or BoundedBlockingIO()
 
     async def chat(
         self,
@@ -182,13 +189,14 @@ class ChatService:
         flight: tuple[str, asyncio.Event] | None = None
         distributed_flight_key: str | None = None
         provider_trace_recorded = False
+        durable_finalized = False
 
         try:
             self._enforce_streaming(request, request_id)
             trace.append(DecisionStep(step="streaming_checked", meta={"allowed": True}))
 
             with self._phase("rate_limit.wait"):
-                self._enforce_rate_limit(client, request_id)
+                await self._blocking_io.run(self._enforce_rate_limit, client, request_id)
             trace.append(
                 DecisionStep(
                     step="rate_limit_checked",
@@ -218,9 +226,9 @@ class ChatService:
                 resolved_profile=profile_id,
             )
 
-            cached = self._cache_get(cache_key, trace) if self._cache_enabled else None
+            cached = await self._cache_get(cache_key, trace) if self._cache_enabled else None
             if cached is not None:
-                return self._serve_cache_hit(
+                return await self._serve_cache_hit(
                     cached,
                     request_id,
                     client,
@@ -255,9 +263,9 @@ class ChatService:
                             await asyncio.wait_for(event.wait(), timeout=remaining)
                     except TimeoutError as exc:
                         raise RequestDeadlineExceededError(request_id=request_id) from exc
-                    cached = self._cache_get(cache_key, trace)
+                    cached = await self._cache_get(cache_key, trace)
                     if cached is not None:
-                        return self._serve_cache_hit(
+                        return await self._serve_cache_hit(
                             cached,
                             request_id,
                             client,
@@ -273,13 +281,13 @@ class ChatService:
                 distributed_flight_key = await self._acquire_distributed_flight(
                     cache_key, deadline_at, trace
                 )
-                cached = self._cache_get(cache_key, trace)
+                cached = await self._cache_get(cache_key, trace)
                 if cached is not None:
-                    self._release_distributed_flight(distributed_flight_key)
+                    await self._release_distributed_flight(distributed_flight_key)
                     distributed_flight_key = None
                     self._release_flight(flight)
                     flight = None
-                    return self._serve_cache_hit(
+                    return await self._serve_cache_hit(
                         cached,
                         request_id,
                         client,
@@ -296,7 +304,7 @@ class ChatService:
                 DecisionStep(step="cache_miss", reason="no exact match", meta={"key": cache_key})
             )
 
-            budget_before = self._budget.snapshot(client)
+            budget_before = await self._blocking_io.run(self._budget.snapshot, client)
             reserved_input = max(
                 estimated_input,
                 self._config.token_estimation.reservation_input_floor,
@@ -305,7 +313,8 @@ class ChatService:
             reserved_cost = self._estimator.cost_usd(reserved_input, max(0, request.max_tokens))
             reservation_id = f"{request_id}:{uuid.uuid4().hex}"
             with self._phase("budget.reserve.duration"):
-                reserved = self._budget.reserve(
+                reserved = await self._blocking_io.run(
+                    self._budget.reserve,
                     reservation_id,
                     client,
                     reserved_tokens,
@@ -349,27 +358,53 @@ class ChatService:
             billed_input = usage["billed_input"]
             billed_output = usage["billed_output"]
             cost_usd = self._estimator.cost_usd(billed_input, billed_output)
-            with self._phase("budget.settle.duration"):
-                budget_after = self._budget.settle(
-                    reservation_id,
-                    client,
-                    billed_input + billed_output,
-                    cost_usd,
+            trace.append(
+                DecisionStep(
+                    step="budget_finalization_requested",
+                    meta={"usage_source": usage["source"]},
                 )
+            )
+            selected_provider = self._providers.get(response.provider_id)
+            if selected_provider is None:
+                raise InternalError("Selected provider is not available", request_id=request_id)
+            with self._phase("budget.settle.duration"):
+                terminal = await self._finalize_stream(
+                    request_id=request_id,
+                    reservation_id=reservation_id,
+                    operation="settle",
+                    client=client,
+                    endpoint=endpoint,
+                    profile_id=profile_id,
+                    provider=selected_provider,
+                    provider_usage=response.usage,
+                    estimated_input=estimated_input,
+                    content=content,
+                    budget_before=budget_before.remaining_tokens,
+                    duration_ms=int((time.monotonic() - start) * 1000),
+                    attempts=attempts,
+                    trace=trace,
+                    replay_payload=replay_payload,
+                    status="success",
+                    status_code=200,
+                )
+            durable_finalized = True
             reservation_id = None
+            if terminal.accounting_error is not None:
+                raise terminal.accounting_error
+            budget_after = terminal.receipt.budget_after
             trace.append(
                 DecisionStep(
                     step="budget_settled",
                     meta={
-                        "remaining_after": budget_after.remaining_tokens,
+                        "remaining_after": budget_after,
                         "usage_source": usage["source"],
                     },
                 )
             )
 
             if self._cache_enabled:
-                self._cache_put(cache_key, governed_response, trace)
-            self._release_distributed_flight(distributed_flight_key)
+                await self._cache_put(cache_key, governed_response, trace)
+            await self._release_distributed_flight(distributed_flight_key)
             distributed_flight_key = None
             self._release_flight(flight)
             flight = None
@@ -377,36 +412,6 @@ class ChatService:
             fallback_used = any(a.status != "success" for a in attempts)
             duration_ms = int((time.monotonic() - start) * 1000)
             estimated_total = estimated_input + estimated_output
-
-            self._log_service.record_success(
-                request_id=request_id,
-                client_id=client.client_id,
-                model_profile=profile_id,
-                endpoint=endpoint,
-                selected_provider=response.provider_id,
-                fallback_used=fallback_used,
-                status_code=200,
-                input_tokens=billed_input,
-                output_tokens=billed_output,
-                estimated_tokens=estimated_total,
-                estimated_cost_usd=cost_usd,
-                estimated_input_tokens=estimated_input,
-                estimated_output_tokens=estimated_output,
-                actual_input_tokens=usage["actual_input"],
-                actual_output_tokens=usage["actual_output"],
-                usage_source=usage["source"],
-                cost_saved_usd=0.0,
-                budget_before=budget_before.remaining_tokens,
-                budget_after=budget_after.remaining_tokens,
-                duration_ms=duration_ms,
-                attempts=attempts,
-                request_body=replay_payload,
-                response_body={"content": content},
-                decision_trace=[s.to_dict() for s in trace],
-                replay_payload=replay_payload,
-                cache_hit=False,
-                cache_key=cache_key,
-            )
 
             self._record_success_metrics(
                 endpoint,
@@ -436,7 +441,7 @@ class ChatService:
                 usage_source=usage["source"],
                 estimated_cost_usd=cost_usd,
                 budget_before=budget_before.remaining_tokens,
-                budget_after=budget_after.remaining_tokens,
+                budget_after=budget_after,
                 fallback_used=fallback_used,
                 cache_hit=False,
                 cache_key=cache_key,
@@ -444,9 +449,14 @@ class ChatService:
             )
 
         except GatewayError as exc:
+            if durable_finalized or isinstance(
+                exc, (DatabaseUnavailableError, StreamFinalizationUnknownError)
+            ):
+                self._record_error_metrics(exc, endpoint, int((time.monotonic() - start) * 1000))
+                raise
             if reservation_id is not None:
-                self._budget.release(reservation_id)
-            self._release_distributed_flight(distributed_flight_key)
+                await self._blocking_io.run(self._budget.release, reservation_id)
+            await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
             attempts = self._attempts_from_error(exc, attempts)
             if attempts and not provider_trace_recorded:
@@ -455,7 +465,7 @@ class ChatService:
             trace.append(
                 DecisionStep(step="error", reason=exc.error_code, meta={"message": str(exc)})
             )
-            self._log_service.record_error(
+            await self._blocking_io.run(self._log_service.record_error,
                 request_id=request_id,
                 client_id=client.client_id,
                 model_profile=model_profile,
@@ -475,41 +485,68 @@ class ChatService:
 
         except asyncio.CancelledError:
             if reservation_id is not None:
-                self._budget.release(reservation_id)
-            self._release_distributed_flight(distributed_flight_key)
+                try:
+                    receipt = await self._blocking_io.run(
+                        self._stream_finalizer.get_finalization, reservation_id
+                    )
+                    durable_finalized = receipt is not None and receipt.request_id == request_id
+                except Exception:
+                    # Never release on an unqueryable commit outcome.  The
+                    # lease and reconciler remain the durable recovery path.
+                    durable_finalized = True
+                    self._metrics.audit_failures.inc()
+                if durable_finalized:
+                    reservation_id = None
+                else:
+                    await self._blocking_io.run(self._budget.release, reservation_id)
+            await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
             if attempts and not provider_trace_recorded:
                 trace.extend(self._build_provider_trace([], attempts))
             duration_ms = int((time.monotonic() - start) * 1000)
             trace.append(DecisionStep(step="error", reason="client_cancelled"))
-            self._log_service.record_error(
-                request_id=request_id,
-                client_id=client.client_id,
-                model_profile=model_profile,
-                endpoint=endpoint,
-                status_code=499,
-                error_code="client_cancelled",
-                error_message="Client cancelled request",
-                duration_ms=duration_ms,
-                attempts=attempts,
-                request_body=replay_payload,
-                decision_trace=[s.to_dict() for s in trace],
-                replay_payload=replay_payload,
-            )
-            self._metrics.record_request(endpoint, "client_cancelled", duration_ms / 1000.0)
+            if not durable_finalized:
+                await self._blocking_io.run(
+                    self._log_service.record_error,
+                    request_id=request_id,
+                    client_id=client.client_id,
+                    model_profile=model_profile,
+                    endpoint=endpoint,
+                    status_code=499,
+                    error_code="client_cancelled",
+                    error_message="Client cancelled request",
+                    duration_ms=duration_ms,
+                    attempts=attempts,
+                    request_body=replay_payload,
+                    decision_trace=[s.to_dict() for s in trace],
+                    replay_payload=replay_payload,
+                )
+                self._metrics.record_request(endpoint, "client_cancelled", duration_ms / 1000.0)
             self.sync_circuit_metrics()
             raise
 
         except Exception as exc:
+            if durable_finalized:
+                self._metrics.audit_failures.inc()
+                raise
+            if self._is_database_unavailable(exc):
+                if reservation_id is not None:
+                    self._metrics.budget_reservation_leaks.inc()
+                self._metrics.audit_failures.inc()
+                error = DatabaseUnavailableError(request_id=request_id)
+                self._record_error_metrics(
+                    error, endpoint, int((time.monotonic() - start) * 1000)
+                )
+                raise error from exc
             if reservation_id is not None:
-                self._budget.release(reservation_id)
-            self._release_distributed_flight(distributed_flight_key)
+                await self._blocking_io.run(self._budget.release, reservation_id)
+            await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
             duration_ms = int((time.monotonic() - start) * 1000)
             trace.append(
                 DecisionStep(step="error", reason="internal_error", meta={"message": str(exc)})
             )
-            self._log_service.record_error(
+            await self._blocking_io.run(self._log_service.record_error,
                 request_id=request_id,
                 client_id=client.client_id,
                 model_profile=model_profile,
@@ -537,7 +574,7 @@ class ChatService:
         replay_payload = self._request_body_snapshot(request)
         self._enforce_streaming(request, request_id)
         with self._phase("rate_limit.wait"):
-            self._enforce_rate_limit(client, request_id)
+            await self._blocking_io.run(self._enforce_rate_limit, client, request_id)
         trace.append(DecisionStep(step="rate_limit_checked", meta={"allowed": True}))
         profile, profile_id = self._resolve_profile(request, request_id)
         trace.append(DecisionStep(step="profile_resolved", meta={"profile": profile_id}))
@@ -552,14 +589,27 @@ class ChatService:
         estimated_input = self._estimator.estimate_messages(request.messages)
         reserved_input = max(estimated_input, self._config.token_estimation.reservation_input_floor)
         reservation_id = f"{request_id}:{uuid.uuid4().hex}"
-        budget_before = self._budget.snapshot(client)
-        with self._phase("budget.reserve.duration"):
-            self._budget.reserve(
-                reservation_id,
-                client,
-                reserved_input + max(0, request.max_tokens),
-                self._estimator.cost_usd(reserved_input, max(0, request.max_tokens)),
-            )
+        reserve_submitted = False
+        try:
+            budget_before = await self._blocking_io.run(self._budget.snapshot, client)
+            with self._phase("budget.reserve.duration"):
+                reserve_submitted = True
+                await self._blocking_io.run(
+                    self._budget.reserve,
+                    reservation_id,
+                    client,
+                    reserved_input + max(0, request.max_tokens),
+                    self._estimator.cost_usd(reserved_input, max(0, request.max_tokens)),
+                )
+        except Exception as exc:
+            if not self._is_database_unavailable(exc):
+                raise
+            if reserve_submitted and not isinstance(exc, BlockingIOOverloadedError):
+                self._metrics.budget_reservation_leaks.inc()
+            self._metrics.audit_failures.inc()
+            error = DatabaseUnavailableError(request_id=request_id)
+            self._record_error_metrics(error, endpoint, int((time.monotonic() - start) * 1000))
+            raise error from exc
         trace.append(DecisionStep(step="budget_reserved"))
         try:
             candidates = self._routing.resolve_candidates(profile)
@@ -610,7 +660,7 @@ class ChatService:
                 *trace,
                 DecisionStep(step="error", reason=error.error_code, meta={"phase": "admission"}),
             ]
-            self._finalize_stream(
+            await self._finalize_stream(
                 request_id=request_id,
                 reservation_id=reservation_id,
                 operation="release",
@@ -794,7 +844,7 @@ class ChatService:
                 )
             )
             duration_ms = int((time.monotonic() - start) * 1000)
-            terminal = self._finalize_stream(
+            terminal = await self._finalize_stream(
                 request_id=request_id,
                 reservation_id=reservation_id,
                 operation="settle",
@@ -857,7 +907,7 @@ class ChatService:
                 ),
             ]
             try:
-                terminal = self._finalize_stream(
+                terminal = await self._finalize_stream(
                     request_id=request_id,
                     reservation_id=reservation_id,
                     operation=(
@@ -911,7 +961,7 @@ class ChatService:
             if content:
                 status = f"partial_{status}"
             try:
-                terminal = self._finalize_stream(
+                terminal = await self._finalize_stream(
                     request_id=request_id,
                     reservation_id=reservation_id,
                     operation=(
@@ -946,7 +996,7 @@ class ChatService:
             self._record_error_metrics(metric_error, endpoint, duration_ms)
             yield self._stream_error_event(outbound_error, request_id)
 
-    def _finalize_unstarted_stream(
+    async def _finalize_unstarted_stream(
         self,
         *,
         request_id: str,
@@ -964,11 +1014,13 @@ class ChatService:
         if lifecycle.started:
             return
         try:
-            if self._stream_finalizer.get_finalization(reservation_id) is not None:
+            if await self._blocking_io.run(
+                self._stream_finalizer.get_finalization, reservation_id
+            ) is not None:
                 return
         except Exception as exc:
             raise StreamFinalizationUnknownError(request_id=request_id) from exc
-        self._finalize_stream(
+        await self._finalize_stream(
             request_id=request_id,
             reservation_id=reservation_id,
             operation="release",
@@ -990,7 +1042,7 @@ class ChatService:
             error_message="Stream was closed before consumption started",
         )
 
-    def _finalize_stream(
+    async def _finalize_stream(
         self,
         *,
         request_id: str,
@@ -1053,7 +1105,7 @@ class ChatService:
             error_message=error_message,
         )
         try:
-            receipt = self._submit_finalization(command)
+            receipt = await self._submit_finalization(command)
             return _StreamFinalization(receipt=receipt, usage=usage)
         except FinalizationRejectedError as exc:
             if operation != "settle":
@@ -1091,7 +1143,7 @@ class ChatService:
             error_code=accounting_error.error_code,
             error_message=str(accounting_error),
         )
-        receipt = self._submit_finalization(release_command)
+        receipt = await self._submit_finalization(release_command)
         return _StreamFinalization(
             receipt=receipt,
             usage=released_usage,
@@ -1168,16 +1220,21 @@ class ChatService:
             attempts=attempt_rows,
         )
 
-    def _submit_finalization(self, command: FinalizeStreamCommand) -> FinalizationReceipt:
+    async def _submit_finalization(self, command: FinalizeStreamCommand) -> FinalizationReceipt:
         try:
-            return self._stream_finalizer.finalize_stream(command)
+            with self._phase("audit.persist.duration"):
+                return await self._blocking_io.run(
+                    self._stream_finalizer.finalize_stream, command
+                )
         except FinalizationRejectedError:
             raise
         except FinalizationConflictError as exc:
             raise StreamFinalizationUnknownError(request_id=command.request_id) from exc
         except Exception as exc:
             try:
-                receipt = self._stream_finalizer.get_finalization(command.reservation_id)
+                receipt = await self._blocking_io.run(
+                    self._stream_finalizer.get_finalization, command.reservation_id
+                )
             except Exception as query_exc:
                 raise StreamFinalizationUnknownError(request_id=command.request_id) from query_exc
             if (
@@ -1256,7 +1313,7 @@ class ChatService:
         error_code = getattr(exc, "error_code", "provider_failed")
         return self._fallback.decide_failure(error_code, profile.fallback.trigger_on).fallbackable
 
-    def _serve_cache_hit(
+    async def _serve_cache_hit(
         self,
         cached: ChatResponse,
         request_id: str,
@@ -1283,7 +1340,7 @@ class ChatService:
                 meta={"key": cache_key, "cost_saved_usd": cost_saved},
             )
         )
-        self._log_service.record_success(
+        await self._blocking_io.run(self._log_service.record_success,
             request_id=request_id,
             client_id=client.client_id,
             model_profile=profile_id,
@@ -1499,6 +1556,13 @@ class ChatService:
             error.retry_after_ms = result.retry_after_ms  # type: ignore[attr-defined]
             raise error
 
+    @staticmethod
+    def _is_database_unavailable(exc: BaseException) -> bool:
+        if isinstance(exc, BlockingIOOverloadedError):
+            return True
+        module = type(exc).__module__
+        return module.startswith(("psycopg", "sqlite3"))
+
     def _resolve_profile(self, request: ChatRequest, request_id: str) -> tuple[ModelProfile, str]:
         profile_id = request.profile or self._config.gateway.default_profile
         profile = self._profiles.get(profile_id)
@@ -1608,12 +1672,14 @@ class ChatService:
         if flight is not None:
             self._singleflight.release(*flight)
 
-    def _cache_get(self, cache_key: str, trace: list[DecisionStep]) -> ChatResponse | None:
+    async def _cache_get(
+        self, cache_key: str, trace: list[DecisionStep]
+    ) -> ChatResponse | None:
         """Read cache with explicit Redis fail-open semantics."""
         assert self._cache is not None
         try:
             with self._phase("cache.lookup.duration"):
-                return self._cache.get(cache_key)
+                return await self._blocking_io.run(self._cache.get, cache_key)
         except Exception:
             if self._distributed_singleflight is None:
                 raise
@@ -1631,11 +1697,13 @@ class ChatService:
         finally:
             self._metrics.record_phase(name, time.monotonic() - started)
 
-    def _cache_put(self, cache_key: str, response: ChatResponse, trace: list[DecisionStep]) -> None:
+    async def _cache_put(
+        self, cache_key: str, response: ChatResponse, trace: list[DecisionStep]
+    ) -> None:
         """Cache publication is advisory: a Redis outage must not fail a chat."""
         assert self._cache is not None
         try:
-            self._cache.put(cache_key, response)
+            await self._blocking_io.run(self._cache.put, cache_key, response)
         except Exception:
             if self._distributed_singleflight is None:
                 raise
@@ -1653,7 +1721,8 @@ class ChatService:
             return None
         delay_s = 0.025
         while True:
-            acquired = self._distributed_singleflight.try_acquire(cache_key)
+            try_acquire = self._distributed_singleflight.try_acquire
+            acquired = await self._blocking_io.run(try_acquire, cache_key)
             if acquired is True:
                 trace.append(DecisionStep(step="distributed_singleflight_owner"))
                 return cache_key
@@ -1677,13 +1746,15 @@ class ChatService:
                 raise RequestDeadlineExceededError()
             await asyncio.sleep(min(delay_s, remaining))
             delay_s = min(delay_s * 2, 0.25)
-            cached = self._cache_get(cache_key, trace)
+            cached = await self._cache_get(cache_key, trace)
             if cached is not None:
                 return None
 
-    def _release_distributed_flight(self, cache_key: str | None) -> None:
+    async def _release_distributed_flight(self, cache_key: str | None) -> None:
         if cache_key is not None and self._distributed_singleflight is not None:
-            released = self._distributed_singleflight.release(cache_key)
+            released = await self._blocking_io.run(
+                self._distributed_singleflight.release, cache_key
+            )
             if released is None:
                 self._metrics.redis_failures.inc()
 

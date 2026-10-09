@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -21,7 +22,10 @@ async def get_request(
     client: Annotated[ClientConfig, Depends(require_api_key)],
     container: Annotated[AppContainer, Depends(get_container)],
 ) -> dict:
-    data = container.log_service.get(request_id)
+    if container.blocking_io is None:
+        data = await asyncio.to_thread(container.log_service.get, request_id)
+    else:
+        data = await container.blocking_io.run(container.log_service.get, request_id)
     if data is None or data.get("client_id") != client.client_id:
         raise RequestNotFoundError(request_id)
     return data

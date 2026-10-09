@@ -31,7 +31,13 @@ class RedisRateLimiter:
             raise RuntimeError("Redis backend requires the 'redis' package") from exc
         # RESP2 keeps compatibility with Redis-compatible servers that do not
         # implement redis-py's RESP3 HELLO negotiation.
-        self._client = redis.Redis.from_url(url, decode_responses=True, protocol=2)
+        self._client = redis.Redis.from_url(
+            url,
+            decode_responses=True,
+            protocol=2,
+            socket_connect_timeout=2.0,
+            socket_timeout=2.0,
+        )
         self._window_ms = max(1, int(window_seconds * 1000))
         self._prefix = prefix
         self._failure_mode = failure_mode

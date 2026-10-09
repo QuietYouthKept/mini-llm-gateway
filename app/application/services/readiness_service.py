@@ -50,7 +50,7 @@ class ReadinessService:
         self._recovery_successes = max(1, recovery_successes)
         self._successes: dict[str, int] = {}
         self._last_success: dict[str, float] = {}
-        self._lock = asyncio.Lock()
+        self._locks: dict[str, asyncio.Lock] = {}
 
     async def assess(self, container: AppContainer) -> dict[str, DependencyStatus]:
         checks: list[tuple[str, bool, Any]] = [
@@ -61,20 +61,30 @@ class ReadinessService:
             checks.append(("redis_cache", False, lambda: self._redis_cache_check(container)))
         checks.append(("providers", True, lambda: self._providers_check(container)))
         results = await asyncio.gather(
-            *(self._run_check(name, required, check) for name, required, check in checks)
+            *(
+                self._run_check(name, required, check, getattr(container, "blocking_io", None))
+                for name, required, check in checks
+            )
         )
         return {result.name: result for result in results}
 
-    async def _run_check(self, name: str, required: bool, check: Any) -> DependencyStatus:
-        async with self._lock:
+    async def _run_check(
+        self, name: str, required: bool, check: Any, blocking_io: Any
+    ) -> DependencyStatus:
+        lock = self._locks.setdefault(name, asyncio.Lock())
+        async with lock:
             try:
-                healthy, detail = await asyncio.wait_for(
-                    asyncio.to_thread(check), timeout=self._timeout_seconds
-                )
+                # The shared bounded executor prevents readiness probes from
+                # creating detached default-executor threads during outages.
+                if blocking_io is None:
+                    healthy, detail = await asyncio.to_thread(check)
+                else:
+                    healthy, detail = await blocking_io.run(check)
             except TimeoutError:
                 healthy, detail = False, "timeout"
             except Exception:
                 healthy, detail = False, "unavailable"
+        async with lock:
             now = time.time()
             if healthy:
                 count = self._successes.get(name, 0) + 1
@@ -104,7 +114,7 @@ class ReadinessService:
         if db_path.startswith(("postgresql://", "postgres://")):
             from app.infrastructure.persistence.postgresql.connection import schema_is_current
 
-            return schema_is_current(db_path), "postgresql"
+            return schema_is_current(db_path, connect_timeout=1), "postgresql"
         connection = sqlite3.connect(db_path, timeout=0.5)
         try:
             row = connection.execute(
