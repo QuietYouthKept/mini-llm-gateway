@@ -1,0 +1,92 @@
+{
+  "distributed_singleflight_and_lease": {
+    "cache_hits": [
+      false,
+      true
+    ],
+    "latency_ms": 204,
+    "oracle_pass": true,
+    "provider_executions": 1,
+    "responses_equivalent": true,
+    "stale_follower_initial": false,
+    "stale_follower_recovered": true,
+    "stale_leader_acquired": true,
+    "status_codes": [
+      200,
+      200
+    ]
+  },
+  "global_rate_limit_cache": {
+    "cache_content_equal": true,
+    "cache_first_attempts": 1,
+    "cache_first_error": null,
+    "cache_first_hit": false,
+    "cache_first_status": 200,
+    "cache_second_attempts": 0,
+    "cache_second_error": null,
+    "cache_second_hit": true,
+    "cache_second_status": 200,
+    "oracle_pass": true,
+    "provider_executions": 1,
+    "rate_admitted": 10,
+    "rate_rejected": 10,
+    "rate_requests": 20,
+    "rate_statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429
+    ]
+  },
+  "oracle_pass": true,
+  "postgres_shared_budget_race": {
+    "audit_rows": [
+      {
+        "error_code": null,
+        "request_id": "wave3-budget-race-01f743f5b5974881813c7527b985a9e7",
+        "status": "success"
+      },
+      {
+        "error_code": "token_budget_exceeded",
+        "request_id": "wave3-budget-race-4d92f4ffaaed485694cf118c46b6c795",
+        "status": "error"
+      }
+    ],
+    "oracle_pass": true,
+    "provider_attempt_rows": [
+      {
+        "provider_id": "mock_fast",
+        "request_id": "wave3-budget-race-01f743f5b5974881813c7527b985a9e7",
+        "status": "success"
+      }
+    ],
+    "request_statuses": [
+      429,
+      200
+    ],
+    "reservation_states": [
+      {
+        "reservation_id": "wave3-budget-race-01f743f5b5974881813c7527b985a9e7:d6e00c6970da45bbaacd2989e894ef4d",
+        "state": "settled"
+      }
+    ],
+    "reserved_tokens": 0,
+    "used_tokens": 27
+  }
+}

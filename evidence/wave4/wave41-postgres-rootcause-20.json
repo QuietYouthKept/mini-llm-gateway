@@ -1,0 +1,296 @@
+{
+  "image": "mini-llm-gateway:wave41-diagnostic-2-fcd3bce",
+  "matrix": [
+    {
+      "audit_row_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "concurrency": 20,
+      "gateway_log_excerpt": "gateway-1  | INFO:     Started server process [1]\ngateway-1  | INFO:     Waiting for application startup.\ngateway-1  | {\"ts\": \"2026-10-09T15:25:40.279+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Bootstrapping mini-llm-gateway in local mode\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:40.279+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Config loaded: 3 clients, 6 providers, 4 model profiles\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:40.457+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"PostgreSQL schema ledger verified\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:40.572+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Gateway ready with 6 providers\", \"request_id\": null}\ngateway-1  | INFO:     Application startup complete.\ngateway-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)\ngateway-1  | {\"ts\": \"2026-10-09T15:25:40.759+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40564 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"9ceef1b68eef463996e1dc08aadb0198\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:41.226+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40572 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"a2059af20a6b451c9d894c58e32f2517\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:44.975+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40732 - \\\"GET /live HTTP/1.1\\\" 200\", \"request_id\": \"35e07dbf0ac44b27bf93d32d78d431c0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.476+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.BlockingIOOverloadedError request_id=wave41-outage-20-b444b0def0ab4b1787bfc6131e0bc002 stack=_exception_handler.py:wrapped_app:42 <- routing.py:app:151 <- routing.py:app:727 <- routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:83\", \"request_id\": \"wave41-outage-20-b444b0def0ab4b1787bfc6131e0bc002\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.476+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40708 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-b444b0def0ab4b1787bfc6131e0bc002\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.477+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.BlockingIOOverloadedError request_id=wave41-outage-20-9b5756e681aa4564aa9e4a634c41af40 stack=_exception_handler.py:wrapped_app:42 <- routing.py:app:151 <- routing.py:app:727 <- routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:83\", \"request_id\": \"wave41-outage-20-9b5756e681aa4564aa9e4a634c41af40\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.477+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40710 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-9b5756e681aa4564aa9e4a634c41af40\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.478+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.BlockingIOOverloadedError request_id=wave41-outage-20-06bd9e4a3682426b86e93d1b5d3f6135 stack=_exception_handler.py:wrapped_app:42 <- routing.py:app:151 <- routing.py:app:727 <- routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:83\", \"request_id\": \"wave41-outage-20-06bd9e4a3682426b86e93d1b5d3f6135\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.478+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40720 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-06bd9e4a3682426b86e93d1b5d3f6135\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.479+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.BlockingIOOverloadedError request_id=wave41-outage-20-d8503319110843c3b754280c38d3214c stack=_exception_handler.py:wrapped_app:42 <- routing.py:app:151 <- routing.py:app:727 <- routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:83\", \"request_id\": \"wave41-outage-20-d8503319110843c3b754280c38d3214c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.479+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40722 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-d8503319110843c3b754280c38d3214c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.480+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.BlockingIOOverloadedError request_id=wave41-outage-20-4402359e615649febc1cb6c33e40df58 stack=_exception_handler.py:wrapped_app:42 <- routing.py:app:151 <- routing.py:app:727 <- routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:83\", \"request_id\": \"wave41-outage-20-4402359e615649febc1cb6c33e40df58\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.480+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40730 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-4402359e615649febc1cb6c33e40df58\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:49.985+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:60680 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"57cfb7edcb74451ab48bdb129e2bf155\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.233+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40584 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-20-6f621c6d9b9249a8a1d8902c1459c7c0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.234+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-332076d76fe8412084671bad4baba51f stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-332076d76fe8412084671bad4baba51f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.234+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40654 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-332076d76fe8412084671bad4baba51f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.235+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-95ccd5c5d6e240b695e08805038f3bf9 stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-95ccd5c5d6e240b695e08805038f3bf9\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.235+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40658 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-95ccd5c5d6e240b695e08805038f3bf9\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.236+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-2f459b019a1144c3a5ceb3cc666697e7 stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-2f459b019a1144c3a5ceb3cc666697e7\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.236+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40666 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-2f459b019a1144c3a5ceb3cc666697e7\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.237+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-142dd379468143f7ada9c3f4c29ab446 stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-142dd379468143f7ada9c3f4c29ab446\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.237+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40676 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-142dd379468143f7ada9c3f4c29ab446\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.238+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-d670718fba2f47ee894603b488161de5 stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-d670718fba2f47ee894603b488161de5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.238+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40692 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-d670718fba2f47ee894603b488161de5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.238+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-defc9ebba177402d8bead356f2c05d41 stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-defc9ebba177402d8bead356f2c05d41\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.238+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40694 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-defc9ebba177402d8bead356f2c05d41\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.239+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=app.application.services.blocking_io.DependencyCircuitOpenError request_id=wave41-outage-20-9f6876553c7a4bf2b3953f8d25643afd stack=routing.py:run_endpoint_function:360 <- chat.py:chat:116 <- chat_service.py:chat:160 <- chat_service.py:_chat:473 <- blocking_io.py:run:97 <- thread.py:run:59 <- blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:151\", \"request_id\": \"wave41-outage-20-9f6876553c7a4bf2b3953f8d25643afd\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:50.239+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40706 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-9f6876553c7a4bf2b3953f8d25643afd\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.094+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=psycopg.OperationalError request_id=wave41-outage-20-7381a45ae5c546edbf4800836826db49 stack=blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:155 <- request_log_service.py:record_error:165 <- request_log_service.py:_persist:270 <- repositories.py:insert_request_with_attempts:281 <- connection.py:connect:72 <- connection.py:connect:100 <- _conninfo_attempts.py:conninfo_attempts:55\", \"request_id\": \"wave41-outage-20-7381a45ae5c546edbf4800836826db49\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.094+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40636 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-7381a45ae5c546edbf4800836826db49\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.095+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=psycopg.OperationalError request_id=wave41-outage-20-a7e44452171747bd9b4ec7b4eaeb0093 stack=blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:155 <- request_log_service.py:record_error:165 <- request_log_service.py:_persist:270 <- repositories.py:insert_request_with_attempts:281 <- connection.py:connect:72 <- connection.py:connect:100 <- _conninfo_attempts.py:conninfo_attempts:55\", \"request_id\": \"wave41-outage-20-a7e44452171747bd9b4ec7b4eaeb0093\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.095+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40626 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-a7e44452171747bd9b4ec7b4eaeb0093\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.095+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=psycopg.OperationalError request_id=wave41-outage-20-8b163e08a242490ea0c2e1e21a7c8573 stack=blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:155 <- request_log_service.py:record_error:165 <- request_log_service.py:_persist:270 <- repositories.py:insert_request_with_attempts:281 <- connection.py:connect:72 <- connection.py:connect:100 <- _conninfo_attempts.py:conninfo_attempts:55\", \"request_id\": \"wave41-outage-20-8b163e08a242490ea0c2e1e21a7c8573\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.096+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40620 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-8b163e08a242490ea0c2e1e21a7c8573\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.110+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=psycopg.OperationalError request_id=wave41-outage-20-668c00466ac2467f9f11396b9f6b5f35 stack=blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:155 <- request_log_service.py:record_error:165 <- request_log_service.py:_persist:270 <- repositories.py:insert_request_with_attempts:281 <- connection.py:connect:72 <- connection.py:connect:100 <- _conninfo_attempts.py:conninfo_attempts:55\", \"request_id\": \"wave41-outage-20-668c00466ac2467f9f11396b9f6b5f35\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.110+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40644 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-668c00466ac2467f9f11396b9f6b5f35\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.204+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=psycopg.OperationalError request_id=wave41-outage-20-4ed7450d54584abda4ab1d7ccff6e132 stack=blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:155 <- request_log_service.py:record_error:165 <- request_log_service.py:_persist:270 <- repositories.py:insert_request_with_attempts:281 <- connection.py:connect:72 <- connection.py:connect:100 <- _conninfo_attempts.py:conninfo_attempts:55\", \"request_id\": \"wave41-outage-20-4ed7450d54584abda4ab1d7ccff6e132\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:51.204+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40606 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-4ed7450d54584abda4ab1d7ccff6e132\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:55.209+00:00\", \"level\": \"ERROR\", \"logger\": \"app.interfaces.http.middleware\", \"message\": \"Unhandled HTTP exception class=psycopg.OperationalError request_id=wave41-outage-20-6e99564dcf64466fa85d4585331275fc stack=blocking_io.py:<lambda>:92 <- blocking_io.py:_invoke:155 <- request_log_service.py:record_error:165 <- request_log_service.py:_persist:270 <- repositories.py:insert_request_with_attempts:281 <- connection.py:connect:72 <- connection.py:connect:100 <- _conninfo_attempts.py:conninfo_attempts:55\", \"request_id\": \"wave41-outage-20-6e99564dcf64466fa85d4585331275fc\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:55.209+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:40592 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-6e99564dcf64466fa85d4585331275fc\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:25:55.256+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:60740 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"b68df7c6df1e46579840fdb948d38434\"}\n",
+      "live_duration_seconds": 1.7040000000270084,
+      "live_status": 200,
+      "ready_duration_seconds": 4.186999999976251,
+      "ready_status": 0,
+      "requests": [
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-4ed7450d54584abda4ab1d7ccff6e132",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.90600000001723,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-6e99564dcf64466fa85d4585331275fc",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 13.547000000020489,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-06bd9e4a3682426b86e93d1b5d3f6135",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.76600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-9f6876553c7a4bf2b3953f8d25643afd",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.03100000001723,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-defc9ebba177402d8bead356f2c05d41",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.03100000001723,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-2f459b019a1144c3a5ceb3cc666697e7",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.01600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-95ccd5c5d6e240b695e08805038f3bf9",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.01600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-8b163e08a242490ea0c2e1e21a7c8573",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.811999999976251,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-a7e44452171747bd9b4ec7b4eaeb0093",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.797000000020489,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-668c00466ac2467f9f11396b9f6b5f35",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.795999999972992,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-20-6f621c6d9b9249a8a1d8902c1459c7c0",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.0,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-4402359e615649febc1cb6c33e40df58",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.75,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-d8503319110843c3b754280c38d3214c",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.75,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-9b5756e681aa4564aa9e4a634c41af40",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.75,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-142dd379468143f7ada9c3f4c29ab446",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.01500000001397,
+          "status": 500
+        },
+        {
+          "body": {
+            "transport_error": "ReadTimeout"
+          },
+          "duration_seconds": 13.71799999999348,
+          "status": 0
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-d670718fba2f47ee894603b488161de5",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.01500000001397,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-b444b0def0ab4b1787bfc6131e0bc002",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.75,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-7381a45ae5c546edbf4800836826db49",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.78100000001723,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-332076d76fe8412084671bad4baba51f",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.0,
+          "status": 500
+        }
+      ],
+      "reservation_states": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    }
+  ],
+  "oracle_pass": false,
+  "project": "mini-llm-gateway-wave41-rootcause"
+}

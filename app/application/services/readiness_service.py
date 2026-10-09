@@ -15,6 +15,7 @@ import time
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any
 
+from app.application.services.blocking_io import DependencyCircuitOpenError
 from app.application.services.circuit_breaker import CircuitState
 from app.infrastructure.persistence.sqlite.connection import schema_checksum
 from app.infrastructure.persistence.sqlite.schema import SCHEMA_VERSION
@@ -73,17 +74,31 @@ class ReadinessService:
     ) -> DependencyStatus:
         lock = self._locks.setdefault(name, asyncio.Lock())
         async with lock:
+            dependency_failed = False
             try:
                 # The shared bounded executor prevents readiness probes from
                 # creating detached default-executor threads during outages.
                 if blocking_io is None:
                     healthy, detail = await asyncio.to_thread(check)
+                elif name == "database":
+                    healthy, detail = await blocking_io.run(
+                        check, dependency="database", probe=True
+                    )
                 else:
                     healthy, detail = await blocking_io.run(check)
             except TimeoutError:
                 healthy, detail = False, "timeout"
+                dependency_failed = True
+            except DependencyCircuitOpenError:
+                healthy, detail = False, "circuit_open"
             except Exception:
                 healthy, detail = False, "unavailable"
+                dependency_failed = True
+            if name == "database" and blocking_io is not None:
+                if healthy:
+                    blocking_io.report_dependency_success("database")
+                elif dependency_failed or detail != "circuit_open":
+                    blocking_io.report_dependency_failure("database")
         async with lock:
             now = time.time()
             if healthy:
@@ -114,7 +129,15 @@ class ReadinessService:
         if db_path.startswith(("postgresql://", "postgres://")):
             from app.infrastructure.persistence.postgresql.connection import schema_is_current
 
-            return schema_is_current(db_path, connect_timeout=1), "postgresql"
+            return (
+                schema_is_current(
+                    db_path,
+                    connect_timeout=1,
+                    statement_timeout_ms=500,
+                    lock_timeout_ms=500,
+                ),
+                "postgresql",
+            )
         connection = sqlite3.connect(db_path, timeout=0.5)
         try:
             row = connection.execute(

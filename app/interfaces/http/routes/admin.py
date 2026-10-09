@@ -49,14 +49,20 @@ async def reload_config(
     _: Annotated[None, Depends(require_admin)],
 ) -> dict[str, Any]:
     new_container = await container.blocking_io.run(
-        bootstrap, database_path=container.db_path, runtime_from=container
+        bootstrap,
+        database_path=container.db_path,
+        runtime_from=container,
+        dependency="database",
     )
     request.app.state.container = new_container
     # Requests already in flight may still own old provider transports.  Retire
     # the old container at process shutdown instead of closing clients under them.
     request.app.state.retired_containers.append(container)
     await new_container.blocking_io.run(
-        new_container.config_events.record, "reload", "config reloaded"
+        new_container.config_events.record,
+        "reload",
+        "config reloaded",
+        dependency="database",
     )
     return {
         "status": "reloaded",
@@ -73,7 +79,8 @@ async def reconcile_budget_reservations(
 ) -> dict[str, int]:
     """Explicit maintenance action; never scan reservations on a chat request."""
     reclaimed = await container.blocking_io.run(
-        container.budget_service.reconcile_expired_reservations
+        container.budget_service.reconcile_expired_reservations,
+        dependency="database",
     )
     if reclaimed:
         container.gateway_metrics.budget_reservation_leaks.inc(reclaimed)

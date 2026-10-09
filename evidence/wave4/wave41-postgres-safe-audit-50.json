@@ -1,0 +1,721 @@
+{
+  "image": "mini-llm-gateway:wave41-safe-audit-fcd3bce",
+  "matrix": [
+    {
+      "audit_row_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "concurrency": 50,
+      "gateway_log_excerpt": "gateway-1  | INFO:     Started server process [1]\ngateway-1  | INFO:     Waiting for application startup.\ngateway-1  | {\"ts\": \"2026-10-09T15:34:45.525+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Bootstrapping mini-llm-gateway in local mode\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:45.525+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Config loaded: 3 clients, 6 providers, 4 model profiles\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:45.687+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"PostgreSQL schema ledger verified\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:45.793+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Gateway ready with 6 providers\", \"request_id\": null}\ngateway-1  | INFO:     Application startup complete.\ngateway-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)\ngateway-1  | {\"ts\": \"2026-10-09T15:34:45.885+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:51568 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"c0a1191d5ab049b0b982c7dacbbe123e\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:46.284+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:51572 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"21f73fa02d8148979302c8a8464f3528\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:52.546+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47890 - \\\"GET /live HTTP/1.1\\\" 200\", \"request_id\": \"ed2828449bff4d559f19e9f548105e2e\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:56.527+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-1d9b37124044453db46d4029063fc3cb\", \"request_id\": \"wave41-outage-50-1d9b37124044453db46d4029063fc3cb\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:56.556+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-62c10d3385454e6d8e708f8615623b75\", \"request_id\": \"wave41-outage-50-62c10d3385454e6d8e708f8615623b75\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:56.577+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-7e861c55c06549f9b8a6ec808ccc81a5\", \"request_id\": \"wave41-outage-50-7e861c55c06549f9b8a6ec808ccc81a5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:56.589+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-4132fd0b75e94e04943f1cad4d431069\", \"request_id\": \"wave41-outage-50-4132fd0b75e94e04943f1cad4d431069\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:56.649+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-9147bc6a915f4775bb035467eedb26a2\", \"request_id\": \"wave41-outage-50-9147bc6a915f4775bb035467eedb26a2\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:56.663+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-e17f9f0bdf8343a69bfb39d1da26b9ef\", \"request_id\": \"wave41-outage-50-e17f9f0bdf8343a69bfb39d1da26b9ef\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.067+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-14924209612c4113b1203d56e3cd4bec\", \"request_id\": \"wave41-outage-50-14924209612c4113b1203d56e3cd4bec\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.092+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-72f04eee27f6484f957ebad83e477762\", \"request_id\": \"wave41-outage-50-72f04eee27f6484f957ebad83e477762\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.093+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-177b00a9df174d4dad3efa1a051cdd3c\", \"request_id\": \"wave41-outage-50-177b00a9df174d4dad3efa1a051cdd3c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.130+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-e9a3c78b39de4641b39ff037854435b6\", \"request_id\": \"wave41-outage-50-e9a3c78b39de4641b39ff037854435b6\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.130+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-ca14c5f43ace4adbb88f67768a3e6b94\", \"request_id\": \"wave41-outage-50-ca14c5f43ace4adbb88f67768a3e6b94\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.133+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-4d9e39dac22847709a3f89c6a39ce2be\", \"request_id\": \"wave41-outage-50-4d9e39dac22847709a3f89c6a39ce2be\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.145+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-fb21848f62ed4656a5424679a860f0e6\", \"request_id\": \"wave41-outage-50-fb21848f62ed4656a5424679a860f0e6\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.145+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-a8408c4510e84e71bb55c600117f9a14\", \"request_id\": \"wave41-outage-50-a8408c4510e84e71bb55c600117f9a14\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.146+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-1fb352b14881438690e5083a70bf7e04\", \"request_id\": \"wave41-outage-50-1fb352b14881438690e5083a70bf7e04\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.163+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-db0847eaaed64f699ed037c844cde710\", \"request_id\": \"wave41-outage-50-db0847eaaed64f699ed037c844cde710\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.163+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-1b6a0746691d44df90c1a4795b9fb534\", \"request_id\": \"wave41-outage-50-1b6a0746691d44df90c1a4795b9fb534\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.163+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-89b342a901fa418eb7029bf7dce26512\", \"request_id\": \"wave41-outage-50-89b342a901fa418eb7029bf7dce26512\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.175+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-d5fdbad81d564e3fa00299a8e21e1871\", \"request_id\": \"wave41-outage-50-d5fdbad81d564e3fa00299a8e21e1871\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.175+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-fbf2dffb08ff4e12aa4c0be79df4e06d\", \"request_id\": \"wave41-outage-50-fbf2dffb08ff4e12aa4c0be79df4e06d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.190+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-32493357345b419ca9fa5baadab1e365\", \"request_id\": \"wave41-outage-50-32493357345b419ca9fa5baadab1e365\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.190+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-c1e468b7c5674761a651c7783b8cc0fa\", \"request_id\": \"wave41-outage-50-c1e468b7c5674761a651c7783b8cc0fa\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.206+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-705f9c9ddbb3449cadc346330b2715d1\", \"request_id\": \"wave41-outage-50-705f9c9ddbb3449cadc346330b2715d1\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.222+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-09d7fd53cb9d4338aff6ee5832b5f67b\", \"request_id\": \"wave41-outage-50-09d7fd53cb9d4338aff6ee5832b5f67b\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.252+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-3df018c9bb6a40669027c1767d6b1d52\", \"request_id\": \"wave41-outage-50-3df018c9bb6a40669027c1767d6b1d52\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.255+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-a1b3262990bf4c91b82eae5623ae3c49\", \"request_id\": \"wave41-outage-50-a1b3262990bf4c91b82eae5623ae3c49\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.267+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-a34417bfd1c04329836f21610f314087\", \"request_id\": \"wave41-outage-50-a34417bfd1c04329836f21610f314087\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.282+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-31e5267d19d948caa0c187a5b459fdd0\", \"request_id\": \"wave41-outage-50-31e5267d19d948caa0c187a5b459fdd0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.284+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-fd998646ca864c7590891a1eaf721f67\", \"request_id\": \"wave41-outage-50-fd998646ca864c7590891a1eaf721f67\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.293+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-34d31c13b2744c96b0576abf1b8a38e2\", \"request_id\": \"wave41-outage-50-34d31c13b2744c96b0576abf1b8a38e2\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.298+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-41c4ae60092743b2ab2e71fa7c15ec7a\", \"request_id\": \"wave41-outage-50-41c4ae60092743b2ab2e71fa7c15ec7a\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.313+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-c9bdd3e962c14741a32568f9bd733f66\", \"request_id\": \"wave41-outage-50-c9bdd3e962c14741a32568f9bd733f66\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.329+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-bee5c6d6b6034560bc128195cd507d91\", \"request_id\": \"wave41-outage-50-bee5c6d6b6034560bc128195cd507d91\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.329+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-91ac241c486743b6ae7bec547e1d079f\", \"request_id\": \"wave41-outage-50-91ac241c486743b6ae7bec547e1d079f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.360+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-a87e83af263e443fbf00214ea11d11cd\", \"request_id\": \"wave41-outage-50-a87e83af263e443fbf00214ea11d11cd\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.375+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-1106629d3cb448b2a5d182498fcabd38\", \"request_id\": \"wave41-outage-50-1106629d3cb448b2a5d182498fcabd38\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.390+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-08f7d01b77764d89bb79b800c418e543\", \"request_id\": \"wave41-outage-50-08f7d01b77764d89bb79b800c418e543\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.397+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47640 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-1fb352b14881438690e5083a70bf7e04\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.407+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-c49241cf62bc4e518fad291119008fae\", \"request_id\": \"wave41-outage-50-c49241cf62bc4e518fad291119008fae\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.412+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47624 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-db0847eaaed64f699ed037c844cde710\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.413+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47616 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-1b6a0746691d44df90c1a4795b9fb534\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.413+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47604 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-89b342a901fa418eb7029bf7dce26512\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.421+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-9e222f113bfa45158af0353dac21f9c5\", \"request_id\": \"wave41-outage-50-9e222f113bfa45158af0353dac21f9c5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.426+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47666 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-d5fdbad81d564e3fa00299a8e21e1871\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.426+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47654 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-fbf2dffb08ff4e12aa4c0be79df4e06d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.440+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47668 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-32493357345b419ca9fa5baadab1e365\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.440+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47684 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-c1e468b7c5674761a651c7783b8cc0fa\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.454+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-f5151dde1ca04bd8a1878e4f2c24be81\", \"request_id\": \"wave41-outage-50-f5151dde1ca04bd8a1878e4f2c24be81\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.456+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47700 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-705f9c9ddbb3449cadc346330b2715d1\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.473+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47702 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-09d7fd53cb9d4338aff6ee5832b5f67b\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.502+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47714 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-3df018c9bb6a40669027c1767d6b1d52\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.506+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47710 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-a1b3262990bf4c91b82eae5623ae3c49\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.518+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47718 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-a34417bfd1c04329836f21610f314087\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.530+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-2b45499262ef41e99e6b79a40ff32eea\", \"request_id\": \"wave41-outage-50-2b45499262ef41e99e6b79a40ff32eea\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.530+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-a26177b5990542589ff6ddb0589589e3\", \"request_id\": \"wave41-outage-50-a26177b5990542589ff6ddb0589589e3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.530+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-c90314c7f7494d7fa687cd13f76e4514\", \"request_id\": \"wave41-outage-50-c90314c7f7494d7fa687cd13f76e4514\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.531+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-9575290728fd499ba9cd4a25b1af4e45\", \"request_id\": \"wave41-outage-50-9575290728fd499ba9cd4a25b1af4e45\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.533+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47728 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-31e5267d19d948caa0c187a5b459fdd0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.534+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-7818fca3ef0847ef883f7f6802ea2983\", \"request_id\": \"wave41-outage-50-7818fca3ef0847ef883f7f6802ea2983\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.534+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-1085fc6850294d6db561fdc7f6762fc5\", \"request_id\": \"wave41-outage-50-1085fc6850294d6db561fdc7f6762fc5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.534+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47744 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-fd998646ca864c7590891a1eaf721f67\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.534+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-f5ae58b667f440c8ba4430eb01aa5c4c\", \"request_id\": \"wave41-outage-50-f5ae58b667f440c8ba4430eb01aa5c4c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.536+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-098e1db1a89340809fb92415e4d4daf3\", \"request_id\": \"wave41-outage-50-098e1db1a89340809fb92415e4d4daf3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.543+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47758 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-34d31c13b2744c96b0576abf1b8a38e2\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.547+00:00\", \"level\": \"WARNING\", \"logger\": \"app.application.services.chat_service\", \"message\": \"Request gateway error before durable error audit code=request_timeout request_id=wave41-outage-50-c13404eaa3ee43e0bf70f9abc8858f0c\", \"request_id\": \"wave41-outage-50-c13404eaa3ee43e0bf70f9abc8858f0c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.548+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47756 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-41c4ae60092743b2ab2e71fa7c15ec7a\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.564+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47762 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-c9bdd3e962c14741a32568f9bd733f66\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.579+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47766 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-bee5c6d6b6034560bc128195cd507d91\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.579+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47774 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-91ac241c486743b6ae7bec547e1d079f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.611+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47776 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-a87e83af263e443fbf00214ea11d11cd\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.626+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47786 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-1106629d3cb448b2a5d182498fcabd38\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.640+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47790 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-08f7d01b77764d89bb79b800c418e543\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.658+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47798 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-c49241cf62bc4e518fad291119008fae\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.672+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47802 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-9e222f113bfa45158af0353dac21f9c5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.703+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47814 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-f5151dde1ca04bd8a1878e4f2c24be81\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.780+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47830 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-2b45499262ef41e99e6b79a40ff32eea\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.780+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47840 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-a26177b5990542589ff6ddb0589589e3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.780+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47852 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-c90314c7f7494d7fa687cd13f76e4514\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.782+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47854 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-9575290728fd499ba9cd4a25b1af4e45\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.784+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47860 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-7818fca3ef0847ef883f7f6802ea2983\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.784+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47868 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-1085fc6850294d6db561fdc7f6762fc5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.785+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47884 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-f5ae58b667f440c8ba4430eb01aa5c4c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.785+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47898 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-098e1db1a89340809fb92415e4d4daf3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:57.798+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47886 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-c13404eaa3ee43e0bf70f9abc8858f0c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:58.577+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:43960 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"91fb89c7f4d4440b9717e7be8a8d7b37\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.543+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47458 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-bf82152a00be4b4ea1d71b24c2422b8b\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.543+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47530 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-72f04eee27f6484f957ebad83e477762\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.544+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47542 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-177b00a9df174d4dad3efa1a051cdd3c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.544+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47548 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-e9a3c78b39de4641b39ff037854435b6\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.544+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47558 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-ca14c5f43ace4adbb88f67768a3e6b94\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.544+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47588 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-4d9e39dac22847709a3f89c6a39ce2be\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.545+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47572 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-fb21848f62ed4656a5424679a860f0e6\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:34:59.545+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47556 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-a8408c4510e84e71bb55c600117f9a14\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:00.160+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47480 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-7e861c55c06549f9b8a6ec808ccc81a5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:00.175+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47486 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-4132fd0b75e94e04943f1cad4d431069\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:00.237+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47508 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-9147bc6a915f4775bb035467eedb26a2\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:00.252+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47496 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-e17f9f0bdf8343a69bfb39d1da26b9ef\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:00.542+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47468 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-1d9b37124044453db46d4029063fc3cb\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:00.556+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47472 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-62c10d3385454e6d8e708f8615623b75\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:35:02.603+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47514 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-50-14924209612c4113b1203d56e3cd4bec\"}\n",
+      "live_duration_seconds": 3.8910000000032596,
+      "live_status": 200,
+      "ready_duration_seconds": 4.186999999976251,
+      "ready_status": 0,
+      "requests": [
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-f5151dde1ca04bd8a1878e4f2c24be81",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.296999999962281,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-7818fca3ef0847ef883f7f6802ea2983",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.375,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-91ac241c486743b6ae7bec547e1d079f",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.171999999962281,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-a34417bfd1c04329836f21610f314087",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.10999999998603,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-1d9b37124044453db46d4029063fc3cb",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 12.077999999979511,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-fbf2dffb08ff4e12aa4c0be79df4e06d",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.01600000000326,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-1b6a0746691d44df90c1a4795b9fb534",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.0,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-4d9e39dac22847709a3f89c6a39ce2be",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.077999999979511,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-e9a3c78b39de4641b39ff037854435b6",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.077999999979511,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-db0847eaaed64f699ed037c844cde710",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.0,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-2b45499262ef41e99e6b79a40ff32eea",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.375,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-9575290728fd499ba9cd4a25b1af4e45",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.375,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-41c4ae60092743b2ab2e71fa7c15ec7a",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.14100000000326,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-3df018c9bb6a40669027c1767d6b1d52",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.09399999998277,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-e17f9f0bdf8343a69bfb39d1da26b9ef",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.780999999959022,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-bf82152a00be4b4ea1d71b24c2422b8b",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.077999999979511,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-72f04eee27f6484f957ebad83e477762",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.077999999979511,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-14924209612c4113b1203d56e3cd4bec",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 14.09399999998277,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-1fb352b14881438690e5083a70bf7e04",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 8.96899999998277,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-89b342a901fa418eb7029bf7dce26512",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 8.98399999999674,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-a8408c4510e84e71bb55c600117f9a14",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.061999999976251,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-c1e468b7c5674761a651c7783b8cc0fa",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.014999999955762,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-f5ae58b667f440c8ba4430eb01aa5c4c",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.35899999999674,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-a26177b5990542589ff6ddb0589589e3",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.35899999999674,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-34d31c13b2744c96b0576abf1b8a38e2",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.10899999999674,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-c9bdd3e962c14741a32568f9bd733f66",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.139999999955762,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-4132fd0b75e94e04943f1cad4d431069",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.686999999976251,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-7e861c55c06549f9b8a6ec808ccc81a5",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.671999999962281,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-09d7fd53cb9d4338aff6ee5832b5f67b",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.046999999962281,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-fb21848f62ed4656a5424679a860f0e6",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.061999999976251,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-fd998646ca864c7590891a1eaf721f67",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.094000000040978,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-32493357345b419ca9fa5baadab1e365",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.0,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-705f9c9ddbb3449cadc346330b2715d1",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.0,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-d5fdbad81d564e3fa00299a8e21e1871",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 8.969000000040978,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-1085fc6850294d6db561fdc7f6762fc5",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.312000000034459,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-098e1db1a89340809fb92415e4d4daf3",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.312000000034459,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-9e222f113bfa45158af0353dac21f9c5",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.203000000037719,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-1106629d3cb448b2a5d182498fcabd38",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.15600000001723,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-62c10d3385454e6d8e708f8615623b75",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 12.01600000000326,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-9147bc6a915f4775bb035467eedb26a2",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 11.688000000023749,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-177b00a9df174d4dad3efa1a051cdd3c",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 10.98399999999674,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-ca14c5f43ace4adbb88f67768a3e6b94",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 10.98399999999674,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-31e5267d19d948caa0c187a5b459fdd0",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.01500000001397,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-a1b3262990bf4c91b82eae5623ae3c49",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 8.96899999998277,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-a87e83af263e443fbf00214ea11d11cd",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.061999999976251,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-bee5c6d6b6034560bc128195cd507d91",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.030999999959022,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-c13404eaa3ee43e0bf70f9abc8858f0c",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.235000000044238,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-c90314c7f7494d7fa687cd13f76e4514",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.219000000040978,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-c49241cf62bc4e518fad291119008fae",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.078000000037719,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-50-08f7d01b77764d89bb79b800c418e543",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 9.063000000023749,
+          "status": 503
+        }
+      ],
+      "reservation_states": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    }
+  ],
+  "oracle_pass": false,
+  "project": "mini-llm-gateway-wave41-safe-audit-50"
+}

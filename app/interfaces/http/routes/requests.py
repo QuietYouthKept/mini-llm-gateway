@@ -25,7 +25,9 @@ async def get_request(
     if container.blocking_io is None:
         data = await asyncio.to_thread(container.log_service.get, request_id)
     else:
-        data = await container.blocking_io.run(container.log_service.get, request_id)
+        data = await container.blocking_io.run(
+            container.log_service.get, request_id, dependency="database"
+        )
     if data is None or data.get("client_id") != client.client_id:
         raise RequestNotFoundError(request_id)
     return data

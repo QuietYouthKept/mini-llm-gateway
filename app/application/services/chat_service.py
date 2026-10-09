@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
@@ -63,6 +64,8 @@ from app.domain.ports.repositories import (
 from app.infrastructure.config.config_models import AppConfig, ClientConfig
 from app.infrastructure.observability.gateway_metrics import GatewayMetrics
 from app.infrastructure.observability.tracing import TraceRecorder
+
+logger = logging.getLogger(__name__)
 
 _CIRCUIT_STATE_VALUE = {
     CircuitState.CLOSED: 0,
@@ -304,7 +307,9 @@ class ChatService:
                 DecisionStep(step="cache_miss", reason="no exact match", meta={"key": cache_key})
             )
 
-            budget_before = await self._blocking_io.run(self._budget.snapshot, client)
+            budget_before = await self._blocking_io.run(
+                self._budget.snapshot, client, dependency="database"
+            )
             reserved_input = max(
                 estimated_input,
                 self._config.token_estimation.reservation_input_floor,
@@ -319,6 +324,7 @@ class ChatService:
                     client,
                     reserved_tokens,
                     reserved_cost,
+                    dependency="database",
                 )
             trace.append(
                 DecisionStep(
@@ -454,8 +460,22 @@ class ChatService:
             ):
                 self._record_error_metrics(exc, endpoint, int((time.monotonic() - start) * 1000))
                 raise
+            logger.warning(
+                "Request gateway error before durable error audit code=%s request_id=%s",
+                exc.error_code,
+                request_id,
+            )
             if reservation_id is not None:
-                await self._blocking_io.run(self._budget.release, reservation_id)
+                try:
+                    await self._blocking_io.run(
+                        self._budget.release, reservation_id, dependency="database"
+                    )
+                except Exception as release_exc:
+                    if self._is_database_unavailable(release_exc):
+                        self._metrics.budget_reservation_leaks.inc()
+                        self._metrics.audit_failures.inc()
+                        raise DatabaseUnavailableError(request_id=request_id) from release_exc
+                    raise
             await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
             attempts = self._attempts_from_error(exc, attempts)
@@ -465,20 +485,28 @@ class ChatService:
             trace.append(
                 DecisionStep(step="error", reason=exc.error_code, meta={"message": str(exc)})
             )
-            await self._blocking_io.run(self._log_service.record_error,
-                request_id=request_id,
-                client_id=client.client_id,
-                model_profile=model_profile,
-                endpoint=endpoint,
-                status_code=http_status_for(exc.error_code),
-                error_code=exc.error_code,
-                error_message=str(exc),
-                duration_ms=duration_ms,
-                attempts=attempts,
-                request_body=replay_payload,
-                decision_trace=[s.to_dict() for s in trace],
-                replay_payload=replay_payload,
-            )
+            try:
+                await self._blocking_io.run(
+                    self._log_service.record_error,
+                    request_id=request_id,
+                    client_id=client.client_id,
+                    model_profile=model_profile,
+                    endpoint=endpoint,
+                    status_code=http_status_for(exc.error_code),
+                    error_code=exc.error_code,
+                    error_message=str(exc),
+                    duration_ms=duration_ms,
+                    attempts=attempts,
+                    request_body=replay_payload,
+                    decision_trace=[s.to_dict() for s in trace],
+                    replay_payload=replay_payload,
+                    dependency="database",
+                )
+            except Exception as audit_exc:
+                self._metrics.audit_failures.inc()
+                if self._is_database_unavailable(audit_exc):
+                    raise DatabaseUnavailableError(request_id=request_id) from audit_exc
+                # An audit defect must never replace the actual request error.
             self._record_error_metrics(exc, endpoint, duration_ms)
             self.sync_circuit_metrics()
             raise
@@ -487,7 +515,10 @@ class ChatService:
             if reservation_id is not None:
                 try:
                     receipt = await self._blocking_io.run(
-                        self._stream_finalizer.get_finalization, reservation_id
+                        self._stream_finalizer.get_finalization,
+                        reservation_id,
+                        dependency="database",
+                        recovery_probe=True,
                     )
                     durable_finalized = receipt is not None and receipt.request_id == request_id
                 except Exception:
@@ -498,7 +529,9 @@ class ChatService:
                 if durable_finalized:
                     reservation_id = None
                 else:
-                    await self._blocking_io.run(self._budget.release, reservation_id)
+                    await self._blocking_io.run(
+                        self._budget.release, reservation_id, dependency="database"
+                    )
             await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
             if attempts and not provider_trace_recorded:
@@ -520,6 +553,7 @@ class ChatService:
                     request_body=replay_payload,
                     decision_trace=[s.to_dict() for s in trace],
                     replay_payload=replay_payload,
+                    dependency="database",
                 )
                 self._metrics.record_request(endpoint, "client_cancelled", duration_ms / 1000.0)
             self.sync_circuit_metrics()
@@ -539,7 +573,9 @@ class ChatService:
                 )
                 raise error from exc
             if reservation_id is not None:
-                await self._blocking_io.run(self._budget.release, reservation_id)
+                await self._blocking_io.run(
+                    self._budget.release, reservation_id, dependency="database"
+                )
             await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
             duration_ms = int((time.monotonic() - start) * 1000)
@@ -559,6 +595,7 @@ class ChatService:
                 request_body=replay_payload,
                 decision_trace=[s.to_dict() for s in trace],
                 replay_payload=replay_payload,
+                dependency="database",
             )
             self._metrics.record_request(endpoint, "internal_error", duration_ms / 1000.0)
             self.sync_circuit_metrics()
@@ -591,7 +628,9 @@ class ChatService:
         reservation_id = f"{request_id}:{uuid.uuid4().hex}"
         reserve_submitted = False
         try:
-            budget_before = await self._blocking_io.run(self._budget.snapshot, client)
+            budget_before = await self._blocking_io.run(
+                self._budget.snapshot, client, dependency="database"
+            )
             with self._phase("budget.reserve.duration"):
                 reserve_submitted = True
                 await self._blocking_io.run(
@@ -600,6 +639,7 @@ class ChatService:
                     client,
                     reserved_input + max(0, request.max_tokens),
                     self._estimator.cost_usd(reserved_input, max(0, request.max_tokens)),
+                    dependency="database",
                 )
         except Exception as exc:
             if not self._is_database_unavailable(exc):
@@ -1015,7 +1055,10 @@ class ChatService:
             return
         try:
             if await self._blocking_io.run(
-                self._stream_finalizer.get_finalization, reservation_id
+                self._stream_finalizer.get_finalization,
+                reservation_id,
+                dependency="database",
+                recovery_probe=True,
             ) is not None:
                 return
         except Exception as exc:
@@ -1224,7 +1267,9 @@ class ChatService:
         try:
             with self._phase("audit.persist.duration"):
                 return await self._blocking_io.run(
-                    self._stream_finalizer.finalize_stream, command
+                    self._stream_finalizer.finalize_stream,
+                    command,
+                    dependency="database",
                 )
         except FinalizationRejectedError:
             raise
@@ -1233,7 +1278,10 @@ class ChatService:
         except Exception as exc:
             try:
                 receipt = await self._blocking_io.run(
-                    self._stream_finalizer.get_finalization, command.reservation_id
+                    self._stream_finalizer.get_finalization,
+                    command.reservation_id,
+                    dependency="database",
+                    recovery_probe=True,
                 )
             except Exception as query_exc:
                 raise StreamFinalizationUnknownError(request_id=command.request_id) from query_exc
@@ -1366,6 +1414,7 @@ class ChatService:
             replay_payload=replay_payload,
             cache_hit=True,
             cache_key=cache_key,
+            dependency="database",
         )
         self._metrics.record_request(endpoint, "success", duration_ms / 1000.0)
         self.sync_circuit_metrics()

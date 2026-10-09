@@ -112,11 +112,22 @@ def migrate(database_url: str, *, app_version: str = "unknown") -> None:
             )
 
 
-def schema_is_current(database_url: str, *, connect_timeout: int = 1) -> bool:
+def schema_is_current(
+    database_url: str,
+    *,
+    connect_timeout: int = 1,
+    statement_timeout_ms: int = 3000,
+    lock_timeout_ms: int = 1000,
+) -> bool:
     """Return false for an unreachable, incomplete, or checksum-mismatched schema."""
     try:
         expected = {path.stem: _accepted_checksums(path) for path in _migration_paths()}
-        with connect(database_url, connect_timeout=connect_timeout) as conn:
+        with connect(
+            database_url,
+            connect_timeout=connect_timeout,
+            statement_timeout_ms=statement_timeout_ms,
+            lock_timeout_ms=lock_timeout_ms,
+        ) as conn:
             rows = conn.execute("SELECT version, checksum FROM schema_migrations").fetchall()
         applied = {
             (row["version"] if isinstance(row, dict) else row[0]): (

@@ -88,6 +88,27 @@ def test_rate_limit(client: TestClient) -> None:
     assert "Retry-After" in resp.headers
 
 
+def test_database_error_audit_failure_does_not_turn_gateway_error_into_500(
+    client: TestClient, container
+) -> None:
+    headers = auth("rl-key")
+    payload = chat_payload("fast-chat")
+    assert client.post("/v1/chat", json=payload, headers=headers).status_code == 200
+    assert client.post("/v1/chat", json=payload, headers=headers).status_code == 200
+
+    def fail_error_audit(**_kwargs) -> None:  # noqa: ANN003
+        from app.application.services.blocking_io import BlockingIOOverloadedError
+
+        raise BlockingIOOverloadedError("simulated database audit outage")
+
+    container.log_service.record_error = fail_error_audit
+    response = client.post("/v1/chat", json=payload, headers=headers)
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "database_unavailable"
+    assert "llm_gateway_audit_failures_total 1" in container.metrics_registry.render()
+
+
 def test_token_budget_exceeded(client: TestClient) -> None:
     payload = chat_payload("fast-chat", content="a" * 400)
     resp = client.post("/v1/chat", json=payload, headers=auth("tiny-key"))

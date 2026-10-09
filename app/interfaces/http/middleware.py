@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
+import traceback
 import uuid
 from typing import Any
 
 from starlette.responses import JSONResponse
 
 from app.core.request_context import get_request_id, request_id_var
+
+logger = logging.getLogger(__name__)
 
 
 class RequestContextMiddleware:
@@ -43,7 +47,18 @@ class RequestContextMiddleware:
         try:
             try:
                 await self.app(scope, receive, send_wrapper)
-            except Exception:
+            except Exception as exc:
+                frames = traceback.extract_tb(exc.__traceback__)
+                logger.error(
+                    "Unhandled HTTP exception class=%s.%s request_id=%s stack=%s",
+                    type(exc).__module__,
+                    type(exc).__name__,
+                    get_request_id(),
+                    " <- ".join(
+                        f"{frame.filename.rsplit('/', 1)[-1]}:{frame.name}:{frame.lineno}"
+                        for frame in frames[-8:]
+                    ),
+                )
                 response = JSONResponse(
                     status_code=500,
                     content={
@@ -107,7 +122,9 @@ class HttpAuditMiddleware:
             if container.blocking_io is None:
                 existing = await asyncio.to_thread(container.log_service.get, request_id)
             else:
-                existing = await container.blocking_io.run(container.log_service.get, request_id)
+                existing = await container.blocking_io.run(
+                    container.log_service.get, request_id, dependency="database"
+                )
             if existing is not None:
                 return
             headers = {name.lower(): value for name, value in scope.get("headers", [])}
@@ -134,6 +151,7 @@ class HttpAuditMiddleware:
                     error_code=error_code,
                     error_message=f"HTTP {status_code}",
                     duration_ms=duration_ms,
+                    dependency="database",
                 )
             else:
                 await container.blocking_io.run(

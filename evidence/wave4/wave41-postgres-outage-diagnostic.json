@@ -1,0 +1,1010 @@
+{
+  "image": "mini-llm-gateway:wave41-outage-fcd3bce",
+  "matrix": [
+    {
+      "audit_row_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "concurrency": 20,
+      "gateway_log_excerpt": "gateway-1  | INFO:     Started server process [1]\ngateway-1  | INFO:     Waiting for application startup.\ngateway-1  | {\"ts\": \"2026-10-09T15:19:18.471+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Bootstrapping mini-llm-gateway in local mode\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:18.472+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Config loaded: 3 clients, 6 providers, 4 model profiles\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:18.751+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"PostgreSQL schema ledger verified\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:19.061+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Gateway ready with 6 providers\", \"request_id\": null}\ngateway-1  | INFO:     Application startup complete.\ngateway-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)\ngateway-1  | {\"ts\": \"2026-10-09T15:19:19.565+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47888 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"b5f32805e7514ef487af69c3c35eeb0f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:20.006+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47894 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"5cad095dda3442239dd7280a5bbf8606\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:23.764+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48090 - \\\"GET /live HTTP/1.1\\\" 200\", \"request_id\": \"4f39a5ac12ec4b23968675a52ab837ff\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.245+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48012 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-12d7d954b94246faafd56d52ba5bf0ac\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.263+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48076 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-39fc554c7fbb42aaa61f20996b7c7daa\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.264+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48088 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-d0539ab1ce12445d925ff661f536f8c8\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.276+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48072 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-8c4ec0596d69439f933a8fb160ef58b0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.280+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48058 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-ee56c4121cf742feb635ab77cc366fbe\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.367+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:47544 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"1303742c96a34df2bc894bca8db60f55\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47908 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-20-1b4c8c199cc64b04b4b23821ed8f8245\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47992 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-c57ca9ac2bca4f8f8410d4673b49f7f8\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47940 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-094f4612a69d4d1285b9c0168d54704c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47966 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-c73c415bb1ab40a496c7073a49c67b17\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47982 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-355ddb4280c049c78e3d002ea92fb01e\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48026 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-e674bcfd4be9407590fef4e4419ecc0d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48042 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-69b8992c564f465794201d0a83534acc\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48000 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-3a61f7899ad14bca9cd0c33a12c97200\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.846+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47926 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-ad79bf58cd174c608aa76e1b742b1584\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.863+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47944 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-e8e31a3a8c6e45b4a0acbee35034d0d3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.863+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47948 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-40f51ad8389841a391d077138585da22\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.879+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47938 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-a62d6f2db20b4f5ba68e7b2cc8a9d593\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47916 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-01a3a6ca01ef46bcae7705d550fb39d9\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:33.943+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47922 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-8618190dc48d4b4699719870aa073747\"}\n",
+      "live_duration_seconds": 1.6869999999762513,
+      "live_status": 200,
+      "ready_duration_seconds": 4.157000000006519,
+      "ready_status": 0,
+      "requests": [
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-3a61f7899ad14bca9cd0c33a12c97200",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.952999999979511,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-094f4612a69d4d1285b9c0168d54704c",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.952999999979511,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-d0539ab1ce12445d925ff661f536f8c8",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.75,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-ee56c4121cf742feb635ab77cc366fbe",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.76600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-c73c415bb1ab40a496c7073a49c67b17",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.952999999979511,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-a62d6f2db20b4f5ba68e7b2cc8a9d593",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.797000000020489,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-40f51ad8389841a391d077138585da22",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.78200000000652,
+          "status": 500
+        },
+        {
+          "body": {
+            "transport_error": "ReadTimeout"
+          },
+          "duration_seconds": 13.702999999979511,
+          "status": 0
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-8618190dc48d4b4699719870aa073747",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 13.48499999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-01a3a6ca01ef46bcae7705d550fb39d9",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.85999999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "database_unavailable",
+              "message": "Database backend unavailable",
+              "request_id": "wave41-outage-20-1b4c8c199cc64b04b4b23821ed8f8245",
+              "type": "database_unavailable"
+            }
+          },
+          "duration_seconds": 8.952999999979511,
+          "status": 503
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-ad79bf58cd174c608aa76e1b742b1584",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.76600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-39fc554c7fbb42aaa61f20996b7c7daa",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.75,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-8c4ec0596d69439f933a8fb160ef58b0",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.76600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-c57ca9ac2bca4f8f8410d4673b49f7f8",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.936999999976251,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-12d7d954b94246faafd56d52ba5bf0ac",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 6.7189999999827705,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-355ddb4280c049c78e3d002ea92fb01e",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.936999999976251,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-e8e31a3a8c6e45b4a0acbee35034d0d3",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.76600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-69b8992c564f465794201d0a83534acc",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.936999999976251,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-20-e674bcfd4be9407590fef4e4419ecc0d",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.936999999976251,
+          "status": 500
+        }
+      ],
+      "reservation_states": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "audit_row_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "concurrency": 50,
+      "gateway_log_excerpt": "gateway-1  | INFO:     Started server process [1]\ngateway-1  | INFO:     Waiting for application startup.\ngateway-1  | {\"ts\": \"2026-10-09T15:19:18.471+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Bootstrapping mini-llm-gateway in local mode\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:18.472+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Config loaded: 3 clients, 6 providers, 4 model profiles\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:18.751+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"PostgreSQL schema ledger verified\", \"request_id\": null}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:19.061+00:00\", \"level\": \"INFO\", \"logger\": \"app.core.startup\", \"message\": \"Gateway ready with 6 providers\", \"request_id\": null}\ngateway-1  | INFO:     Application startup complete.\ngateway-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)\ngateway-1  | {\"ts\": \"2026-10-09T15:19:19.565+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47888 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"b5f32805e7514ef487af69c3c35eeb0f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:20.006+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47894 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"5cad095dda3442239dd7280a5bbf8606\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:23.764+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48090 - \\\"GET /live HTTP/1.1\\\" 200\", \"request_id\": \"4f39a5ac12ec4b23968675a52ab837ff\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.245+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48012 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-12d7d954b94246faafd56d52ba5bf0ac\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.263+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48076 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-39fc554c7fbb42aaa61f20996b7c7daa\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.264+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48088 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-d0539ab1ce12445d925ff661f536f8c8\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.276+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48072 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-8c4ec0596d69439f933a8fb160ef58b0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.280+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48058 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-ee56c4121cf742feb635ab77cc366fbe\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.367+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:47544 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"1303742c96a34df2bc894bca8db60f55\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47908 - \\\"POST /v1/chat HTTP/1.1\\\" 503\", \"request_id\": \"wave41-outage-20-1b4c8c199cc64b04b4b23821ed8f8245\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47992 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-c57ca9ac2bca4f8f8410d4673b49f7f8\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47940 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-094f4612a69d4d1285b9c0168d54704c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47966 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-c73c415bb1ab40a496c7073a49c67b17\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47982 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-355ddb4280c049c78e3d002ea92fb01e\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48026 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-e674bcfd4be9407590fef4e4419ecc0d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48042 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-69b8992c564f465794201d0a83534acc\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:28.953+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:48000 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-3a61f7899ad14bca9cd0c33a12c97200\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.846+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47926 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-ad79bf58cd174c608aa76e1b742b1584\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.863+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47944 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-e8e31a3a8c6e45b4a0acbee35034d0d3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.863+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47948 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-40f51ad8389841a391d077138585da22\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.879+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47938 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-a62d6f2db20b4f5ba68e7b2cc8a9d593\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:29.952+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47916 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-01a3a6ca01ef46bcae7705d550fb39d9\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:33.943+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:47922 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-20-8618190dc48d4b4699719870aa073747\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:40.176+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:41486 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"415754ad7f2f451d91521eb33c030e09\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:40.995+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:38364 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"7764580b04794849a25e997f3f061b07\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:46.302+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:47222 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"7783f04ec0444ca1bef075c1abcc621d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:51.611+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:47280 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"41a229d77fd8419db1c3ce84f2ed7f48\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:56.838+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:51876 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"523ebab526fe470a8f2f0cd25e1357a3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:19:59.483+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:51916 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"c60f9671307c405491089ad5c23399a4\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:04.892+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:33604 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"53246bef8abd48758d2473fb121c87b5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:10.180+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:33668 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"1daf6665cc7b49d8917d7c953e602948\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:15.441+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:51628 - \\\"GET /ready HTTP/1.1\\\" 200\", \"request_id\": \"dbdee4d659ef4e9daefba34c4fd75115\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:23.712+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53168 - \\\"GET /live HTTP/1.1\\\" 200\", \"request_id\": \"886b6c5fbd034c7f9e33daf2536bcb36\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:25.989+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53182 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"bc46fc9028a04525a00b3852fd43a58f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:25.989+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"127.0.0.1:47188 - \\\"GET /ready HTTP/1.1\\\" 503\", \"request_id\": \"a4cb2325eb834383a068f11e7658142c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.818+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52654 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-e7916419fa324e0889ae86eafea7f6f2\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.940+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52666 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-297df9a1374846018c068ef47c3ef87a\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.949+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52672 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-80b0d32cca884ebabbb517a8c4c61d04\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.967+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52690 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-98d1ce5bf9064dea87cc20f1ed73822b\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.968+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52686 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-97a9801066c4403d951b1f2221e965fd\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.974+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52692 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-c0e80e1cc88843dd9e326a829b78c06d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:27.974+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52696 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-289954b9afc3492cab805d787b3d1ab3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.000+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52708 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-24406942b47d4a6cbb2a0d797c6b4763\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.019+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52722 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-f48153ad26d94ef7902b01ca6982e984\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.020+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52712 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-f042451e6b1e4986b048094e3de4765f\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.027+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52758 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-64631878dff641a1b06f29153e86720d\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.027+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52760 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-1e7de269a8c846fe8b8e9e943073e4fc\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.034+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52742 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-3f4a9b0d20a0408597e98b1af3609a79\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.037+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52730 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-91c3ea42cb364348ae93f83b61efbdde\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.086+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52784 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-042a7d1dc329406f9b508b3dabc5d099\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.086+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52770 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-3f9d9920d6d040058f595c3d8f9f1a58\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.092+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52800 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-b7599c167cef4151aedb9eb55db22754\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.120+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52830 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-a0a0203a6a1e4db8a30273869e20a863\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.120+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52810 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-98f7359d168f48148292d80e5a32250e\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.125+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52822 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-01111f31177f4c818ef4b2b1f420d0a0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.157+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52838 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-722eb6400cba4c32859321a608473b65\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.157+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52850 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-f0b6004d192943b79820284c4c7d1f04\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.157+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52848 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-4c0896c7cf4649d180bf24fafbd8707c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.182+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52866 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-1cb5d20e79b348c78032e4b2b783879e\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.250+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52878 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-847b2a9b58b54e7089bcf81ce072a315\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.279+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52892 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-c007c3cd61c34823a5798b1441ec8d2a\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.292+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52882 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-eb77187654a44941bd3831ee2670afa5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.292+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52904 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-09f8b1c2ee104a1f9a3138cb10568a91\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.307+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52920 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-da5cb18dace9492b8adb4bed81fc2d0a\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.332+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52936 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-55ce298a245c45a993ccae71fed4ad5c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.342+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52934 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-5ab1ad7287224ba08d7f8809531058b3\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.354+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52952 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-a012d6249153426bb97386777579b12b\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.376+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52964 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-1d6066d2cc1346818ad0da4716b74201\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.486+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52980 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-e84822f988ad4e778e010b4a1d451c73\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.490+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:52992 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-20a3209160af4c54af81dbdf779af0fd\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.547+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53008 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-69b7edf668204f6da830753b5776a4e0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.547+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53022 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-e91197b6918f44f89667e9238a628b74\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.562+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53024 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-6c2de1b34790476eb577e0534662cbbc\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.562+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53040 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-4010d38c06c24810a389bf4c6b28f3b4\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.572+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53050 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-d18b038ac3af4a35a73436602bdcb9d4\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.612+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53066 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-9648edf96fe343ba8a82cd44b50b5fe4\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.663+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53078 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-d20ad62db897486680d71d137885a97c\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.664+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53072 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-0e6959f19a4a4cb6ae14dd8b4d1379e5\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.696+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53088 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-a87dfbb51f1547668b3e720a6c697c88\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.697+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53090 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-c7fce97c19484d81b91cb10cccf314c0\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.697+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53128 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-6efc0c26279e4edbb16b21059ff24100\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.699+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53112 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-c00907bd272d4fea8531510ef92e7195\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.699+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53142 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-776dfb2062024ec89a65b1c3932b14eb\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.699+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53098 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-aa033e90473d476987a7875990e9fa92\"}\ngateway-1  | {\"ts\": \"2026-10-09T15:20:28.714+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.access\", \"message\": \"192.168.32.1:53158 - \\\"POST /v1/chat HTTP/1.1\\\" 500\", \"request_id\": \"wave41-outage-50-f8b8d63200c148529e901490c1732b30\"}\n",
+      "live_duration_seconds": 4.344000000040978,
+      "live_status": 200,
+      "ready_duration_seconds": 2.077999999979511,
+      "ready_status": 503,
+      "requests": [
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-aa033e90473d476987a7875990e9fa92",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.062999999965541,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-c007c3cd61c34823a5798b1441ec8d2a",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.671999999962281,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-09f8b1c2ee104a1f9a3138cb10568a91",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.687999999965541,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-97a9801066c4403d951b1f2221e965fd",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.39100000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-80b0d32cca884ebabbb517a8c4c61d04",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.375,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-e84822f988ad4e778e010b4a1d451c73",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.85999999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-20a3209160af4c54af81dbdf779af0fd",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.85999999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-f042451e6b1e4986b048094e3de4765f",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.437999999965541,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-e7916419fa324e0889ae86eafea7f6f2",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.25,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-297df9a1374846018c068ef47c3ef87a",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.35999999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-98d1ce5bf9064dea87cc20f1ed73822b",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.39100000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-c00907bd272d4fea8531510ef92e7195",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.046999999962281,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-a87dfbb51f1547668b3e720a6c697c88",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.01600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-5ab1ad7287224ba08d7f8809531058b3",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.704000000027008,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-847b2a9b58b54e7089bcf81ce072a315",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.610000000044238,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-64631878dff641a1b06f29153e86720d",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.40700000000652,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-c0e80e1cc88843dd9e326a829b78c06d",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.360000000044238,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-9648edf96fe343ba8a82cd44b50b5fe4",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.938000000023749,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-6c2de1b34790476eb577e0534662cbbc",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.90700000000652,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-042a7d1dc329406f9b508b3dabc5d099",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.469000000040978,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-f0b6004d192943b79820284c4c7d1f04",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.53200000000652,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-f48153ad26d94ef7902b01ca6982e984",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.40700000000652,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-289954b9afc3492cab805d787b3d1ab3",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.360000000044238,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-776dfb2062024ec89a65b1c3932b14eb",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 9.01600000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-d20ad62db897486680d71d137885a97c",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.98399999999674,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-a012d6249153426bb97386777579b12b",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.688000000023749,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-1d6066d2cc1346818ad0da4716b74201",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.719000000040978,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-24406942b47d4a6cbb2a0d797c6b4763",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.375,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-b7599c167cef4151aedb9eb55db22754",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.453000000037719,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-69b7edf668204f6da830753b5776a4e0",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.875,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-d18b038ac3af4a35a73436602bdcb9d4",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.89100000000326,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-91c3ea42cb364348ae93f83b61efbdde",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.39000000001397,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-01111f31177f4c818ef4b2b1f420d0a0",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.46799999999348,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-98f7359d168f48148292d80e5a32250e",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.46799999999348,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-4c0896c7cf4649d180bf24fafbd8707c",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.5,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-c7fce97c19484d81b91cb10cccf314c0",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.98399999999674,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-0e6959f19a4a4cb6ae14dd8b4d1379e5",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.96799999999348,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-eb77187654a44941bd3831ee2670afa5",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.60999999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-da5cb18dace9492b8adb4bed81fc2d0a",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.625,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-1e7de269a8c846fe8b8e9e943073e4fc",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.35999999998603,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-3f4a9b0d20a0408597e98b1af3609a79",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.375,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-e91197b6918f44f89667e9238a628b74",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.84399999998277,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-4010d38c06c24810a389bf4c6b28f3b4",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.84399999998277,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-a0a0203a6a1e4db8a30273869e20a863",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.436999999976251,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-1cb5d20e79b348c78032e4b2b783879e",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.48399999999674,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-722eb6400cba4c32859321a608473b65",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.46899999998277,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-3f9d9920d6d040058f595c3d8f9f1a58",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.40600000001723,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-f8b8d63200c148529e901490c1732b30",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.952999999979511,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-6efc0c26279e4edbb16b21059ff24100",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.936999999976251,
+          "status": 500
+        },
+        {
+          "body": {
+            "error": {
+              "code": "internal_error",
+              "message": "Internal server error",
+              "request_id": "wave41-outage-50-55ce298a245c45a993ccae71fed4ad5c",
+              "type": "internal_error"
+            }
+          },
+          "duration_seconds": 8.59399999998277,
+          "status": 500
+        }
+      ],
+      "reservation_states": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    }
+  ],
+  "oracle_pass": false,
+  "project": "mini-llm-gateway-wave41-outage-diagnostic"
+}
