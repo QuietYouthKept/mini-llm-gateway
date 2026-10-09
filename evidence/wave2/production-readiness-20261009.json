@@ -1,0 +1,124 @@
+{
+  "recorded_at": "2026-10-09T15:18:39+08:00",
+  "local_source_commit": "4ebd391baa09f6c6eb50d95a4fd27cf8fd296fd3",
+  "remote_source_commit": "d46b0445ea50772f41afe4f2a49424147fd540b2",
+  "source_tree": "d0737505b03bcacbb8856d525f5673fc7370bb5e",
+  "ci": {
+    "workflow": "CI",
+    "run_id": 37898202659,
+    "url": "https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/37898202659",
+    "head_sha": "d46b0445ea50772f41afe4f2a49424147fd540b2",
+    "conclusion": "success",
+    "python": "3.11.17",
+    "branch_coverage": "80.20%",
+    "pytest": "175 passed in 11.93s",
+    "dependency_audit": "No known vulnerabilities found",
+    "steps": {
+      "ruff": "success",
+      "compileall": "success",
+      "credential_hygiene": "success",
+      "postgres_integration": "success",
+      "streaming_consistency": "success",
+      "functional_evaluation": "success",
+      "security_evaluation": "success",
+      "dependency_audit": "success",
+      "repository_hygiene": "success"
+    }
+  },
+  "local_baseline": {
+    "manifest": "evidence/baseline/20261009T071852Z/manifest.json",
+    "commit": "4ebd391baa09f6c6eb50d95a4fd27cf8fd296fd3",
+    "python": "3.11.9",
+    "ruff_exit": 0,
+    "compileall_exit": 0,
+    "pytest_exit": 0,
+    "pytest": "175 passed in 15.19s",
+    "streaming_consistency_exit": 0,
+    "secret_scan_exit": 0,
+    "functional_eval": "7/7 passed",
+    "security_eval": "8/8 passed",
+    "diff_check_exit": 0
+  },
+  "postgresql": {
+    "image": "postgres:16",
+    "isolation": "disposable container created for this run",
+    "command": "python scripts/postgres_integration_probe.py --database-url <disposable-local-postgresql-url>",
+    "exit": 0,
+    "migrations_twice": true,
+    "existing_usage_row_race": {
+      "admitted": 1,
+      "rejected": 1,
+      "within_limit": true
+    },
+    "cold_usage_row_race": {
+      "admitted": 1,
+      "reserved_tokens": 60,
+      "within_limit": true
+    },
+    "audit_rollback": {
+      "injected_failure": true,
+      "request_rows_after_failure": 0,
+      "attempt_rows_after_failure": 0
+    },
+    "finalization": {
+      "state": "settled",
+      "replay_idempotent": true,
+      "request_rows": 1,
+      "tokens_used": 10,
+      "concurrent_replays": ["settled", "settled"],
+      "concurrent_request_rows": 1
+    },
+    "nonnegative_usage_rejected": true,
+    "orphan_reconciliation": {
+      "reclaimed": 1,
+      "audit_status": "orphaned_released",
+      "error_code": "reservation_lease_expired",
+      "receipt": "release"
+    }
+  },
+  "postgresql_two_gateway_replicas": {
+    "command": "python scripts/multi_replica_probe.py --a http://127.0.0.1:18881 --b http://127.0.0.1:18882",
+    "exit": 0,
+    "passed": true,
+    "budget_statuses": [429, 200],
+    "cache_hit_on_a_then_b": [false, false],
+    "rate_statuses_a": [200, 200, 200, 429],
+    "rate_statuses_b": [200, 200, 200, 429],
+    "cross_replica_audit_statuses": [200, 200]
+  },
+  "redis_two_gateway_replicas": {
+    "image": "redis:7-alpine",
+    "global_rate_limit": {
+      "requests": 20,
+      "admitted": 10,
+      "rejected": 10,
+      "probe_exit": 0
+    },
+    "shared_cache": {
+      "first_status": 200,
+      "second_status": 200,
+      "provider_executions": 1,
+      "contents_equal": true,
+      "probe_exit": 0
+    },
+    "distributed_singleflight": {
+      "status_codes": [200, 200],
+      "provider_executions": 1,
+      "cache_hits": [false, true],
+      "stale_owner_initial_follower": false,
+      "follower_after_ttl": true,
+      "probe_exit": 0
+    }
+  },
+  "newly_discovered_issue": {
+    "symptom": "With no token_budget_usage row, concurrent PostgreSQL reservations could both pass the budget limit.",
+    "cause": "SELECT INTO assigned NULL variables when the usage lookup returned no row; NULL in the PL/pgSQL IF predicate did not reject the request.",
+    "fix": "Added migrations/postgresql/007_cold_budget_reservation_nulls.sql; missing counters now resolve to zero under the existing advisory lock.",
+    "regression_oracle": "The PostgreSQL probe races two 60-token reservations against a fresh 100-token budget and requires exactly one admission."
+  },
+  "limitations": [
+    "Git HTTPS push failed twice due TLS handshake errors; the authorized GitHub API ref update advanced the branch with force=false after uploaded blobs and final tree were checked against local Git objects.",
+    "GitHub API generated commit IDs differ from local commits because API-created commit metadata normalizes timestamps; the final source tree SHA is identical.",
+    "Provider service was not called; all provider contract and gateway probes use synthetic local fixtures."
+  ]
+}
