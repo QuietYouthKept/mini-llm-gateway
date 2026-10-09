@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from app.domain.errors import ProviderBadStatusError
+from app.domain.errors import ProviderBadStatusError, ProviderFailedError, ProviderTimeoutError
 from app.domain.ports.provider_port import ChatMessage, ChatRequest
 from app.infrastructure.config.config_models import HTTPProviderConfig
 from app.infrastructure.providers.openai_compatible import OpenAICompatibleProvider
@@ -129,3 +129,87 @@ async def test_non_success_status_maps_to_provider_error() -> None:
         await client.aclose()
 
     assert raised.value.error_code == "provider_bad_status"
+
+
+@pytest.mark.asyncio
+async def test_malformed_non_streaming_payload_maps_to_provider_error() -> None:
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"choices": []}))
+    )
+    provider = OpenAICompatibleProvider(
+        "contract-provider", HTTPProviderConfig(base_url="https://provider.test/v1"), client=client
+    )
+    try:
+        with pytest.raises(ProviderFailedError, match="malformed response") as raised:
+            await provider.chat(_request())
+    finally:
+        await client.aclose()
+
+    assert raised.value.error_code == "provider_failed"
+
+
+@pytest.mark.asyncio
+async def test_transport_timeout_maps_to_provider_timeout() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("provider timed out", request=request)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = OpenAICompatibleProvider(
+        "contract-provider", HTTPProviderConfig(base_url="https://provider.test/v1"), client=client
+    )
+    try:
+        with pytest.raises(ProviderTimeoutError) as raised:
+            await provider.chat(_request())
+    finally:
+        await client.aclose()
+
+    assert raised.value.error_code == "provider_timeout"
+
+
+@pytest.mark.asyncio
+async def test_stream_non_success_status_maps_to_provider_error() -> None:
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda request: httpx.Response(503, request=request))
+    )
+    provider = OpenAICompatibleProvider(
+        "contract-provider", HTTPProviderConfig(base_url="https://provider.test/v1"), client=client
+    )
+    try:
+        with pytest.raises(ProviderBadStatusError) as raised:
+            async for _ in provider.stream_chat(_request()):
+                pass
+    finally:
+        await client.aclose()
+
+    assert raised.value.error_code == "provider_bad_status"
+
+
+@pytest.mark.asyncio
+async def test_environment_key_and_request_id_fallback_contract(monkeypatch) -> None:
+    monkeypatch.setenv("WAVE2_PROVIDER_KEY", "environment-key")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer environment-key"
+        return httpx.Response(
+            200,
+            headers={"request-id": "fallback-request-id"},
+            json={"choices": [{"message": {"content": "ok"}}]},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = OpenAICompatibleProvider(
+        "contract-provider",
+        HTTPProviderConfig(
+            base_url="https://provider.test/v1",
+            model="configured-model",
+            api_key_env="WAVE2_PROVIDER_KEY",
+        ),
+        client=client,
+    )
+    try:
+        response = await provider.chat(_request())
+    finally:
+        await client.aclose()
+
+    assert response.model == "configured-model"
+    assert response.metadata["provider_request_id"] == "fallback-request-id"

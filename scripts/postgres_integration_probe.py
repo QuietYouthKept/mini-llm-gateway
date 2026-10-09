@@ -35,7 +35,12 @@ def run(database_url: str) -> dict:
         api_key=f"pg-final-key-{suffix}",
         token_budget=TokenBudgetConfig(period="daily", max_tokens=100),
     )
-    PostgresClientRepository(database_url).sync([client, final_client])
+    cold_client = ClientConfig(
+        client_id=f"pg-cold-{suffix}",
+        api_key=f"pg-cold-key-{suffix}",
+        token_budget=TokenBudgetConfig(period="daily", max_tokens=100),
+    )
+    PostgresClientRepository(database_url).sync([client, final_client, cold_client])
     budget = TokenBudgetService(PostgresTokenBudgetRepository(database_url))
     budget.commit(client, 80, 0.0)
 
@@ -52,6 +57,22 @@ def run(database_url: str) -> dict:
     with ThreadPoolExecutor(max_workers=2) as pool:
         admitted = list(pool.map(reserve, (1, 2)))
     snapshot = budget.snapshot(client)
+
+    # Exercise the missing usage-row case with concurrent reservations. The
+    # SQL predicate must treat absent counters as zero, not NULL/unknown.
+    cold_barrier = Barrier(2)
+
+    def reserve_cold(index: int) -> bool:
+        cold_barrier.wait()
+        try:
+            budget.reserve(f"pg-cold-res-{suffix}-{index}", cold_client, 60, 0.0)
+            return True
+        except Exception:
+            return False
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        cold_admitted = list(pool.map(reserve_cold, (1, 2)))
+    cold_snapshot = budget.snapshot(cold_client)
 
     request_id = f"pg-audit-{suffix}"
     repository = PostgresRequestLogRepository(database_url)
@@ -245,6 +266,11 @@ def run(database_url: str) -> dict:
         "committed_tokens": snapshot.used_tokens,
         "reserved_tokens": snapshot.reserved_tokens,
         "within_limit": snapshot.used_tokens + snapshot.reserved_tokens <= 100,
+        "cold_budget_admitted": sum(cold_admitted),
+        "cold_budget_reserved": cold_snapshot.reserved_tokens,
+        "cold_budget_within_limit": (
+            cold_snapshot.used_tokens + cold_snapshot.reserved_tokens <= 100
+        ),
         "audit_failure_injected": rollback_observed,
         "request_rows_after_failure": request_rows,
         "attempt_rows_after_failure": attempt_rows,
@@ -273,6 +299,9 @@ def main() -> int:
     passed = (
         result["budget_admitted"] == 1
         and result["within_limit"]
+        and result["cold_budget_admitted"] == 1
+        and result["cold_budget_reserved"] == 60
+        and result["cold_budget_within_limit"]
         and result["audit_failure_injected"]
         and result["request_rows_after_failure"] == 0
         and result["attempt_rows_after_failure"] == 0

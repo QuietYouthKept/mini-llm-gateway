@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import uuid
 
 import httpx
 
@@ -12,6 +13,10 @@ import httpx
 async def main_async(a: str, b: str) -> tuple[dict, bool]:
     async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
         demo_headers = {"Authorization": "Bearer demo-key"}
+        budget_request_ids = [
+            f"multi-budget-{uuid.uuid4().hex}",
+            f"multi-budget-{uuid.uuid4().hex}",
+        ]
         budget_payload = {
             "profile": "fast-chat",
             "messages": [{"role": "user", "content": "cross replica budget race"}],
@@ -23,7 +28,7 @@ async def main_async(a: str, b: str) -> tuple[dict, bool]:
             return await client.post(url + "/v1/chat", json=budget_payload, headers=headers)
 
         budget_responses = await asyncio.gather(
-            budget_call(a, "multi-budget-a"), budget_call(b, "multi-budget-b")
+            budget_call(a, budget_request_ids[0]), budget_call(b, budget_request_ids[1])
         )
         budget_statuses = [response.status_code for response in budget_responses]
 
@@ -57,7 +62,7 @@ async def main_async(a: str, b: str) -> tuple[dict, bool]:
                     headers=demo_headers,
                 )
             ).status_code
-            for request_id in ("multi-budget-a", "multi-budget-b")
+            for request_id in budget_request_ids
         ]
 
     result = {
