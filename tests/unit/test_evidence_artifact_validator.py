@@ -92,6 +92,7 @@ def test_hidden_file_is_rejected_even_if_unlisted(tmp_path: Path) -> None:
 
 def test_public_evidence_allowlist_excludes_hidden_and_sensitive_paths() -> None:
     assert is_public_artifact_path("pytest.log")
+    assert is_public_artifact_path("coverage-gate.log")
     assert is_public_artifact_path("status/pytest.exitcode")
     assert is_public_artifact_path("coverage/html/status.json")
     assert not is_public_artifact_path("postgres/.coverage")

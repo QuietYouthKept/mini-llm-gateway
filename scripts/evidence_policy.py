@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 
 _ROOT_FILES = {
     "compileall.log",
+    "coverage-gate.log",
     "dependency-audit.json",
     "dependency-audit.stderr",
     "diff-check.log",

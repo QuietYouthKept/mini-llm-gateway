@@ -57,13 +57,13 @@ jobs:
         if: always()
         run: |
           {
-            python --version
-            python -m pip --version
+            .venv/bin/python --version
+            .venv/bin/python -m pip --version
             uv --version
-            python -m pytest --version
-            python -m pip show pytest-cov coverage
+            .venv/bin/python -m pytest --version
+            .venv/bin/python -m pip show pytest-cov coverage
             .venv/bin/coverage --version
-            python -m pip freeze
+            .venv/bin/python -m pip freeze
             git rev-parse HEAD
             psql --version || true
             redis-cli --version || true
