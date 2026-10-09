@@ -1,0 +1,41 @@
+{
+  "backend_errors": {
+    "postgres": 0,
+    "redis": 0,
+    "sqlite": 0
+  },
+  "budget_reject_count": 0,
+  "cache_hit_ratio": 0.0,
+  "concurrency": 1,
+  "elapsed_seconds": 0.0664,
+  "error_codes": {
+    "http_error": 10
+  },
+  "error_rate": 1.0,
+  "fallback_ratio": 0.0,
+  "http_errors": 10,
+  "latency_ms": {
+    "mean": 6.6,
+    "p50": 3.67,
+    "p95": 33.58,
+    "p99": 33.58
+  },
+  "process": {
+    "cpu_seconds": 0.0,
+    "pid": 0,
+    "rss_after_bytes": 0,
+    "rss_before_bytes": 0,
+    "rss_delta_bytes": 0
+  },
+  "provider_attempts_per_request": 0.0,
+  "rate_limit_reject_count": 0,
+  "requests": 10,
+  "retry_amplification_ratio": 0.0,
+  "rps": 150.52,
+  "scenario": "constant",
+  "status_counts": {
+    "404": 10
+  },
+  "success": 0,
+  "throughput_requests_per_second": 150.52
+}

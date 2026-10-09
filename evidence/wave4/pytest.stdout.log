@@ -1,0 +1,95 @@
+........................................................................ [ 37%]
+........................................................................ [ 74%]
+.................................................                        [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.9-final-0 _______________
+
+Name                                                        Stmts   Miss Branch BrPart  Cover
+---------------------------------------------------------------------------------------------
+app\__init__.py                                                 0      0      0      0   100%
+app\application\__init__.py                                     0      0      0      0   100%
+app\application\dto\__init__.py                                 0      0      0      0   100%
+app\application\dto\chat_dto.py                                41      0      0      0   100%
+app\application\services\__init__.py                            0      0      0      0   100%
+app\application\services\blocking_io.py                        44      0     10      1    98%
+app\application\services\chat_service.py                      716    104    196     42    81%
+app\application\services\circuit_breaker.py                    61      1     16      1    97%
+app\application\services\failure_policy.py                     21      0      0      0   100%
+app\application\services\fallback_service.py                  133      8     32      6    92%
+app\application\services\guardrail_service.py                  49      5     22      3    86%
+app\application\services\prompt_cache.py                       40      2      6      0    96%
+app\application\services\rate_limiter.py                       29      1      6      1    94%
+app\application\services\readiness_service.py                  91     11     20      5    84%
+app\application\services\request_log_service.py                51      3      6      0    95%
+app\application\services\routing_service.py                    11      1      4      1    87%
+app\application\services\singleflight.py                       21      0      4      1    96%
+app\application\services\token_budget_service.py               60      4     10      1    90%
+app\application\services\token_estimator.py                    17      0      2      0   100%
+app\application\use_cases\__init__.py                           0      0      0      0   100%
+app\core\__init__.py                                            0      0      0      0   100%
+app\core\container.py                                         156     24     48     12    79%
+app\core\logging.py                                            23     14      4      0    33%
+app\core\request_context.py                                     9      0      0      0   100%
+app\core\settings.py                                           13      0      0      0   100%
+app\core\startup.py                                            35     22      6      0    32%
+app\domain\__init__.py                                          0      0      0      0   100%
+app\domain\errors.py                                           75      5      0      0    93%
+app\domain\models\__init__.py                                   4      0      0      0   100%
+app\domain\models\decision_trace.py                            18      0      4      0   100%
+app\domain\models\model_profile.py                             24      0      0      0   100%
+app\domain\models\provider.py                                  33      0      0      0   100%
+app\domain\ports\__init__.py                                    4      0      0      0   100%
+app\domain\ports\provider_port.py                              36      1      0      0    97%
+app\domain\ports\repositories.py                               31      0      0      0   100%
+app\infrastructure\__init__.py                                  0      0      0      0   100%
+app\infrastructure\config\__init__.py                           0      0      0      0   100%
+app\infrastructure\config\config_models.py                    337     22     90     24    89%
+app\infrastructure\config\mapper.py                             5      0      0      0   100%
+app\infrastructure\config\yaml_config_loader.py                19     11      4      0    35%
+app\infrastructure\observability\gateway_metrics.py            36      0      2      1    97%
+app\infrastructure\observability\metrics.py                    93      2     24      2    97%
+app\infrastructure\observability\tracing.py                    64     26      6      0    57%
+app\infrastructure\persistence\__init__.py                      0      0      0      0   100%
+app\infrastructure\persistence\postgresql\__init__.py           0      0      0      0   100%
+app\infrastructure\persistence\postgresql\connection.py        56     40     10      0    24%
+app\infrastructure\persistence\postgresql\repositories.py     154    154     52      0     0%
+app\infrastructure\persistence\sqlite\__init__.py               0      0      0      0   100%
+app\infrastructure\persistence\sqlite\connection.py            47      7     10      2    77%
+app\infrastructure\persistence\sqlite\repositories.py         213     25     42      5    88%
+app\infrastructure\persistence\sqlite\schema.py                 3      0      0      0   100%
+app\infrastructure\providers\__init__.py                        2      0      0      0   100%
+app\infrastructure\providers\base.py                           50      1      8      1    97%
+app\infrastructure\providers\fake_static.py                    18      0      0      0   100%
+app\infrastructure\providers\mock_error.py                      6      0      0      0   100%
+app\infrastructure\providers\mock_fast.py                       6      0      0      0   100%
+app\infrastructure\providers\mock_slow.py                       8      0      0      0   100%
+app\infrastructure\providers\mock_stable.py                     6      0      0      0   100%
+app\infrastructure\providers\openai_compatible.py              99      8     20      1    91%
+app\infrastructure\providers\provider_registry.py              31      3     10      2    88%
+app\infrastructure\redis\__init__.py                            0      0      0      0   100%
+app\infrastructure\redis\prompt_cache.py                       24     24      2      0     0%
+app\infrastructure\redis\rate_limiter.py                       28     28      4      0     0%
+app\infrastructure\redis\singleflight.py                       36     36      4      0     0%
+app\interfaces\__init__.py                                      0      0      0      0   100%
+app\interfaces\http\__init__.py                                 0      0      0      0   100%
+app\interfaces\http\dependencies\__init__.py                    0      0      0      0   100%
+app\interfaces\http\dependencies\auth.py                       47      2     14      2    93%
+app\interfaces\http\dependencies\container.py                   5      0      0      0   100%
+app\interfaces\http\exception_handlers.py                      21      2      6      2    85%
+app\interfaces\http\middleware.py                              84      9     26      5    87%
+app\interfaces\http\routes\__init__.py                          0      0      0      0   100%
+app\interfaces\http\routes\admin.py                            39      6     10      1    86%
+app\interfaces\http\routes\chat.py                             64      2      6      1    96%
+app\interfaces\http\routes\health.py                           31      1      2      1    94%
+app\interfaces\http\routes\metrics.py                          12      1      2      1    86%
+app\interfaces\http\routes\requests.py                         18      1      4      1    91%
+app\interfaces\http\schemas\__init__.py                         3      0      0      0   100%
+app\interfaces\http\schemas\chat.py                            69      0      0      0   100%
+app\interfaces\http\schemas\health.py                           5      0      0      0   100%
+app\main.py                                                    35      1      2      1    95%
+app\version.py                                                  1      0      0      0   100%
+---------------------------------------------------------------------------------------------
+TOTAL                                                        3621    618    756    127    80%
+Coverage XML written to file evidence/wave4/coverage.xml
+FAIL Required test coverage of 80% not reached. Total coverage: 79.92%
+193 passed in 18.37s

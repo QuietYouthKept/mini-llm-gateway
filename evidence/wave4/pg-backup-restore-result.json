@@ -1,0 +1,20 @@
+{
+  "backup_sha256": "F8C03C15610297FE0453EB84933A5D231461E5BA6D6A6747C6D4FEAE963428AA",
+  "backup_size_bytes": 29342,
+  "backup_path_external": "D:\\面试\\github-projects\\_wave4-preservation\\20261009-203831-0073fd39\\wave4-pg-gateway.dump",
+  "source_counts": [
+    "attempts|14",
+    "receipts|16",
+    "request_logs|29",
+    "reservations|18"
+  ],
+  "restored_counts": [
+    "attempts|14",
+    "receipts|16",
+    "request_logs|29",
+    "reservations|18"
+  ],
+  "write_smoke_exit": 0,
+  "elapsed_seconds": 2.114,
+  "source_counts_match": true
+}

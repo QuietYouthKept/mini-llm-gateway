@@ -1,0 +1,90 @@
+{
+  "distributed_singleflight_and_lease": {
+    "cache_hits": [
+      false,
+      true
+    ],
+    "latency_ms": 396,
+    "oracle_pass": true,
+    "provider_executions": 1,
+    "responses_equivalent": true,
+    "stale_follower_initial": false,
+    "stale_follower_recovered": true,
+    "stale_leader_acquired": true,
+    "status_codes": [
+      200,
+      200
+    ]
+  },
+  "global_rate_limit_cache": {
+    "cache_content_equal": true,
+    "cache_first_attempts": 1,
+    "cache_first_hit": false,
+    "cache_first_status": 200,
+    "cache_second_attempts": 0,
+    "cache_second_hit": true,
+    "cache_second_status": 200,
+    "oracle_pass": true,
+    "provider_executions": 1,
+    "rate_admitted": 10,
+    "rate_rejected": 10,
+    "rate_requests": 20,
+    "rate_statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429,
+      429
+    ]
+  },
+  "oracle_pass": true,
+  "postgres_shared_budget_race": {
+    "audit_rows": [
+      {
+        "error_code": null,
+        "request_id": "wave3-budget-race-49b5919f07f24ac1939e6e01616c5ed5",
+        "status": "success"
+      },
+      {
+        "error_code": "token_budget_exceeded",
+        "request_id": "wave3-budget-race-a61f56e3c7a84894aebb7442c3e1e03b",
+        "status": "error"
+      }
+    ],
+    "oracle_pass": true,
+    "provider_attempt_rows": [
+      {
+        "provider_id": "mock_fast",
+        "request_id": "wave3-budget-race-49b5919f07f24ac1939e6e01616c5ed5",
+        "status": "success"
+      }
+    ],
+    "request_statuses": [
+      200,
+      429
+    ],
+    "reservation_states": [
+      {
+        "reservation_id": "wave3-budget-race-49b5919f07f24ac1939e6e01616c5ed5:1e5fb20a28d3466a96d3b6c1da8d0504",
+        "state": "settled"
+      }
+    ],
+    "reserved_tokens": 0,
+    "used_tokens": 27
+  }
+}

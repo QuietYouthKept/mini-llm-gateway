@@ -1,0 +1,14 @@
+{
+  "oracle_pass": true,
+  "rate_limit_admitted": 10,
+  "rate_limit_rejected": 10,
+  "rate_limit_total": 20,
+  "redis_outage_fail_closed_classified": true,
+  "redis_outage_fail_open_allows": true,
+  "shared_cache_exact": true,
+  "singleflight_follower_blocked": true,
+  "singleflight_follower_recovers_after_lease_expiry": true,
+  "singleflight_new_owner_releases": true,
+  "singleflight_owner_acquired": true,
+  "singleflight_stale_owner_cannot_release_new_lease": true
+}

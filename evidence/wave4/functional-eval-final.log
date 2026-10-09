@@ -1,0 +1,22 @@
+{"ts": "2026-10-09T14:13:57.766+00:00", "level": "INFO", "logger": "app.core.startup", "message": "Bootstrapping mini-llm-gateway in local mode", "request_id": null}
+{"ts": "2026-10-09T14:13:57.767+00:00", "level": "INFO", "logger": "app.core.startup", "message": "Config loaded: 3 clients, 6 providers, 4 model profiles", "request_id": null}
+{"ts": "2026-10-09T14:13:57.788+00:00", "level": "INFO", "logger": "app.core.startup", "message": "SQLite database initialized at C:\\Users\\13354\\AppData\\Local\\Temp\\tmp77iyaknt\\eval.db", "request_id": null}
+{"ts": "2026-10-09T14:13:58.120+00:00", "level": "INFO", "logger": "app.core.startup", "message": "Gateway ready with 6 providers", "request_id": null}
+{"ts": "2026-10-09T14:13:58.224+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] success_fast_chat  (ok)
+{"ts": "2026-10-09T14:13:58.309+00:00", "level": "WARNING", "logger": "app.application.services.fallback_service", "message": "Provider 'mock_error' (attempt 0) exhausted; moving to next candidate", "request_id": "db7ff87d1ba84b3ca47d13d5cb31302f"}
+{"ts": "2026-10-09T14:13:58.407+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] fallback_used  (ok)
+{"ts": "2026-10-09T14:13:58.758+00:00", "level": "WARNING", "logger": "app.application.services.fallback_service", "message": "Provider 'mock_slow' (attempt 0) exhausted; moving to next candidate", "request_id": "d90b98d8a04b4fcab3c0a577d7c0817b"}
+{"ts": "2026-10-09T14:13:58.812+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] timeout_fallback  (ok)
+{"ts": "2026-10-09T14:13:58.826+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 401 Unauthorized\"", "request_id": null}
+[PASS] auth_required  (ok)
+{"ts": "2026-10-09T14:13:58.837+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 400 Bad Request\"", "request_id": null}
+[PASS] guardrail_block  (ok)
+{"ts": "2026-10-09T14:13:58.856+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 429 Too Many Requests\"", "request_id": null}
+[PASS] budget_exceeded  (ok)
+{"ts": "2026-10-09T14:13:58.923+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat/completions \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] openai_compatible  (ok)
+
+7/7 cases passed

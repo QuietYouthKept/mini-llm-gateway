@@ -1,0 +1,41 @@
+{
+  "attempt_rows_after_failure": 0,
+  "audit_failure_injected": true,
+  "budget_admitted": 1,
+  "budget_errors": [
+    "TokenBudgetExceededError: [token_budget_exceeded] Token/cost budget cannot reserve request for client 'pg-probe-162581fc0115'"
+  ],
+  "budget_rejected": 1,
+  "cold_budget_admitted": 1,
+  "cold_budget_reserved": 60,
+  "cold_budget_within_limit": true,
+  "commit_unknown_observed": true,
+  "commit_unknown_receipt_recovered": true,
+  "committed_tokens": 80,
+  "concurrent_finalization_replay_seen": true,
+  "concurrent_finalization_request_rows": 1,
+  "concurrent_finalization_states": [
+    "settled",
+    "settled"
+  ],
+  "finalization_audit_failure_injected": true,
+  "finalization_replay_idempotent": true,
+  "finalization_request_rows": 1,
+  "finalization_state": "settled",
+  "finalization_tokens": 10,
+  "finalization_tokens_used": 10,
+  "migrations_twice": true,
+  "negative_usage_rejected": true,
+  "orphan_audit": {
+    "error_code": "reservation_lease_expired",
+    "status": "orphaned_released"
+  },
+  "orphan_receipt": "release",
+  "orphan_reclaimed": 1,
+  "request_rows_after_failure": 0,
+  "reserved_tokens": 15,
+  "rollback_finalization_rows": 0,
+  "rollback_request_rows": 0,
+  "rollback_reservation_state": "reserved",
+  "within_limit": true
+}
