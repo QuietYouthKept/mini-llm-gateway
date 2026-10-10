@@ -8,12 +8,12 @@ Evidence is preserved under `evidence/wave5/release-closure/`; large raw OCI arc
 | --- | --- | --- |
 | Iteration 1 code commit `4febd225a1e5fc1144cda0f4596a5af16242c2a9` | Initial bounded finalization lane and overload classification | Branch `codex/wave51-release-closure`; tree `b260fa10a57bf080464f9ef34b66db05f95aebac`. |
 | Current code commit `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4` | Cancellation/generic-error recovery routing through finalization lane | Current tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`. |
-| [GitHub Run 38030118570](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570) | Latest verified CI on docs snapshot `57705e9` containing unchanged source `c9ddbe6` | 208 passed, 83.47% pytest-only branch coverage; independent coverage gate passed. |
-| Evidence Artifact `11662136747` | Public sanitized CI evidence ZIP | Uploaded, 155 manifest files; validated by the workflow. |
-| Validation Artifact `11662026960` | GitHub manifest validation result | Validator passed; no mismatch reported. |
-| Manifest hash | Identity of the latest CI manifest | `1fbfdd94dbe4f73107f36b5541261ecfd007eece939244396b4aa562978cef9`. |
+| [GitHub Run 38031469583](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38031469583) | Latest verified CI on docs snapshot `60cc10e` containing unchanged source `c9ddbe6` | 208 passed, 83.47% pytest-only branch coverage; independent coverage gate passed. |
+| Evidence Artifact `11662094179` | Public sanitized CI evidence ZIP | Uploaded, 155 manifest files; validated by the workflow. |
+| Validation Artifact `11661634786` | GitHub manifest validation result | Validator passed; no mismatch reported. |
+| Manifest hash | Identity of the latest CI manifest | `372b73aa37a29a159c5f1e17f496298c8dc1eb4f2757eadd1c1f4455c4916856`. |
 
-The uploaded archive contains JUnit, pytest-only coverage XML/HTML and gate output, PostgreSQL/Redis integration results and module coverage, Redis two-replica, HTTP/SSE, Provider Contract, Functional/Security Eval, Secret Scan, Dependency Audit, environment versions, exit statuses, and a manifest. For Run 38030118570, the workflow downloaded the uploaded ZIP and its validator passed before publishing the validation artifact; older local rehash records remain tied to their own historical run.
+The uploaded archive contains JUnit, pytest-only coverage XML/HTML and gate output, PostgreSQL/Redis integration results and module coverage, Redis two-replica, HTTP/SSE, Provider Contract, Functional/Security Eval, Secret Scan, Dependency Audit, environment versions, exit statuses, and a manifest. For Run 38031469583, the workflow downloaded the uploaded ZIP and its validator passed before publishing the validation artifact; older local rehash records remain tied to their own historical run.
 
 ## R10 reliability and performance
 
