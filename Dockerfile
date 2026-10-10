@@ -1,6 +1,6 @@
-# ``python:3.12-slim`` currently resolves to this Docker Hub manifest digest.
-# Update both occurrences through the release dependency update workflow.
-FROM python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65 AS builder
+# Official ``python:3.12-slim`` manifest digest verified on 2026-10-10.
+# Keep builder and runtime on the same immutable base image.
+FROM python@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS builder
 
 WORKDIR /build
 ENV UV_LINK_MODE=copy
@@ -9,7 +9,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN pip install --no-cache-dir "uv==0.11.23" \
     && uv sync --frozen --no-dev --extra production --no-install-project
 
-FROM python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65 AS runtime
+FROM python@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS runtime
 
 WORKDIR /app
 ENV PATH="/app/.venv/bin:$PATH" \
