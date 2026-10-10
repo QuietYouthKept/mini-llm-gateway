@@ -1,0 +1,76 @@
+name: ${WAVE5_COMPOSE_PROJECT:-mini-llm-gateway-wave5}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: wave5-synthetic-only
+      POSTGRES_DB: gateway
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway -d gateway"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+
+  gateway:
+    image: ${GATEWAY_IMAGE:-mini-llm-gateway:wave5-local}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VCS_REF: ${WAVE5_GIT_SHA:-local}
+        BUILD_DATE: ${WAVE5_BUILD_DATE:-reproducible-local}
+        APP_VERSION: ${GATEWAY_APP_VERSION:-1.0.0rc1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700
+    ports:
+      - "127.0.0.1:${WAVE5_BIND_PORT:-18150}:8000"
+    volumes:
+      - ../../config:/app/config:ro
+      - ../../migrations/postgresql:/run/migrations:ro
+    environment:
+      GW_ENVIRONMENT: local
+      GW_LOG_LEVEL: INFO
+      GW_CONFIG_PATH: /app/config/config.yaml
+      GW_DATABASE_URL: postgresql://gateway:wave5-synthetic-only@postgres:5432/gateway
+      GW_AUTO_MIGRATE: "true"
+      GW_MIGRATIONS_PATH: /run/migrations
+      GW_REDIS_URL: redis://redis:6379/0
+      GW_CACHE_BACKEND: redis
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/live', timeout=1)"
+      interval: 2s
+      timeout: 2s
+      start_period: 15s
+      retries: 30
+    networks: [isolated]
+
+networks:
+  isolated: {}
