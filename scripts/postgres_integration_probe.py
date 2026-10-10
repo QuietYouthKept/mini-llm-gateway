@@ -319,7 +319,7 @@ def run(database_url: str) -> dict:
             "SELECT operation FROM stream_finalizations WHERE reservation_id=%s",
             (orphan_reservation,),
         ).fetchone()
-    return {
+    result = {
         "migrations_twice": True,
         "budget_admitted": sum(admitted),
         "budget_rejected": 2 - sum(admitted),
@@ -356,6 +356,13 @@ def run(database_url: str) -> dict:
         "orphan_audit": dict(orphan_audit) if orphan_audit else None,
         "orphan_receipt": orphan_receipt["operation"] if orphan_receipt else None,
     }
+    try:
+        from scripts.postgres_commit_ack_loss_probe import run as run_commit_ack_loss_probe
+    except ModuleNotFoundError:
+        from postgres_commit_ack_loss_probe import run as run_commit_ack_loss_probe
+
+    result["tcp_commit_ack_loss"] = run_commit_ack_loss_probe(database_url)
+    return result
 
 
 def main() -> int:
@@ -392,6 +399,7 @@ def main() -> int:
         and result["orphan_audit"]
         == {"status": "orphaned_released", "error_code": "reservation_lease_expired"}
         and result["orphan_receipt"] == "release"
+        and result["tcp_commit_ack_loss"]["oracle_pass"]
     )
     return 0 if passed else 1
 

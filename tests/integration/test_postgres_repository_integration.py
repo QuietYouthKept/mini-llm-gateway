@@ -27,6 +27,15 @@ def test_postgresql_reliability_probe_runs_inside_pytest_coverage() -> None:
     assert result["rollback_finalization_rows"] == 0
     assert result["rollback_request_rows"] == 0
     assert result["commit_unknown_observed"] is True
+    assert result["tcp_commit_ack_loss"]["oracle_pass"] is True
+    assert (
+        result["tcp_commit_ack_loss"]["client_observed_commit_error"]
+        == "psycopg.OperationalError"
+    )
+    assert result["tcp_commit_ack_loss"]["reservation_state"] == "settled"
+    assert result["tcp_commit_ack_loss"]["usage_tokens"] == 12
+    assert result["tcp_commit_ack_loss"]["audit_count"] == 1
+    assert result["tcp_commit_ack_loss"]["attempt_count"] == 1
     assert result["commit_unknown_receipt_recovered"] is True
     assert result["finalization_replay_idempotent"] is True
     assert result["finalization_request_rows"] == 1
