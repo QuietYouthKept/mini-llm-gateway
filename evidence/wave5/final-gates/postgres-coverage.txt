@@ -1,0 +1,7 @@
+Name                                                        Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------------------------------------------
+app\infrastructure\persistence\postgresql\__init__.py           0      0      0      0   100%
+app\infrastructure\persistence\postgresql\connection.py       130     57     24      5    53%   23-26, 30-36, 40-51, 73, 76-85, 92, 98, 152->164, 157-163, 172-178, 196, 220-239
+app\infrastructure\persistence\postgresql\repositories.py     154     47     52      8    64%   23-24, 109-151, 154-160, 182, 314-336, 355, 370, 383, 394, 413, 422, 444-449, 503, 506-507
+-------------------------------------------------------------------------------------------------------
+TOTAL                                                         284    104     76     13    59%

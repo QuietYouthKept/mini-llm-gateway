@@ -1,0 +1,20 @@
+event: message
+data: {"delta":"[mock_fast] fast","request_id":"3681371b46414c71b01f1f72fd68d6ed","index":0}
+
+event: message
+data: {"delta":" response from m","request_id":"3681371b46414c71b01f1f72fd68d6ed","index":1}
+
+event: message
+data: {"delta":"ock_fast: Wave 5","request_id":"3681371b46414c71b01f1f72fd68d6ed","index":2}
+
+event: message
+data: {"delta":" SSE staging smo","request_id":"3681371b46414c71b01f1f72fd68d6ed","index":3}
+
+event: usage
+data: {"input_tokens":6,"output_tokens":16,"usage_source":"provider"}
+
+event: done
+data: {"finish_reason":"stop","request_id":"3681371b46414c71b01f1f72fd68d6ed"}
+
+
+HTTP_CODE=200

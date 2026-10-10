@@ -1,0 +1,107 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 778B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.39kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+#3 ...
+
+#4 [auth] library/python:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+#3 ...
+
+#5 [auth] library/python:pull token for registry-1.docker.io
+#5 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+#3 DONE 43.9s
+
+#6 [internal] load .dockerignore
+#6 transferring context: 192B done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 13.64kB 0.0s done
+#7 DONE 0.0s
+
+#8 [auth] library/python:pull token for registry-1.docker.io
+#8 DONE 0.0s
+
+#9 [builder 1/6] FROM docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+#9 resolve docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+#9 ...
+
+#10 [auth] library/python:pull token for registry-1.docker.io
+#10 DONE 0.0s
+
+#9 [builder 1/6] FROM docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+#9 resolve docker.io/library/python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65 43.3s done
+#9 DONE 43.3s
+
+#11 [runtime 2/6] WORKDIR /app
+#11 CACHED
+
+#12 [runtime 3/6] RUN groupadd --gid 10001 gateway     && useradd --uid 10001 --gid gateway --no-create-home --shell /usr/sbin/nologin gateway
+#12 CACHED
+
+#13 [builder 5/6] COPY app ./app
+#13 CACHED
+
+#14 [runtime 5/6] COPY --chown=gateway:gateway app ./app
+#14 CACHED
+
+#15 [builder 2/6] WORKDIR /build
+#15 CACHED
+
+#16 [builder 3/6] COPY pyproject.toml uv.lock README.md ./
+#16 CACHED
+
+#17 [builder 6/6] RUN uv sync --frozen --no-dev --extra production
+#17 CACHED
+
+#18 [runtime 4/6] COPY --from=builder --chown=gateway:gateway /build/.venv /app/.venv
+#18 CACHED
+
+#19 [builder 4/6] RUN pip install --no-cache-dir "uv==0.11.23"     && uv sync --frozen --no-dev --extra production --no-install-project
+#19 CACHED
+
+#20 [runtime 6/6] COPY --chown=gateway:gateway config ./config
+#20 CACHED
+
+#21 exporting to image
+#21 exporting layers done
+#21 exporting manifest sha256:1677bac51b423df0c413f93935c3770663e755f79a77293bbfe3591003dab7fb 0.0s done
+#21 exporting config sha256:6133702d59e3c90fb0ab4ca90fde08fe43d9a1bbac92072a490dc09d6525973a 0.0s done
+#21 exporting attestation manifest sha256:5d4239245334a46ea8853385078bb0149847f969a664c983914733eb53ef6cbd 0.0s done
+#21 exporting manifest list sha256:a9590563079e89c57e82e61495e476d2274b3d1a8502fe23afedd711ae164948
+#21 exporting manifest list sha256:a9590563079e89c57e82e61495e476d2274b3d1a8502fe23afedd711ae164948 0.0s done
+#21 naming to docker.io/library/mini-llm-gateway:wave5-cmd-fix-fcd3bce done
+#21 unpacking to docker.io/library/mini-llm-gateway:wave5-cmd-fix-fcd3bce 0.0s done
+#21 DONE 0.2s
+
+#22 resolving provenance for metadata file
+#22 DONE 0.0s
+ mini-llm-gateway:wave5-cmd-fix-fcd3bce  Built
+ Network mini-llm-gateway-wave5-net  Creating
+ Network mini-llm-gateway-wave5-net  Created
+ Container mini-llm-gateway-wave5-final-stage-postgres-1  Creating
+ Container mini-llm-gateway-wave5-final-stage-redis-1  Creating
+ Container mini-llm-gateway-wave5-final-stage-redis-1  Created
+ Container mini-llm-gateway-wave5-final-stage-postgres-1  Created
+ Container mini-llm-gateway-wave5-final-stage-gateway-1  Creating
+ Container mini-llm-gateway-wave5-final-stage-gateway-1  Created
+ Container mini-llm-gateway-wave5-final-stage-postgres-1  Starting
+ Container mini-llm-gateway-wave5-final-stage-redis-1  Starting
+ Container mini-llm-gateway-wave5-final-stage-postgres-1  Started
+ Container mini-llm-gateway-wave5-final-stage-redis-1  Started
+ Container mini-llm-gateway-wave5-final-stage-postgres-1  Waiting
+ Container mini-llm-gateway-wave5-final-stage-redis-1  Waiting
+ Container mini-llm-gateway-wave5-final-stage-redis-1  Healthy
+ Container mini-llm-gateway-wave5-final-stage-postgres-1  Healthy
+ Container mini-llm-gateway-wave5-final-stage-gateway-1  Starting
+ Container mini-llm-gateway-wave5-final-stage-gateway-1  Started

@@ -1,0 +1,7 @@
+"Concurrency","Repeat","ReadyStatus","ReadyMs","LiveStatus","LiveMs","ClientP50","ClientP95","ClientMax","Statuses","AuditRows","ReservationCount","ServerLiveSum","ServerReadySum","ServerChatSum","EventLoopLag","DBWorkerMax"
+"20","1","503","765","200","32","2.062","2.11","2.11","503:20","0","0","0.000658339","0.866761","42.6685","Most recent event loop scheduling delay sample.","2.00154"
+"20","2","503","766","200","15","2.016","2.031","2.031","503:20","0","0","0.00201935","1.69852","84.2943","Most recent event loop scheduling delay sample.","2.00177"
+"20","3","503","766","200","16","2.015","2.032","2.032","503:20","0","0","0.00423452","2.53184","125.904","Most recent event loop scheduling delay sample.","2.00239"
+"50","1","503","781","200","0","2.313","2.485","2.5","503:50","0","0","0.00519508","3.36468","244.292","Most recent event loop scheduling delay sample.","2.00362"
+"50","2","503","781","200","0","2.407","2.547","2.547","503:50","0","0","0.0066126","4.19572","366.046","Most recent event loop scheduling delay sample.","2.00362"
+"50","3","503","765","200","16","2.391","2.547","2.562","503:50","0","0","0.00842856","5.04221","487.158","Most recent event loop scheduling delay sample.","2.00362"

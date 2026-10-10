@@ -1,0 +1,24 @@
+{"ts": "2026-10-10T00:28:56.368+00:00", "level": "INFO", "logger": "app.core.startup", "message": "Bootstrapping mini-llm-gateway in local mode", "request_id": null}
+{"ts": "2026-10-10T00:28:56.368+00:00", "level": "INFO", "logger": "app.core.startup", "message": "Config loaded: 3 clients, 6 providers, 4 model profiles", "request_id": null}
+{"ts": "2026-10-10T00:28:56.381+00:00", "level": "INFO", "logger": "app.core.startup", "message": "SQLite database initialized at C:\\Users\\13354\\AppData\\Local\\Temp\\tmp3eaigtpz\\eval.db", "request_id": null}
+{"ts": "2026-10-10T00:28:56.557+00:00", "level": "INFO", "logger": "app.core.startup", "message": "Gateway ready with 6 providers", "request_id": null}
+{"ts": "2026-10-10T00:28:56.648+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] success_fast_chat  (ok)
+{"ts": "2026-10-10T00:28:56.731+00:00", "level": "WARNING", "logger": "app.application.services.fallback_service", "message": "Provider 'mock_error' (attempt 0) exhausted; moving to next candidate", "request_id": "ae46abb4ac774e77a00c942a99fcfb44"}
+{"ts": "2026-10-10T00:28:56.830+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] fallback_used  (ok)
+{"ts": "2026-10-10T00:28:57.177+00:00", "level": "WARNING", "logger": "app.application.services.fallback_service", "message": "Provider 'mock_slow' (attempt 0) exhausted; moving to next candidate", "request_id": "ac34530ecb3043678acc24255ab9393b"}
+{"ts": "2026-10-10T00:28:57.215+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] timeout_fallback  (ok)
+{"ts": "2026-10-10T00:28:57.221+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 401 Unauthorized\"", "request_id": null}
+[PASS] auth_required  (ok)
+{"ts": "2026-10-10T00:28:57.222+00:00", "level": "WARNING", "logger": "app.application.services.chat_service", "message": "Request gateway error before durable error audit code=guardrail_blocked request_id=9ae2810bf0ff40759ff27de87e85a2f5", "request_id": "9ae2810bf0ff40759ff27de87e85a2f5"}
+{"ts": "2026-10-10T00:28:57.229+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 400 Bad Request\"", "request_id": null}
+[PASS] guardrail_block  (ok)
+{"ts": "2026-10-10T00:28:57.236+00:00", "level": "WARNING", "logger": "app.application.services.chat_service", "message": "Request gateway error before durable error audit code=token_budget_exceeded request_id=ae4cb9c1e11040a2ad37af60dcb12fde", "request_id": "ae4cb9c1e11040a2ad37af60dcb12fde"}
+{"ts": "2026-10-10T00:28:57.244+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat \"HTTP/1.1 429 Too Many Requests\"", "request_id": null}
+[PASS] budget_exceeded  (ok)
+{"ts": "2026-10-10T00:28:57.291+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/v1/chat/completions \"HTTP/1.1 200 OK\"", "request_id": null}
+[PASS] openai_compatible  (ok)
+
+7/7 cases passed

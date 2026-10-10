@@ -1,0 +1,56 @@
+................................s....................................... [ 35%]
+........................................................................ [ 70%]
+.............................................................            [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.9-final-0 _______________
+
+Name                                                        Stmts   Miss Branch BrPart   Cover
+----------------------------------------------------------------------------------------------
+app\application\services\blocking_io.py                       182     11     52      9  91.45%
+app\application\services\chat_service.py                      736    107    200     43  81.20%
+app\application\services\circuit_breaker.py                    61      1     16      1  97.40%
+app\application\services\fallback_service.py                  133      8     32      6  91.52%
+app\application\services\guardrail_service.py                  49      5     22      3  85.92%
+app\application\services\prompt_cache.py                       40      2      6      0  95.65%
+app\application\services\rate_limiter.py                       29      1      6      1  94.29%
+app\application\services\readiness_service.py                 144     19     42      6  84.41%
+app\application\services\request_log_service.py                51      3      6      0  94.74%
+app\application\services\routing_service.py                    11      1      4      1  86.67%
+app\application\services\singleflight.py                       21      0      4      1  96.00%
+app\application\services\token_budget_service.py               60      4     10      1  90.00%
+app\core\container.py                                         158     24     50     13  79.33%
+app\core\logging.py                                            23     14      4      0  33.33%
+app\core\startup.py                                            34     22      6      0  30.00%
+app\domain\errors.py                                           75      4      0      0  94.67%
+app\domain\ports\provider_port.py                              36      1      0      0  97.22%
+app\infrastructure\config\config_models.py                    337     22     90     24  89.23%
+app\infrastructure\config\yaml_config_loader.py                19     11      4      0  34.78%
+app\infrastructure\observability\gateway_metrics.py            46      0      2      1  97.92%
+app\infrastructure\observability\metrics.py                    93      2     24      2  96.58%
+app\infrastructure\observability\tracing.py                    64     26      6      0  57.14%
+app\infrastructure\persistence\postgresql\connection.py       130     68     24      1  43.51%
+app\infrastructure\persistence\postgresql\repositories.py     154    120     52      0  16.50%
+app\infrastructure\persistence\sqlite\connection.py            46      7     10      2  76.79%
+app\infrastructure\persistence\sqlite\repositories.py         213     25     42      5  88.24%
+app\infrastructure\providers\base.py                           50      1      8      1  96.55%
+app\infrastructure\providers\openai_compatible.py              99      8     20      1  90.76%
+app\infrastructure\providers\provider_registry.py              31      3     10      2  87.80%
+app\infrastructure\redis\prompt_cache.py                       24     24      2      0   0.00%
+app\infrastructure\redis\rate_limiter.py                       28     28      4      0   0.00%
+app\infrastructure\redis\singleflight.py                       36     27      4      0  22.50%
+app\interfaces\http\dependencies\auth.py                       47      2     14      2  93.44%
+app\interfaces\http\exception_handlers.py                      21      1      6      1  92.59%
+app\interfaces\http\middleware.py                             103     10     32      6  88.15%
+app\interfaces\http\routes\admin.py                            39      6     10      1  85.71%
+app\interfaces\http\routes\chat.py                             64      2      6      1  95.71%
+app\interfaces\http\routes\health.py                           31      1      2      1  93.94%
+app\interfaces\http\routes\metrics.py                          15      1      4      2  84.21%
+app\interfaces\http\routes\requests.py                         18      1      4      1  90.91%
+app\main.py                                                    49      1      2      1  96.08%
+----------------------------------------------------------------------------------------------
+TOTAL                                                        3951    624    848    140  81.08%
+
+40 files skipped due to complete coverage.
+Coverage HTML written to dir evidence/wave5/final-gates/coverage-release-html
+Coverage XML written to file evidence/wave5/final-gates/coverage-release-final.xml
+204 passed, 1 skipped in 26.89s

@@ -1,0 +1,90 @@
+[
+    {
+        "Id": "sha256:a9590563079e89c57e82e61495e476d2274b3d1a8502fe23afedd711ae164948",
+        "RepoTags": [
+            "mini-llm-gateway:wave5-cmd-fix-fcd3bce"
+        ],
+        "RepoDigests": [
+            "mini-llm-gateway@sha256:a9590563079e89c57e82e61495e476d2274b3d1a8502fe23afedd711ae164948"
+        ],
+        "Parent": "",
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-10-09T17:17:24.989258605Z",
+        "DockerVersion": "",
+        "Author": "",
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 66426400,
+        "GraphDriver": {
+            "Data": null,
+            "Name": "overlayfs"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:6f94328331290cbd81edab450664d42da7b64c191416c9346cd5d28c84f76035",
+                "sha256:d14fa28e2eb1f038f5c4664218a0857316a91bcf13f20391ca1e39a124ebb353",
+                "sha256:49813eb143b9b300a599bd6fed93a629d9e9ad7922811c09bd2d67381f00d1f4",
+                "sha256:4a3a923292e31dbb9508a11bf1be25b7e6995b2d219a08b780c1319c50de3f9f",
+                "sha256:c64816a3f8317f12d55360f98568ae4b813da16ff59ef64296705196bb2012aa",
+                "sha256:03a75680a02b7d4277f427a16df610fcfd56fe23c29f47550dff9811ec853e7e",
+                "sha256:07d22acf55a3e157b3f2198af9b53f1f8eef66575d878463c75a07047e5ae6f6",
+                "sha256:8450ff03bdc3fc565b116753980f3e9edd1bfebca4f8ced1553ec7d2c7bc6ef5",
+                "sha256:b0fa31641ffb3910bb15f452ffb6b3548917d816b1c189f8d7d04b8cfd4e3bd1"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-10-10T00:06:04.100663541Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:a9590563079e89c57e82e61495e476d2274b3d1a8502fe23afedd711ae164948",
+            "size": 856
+        },
+        "Config": {
+            "ArgsEscaped": true,
+            "Cmd": [
+                "python",
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000"
+            ],
+            "Entrypoint": null,
+            "Env": [
+                "PATH=/app/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LANG=C.UTF-8",
+                "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+                "PYTHON_VERSION=3.12.14",
+                "PYTHON_SHA256=5c8462af5790baf43a321a1559dbe0db06d1be4300fb85fb53c40060668e548a",
+                "PYTHONUNBUFFERED=1",
+                "PYTHONDONTWRITEBYTECODE=1"
+            ],
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Healthcheck": {
+                "Interval": 30000000000,
+                "Retries": 3,
+                "StartPeriod": 15000000000,
+                "Test": [
+                    "CMD-SHELL",
+                    "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/live', timeout=2)\""
+                ],
+                "Timeout": 3000000000
+            },
+            "Labels": {
+                "com.docker.compose.project": "mini-llm-gateway-wave5-final-stage",
+                "com.docker.compose.service": "gateway",
+                "com.docker.compose.version": "2.39.2"
+            },
+            "OnBuild": null,
+            "User": "10001:10001",
+            "Volumes": null,
+            "WorkingDir": "/app"
+        }
+    }
+]
