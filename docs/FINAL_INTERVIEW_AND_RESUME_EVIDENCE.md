@@ -1,5 +1,5 @@
 # Final Interview and Resume Evidence
-Evidence snapshot: 2026-10-10. Current R10 source commit: `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`; tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`. Latest verified CI [Run 38031469583](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38031469583) ran against documentation snapshot `60cc10ed5b1da761edf4d0d7477427dcc5b11a25`, containing that unchanged source. Source remains unbuilt as a new container image and has not passed the high-concurrency R10 gate.
+Evidence snapshot: 2026-10-10. Current R10 source commit: `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`; tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`. Source verification CI [Run 38031469583](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38031469583) ran against documentation snapshot `60cc10ed5b1da761edf4d0d7477427dcc5b11a25`, containing that unchanged source. Source remains unbuilt as a new container image and has not passed the high-concurrency R10 gate.
 
 ## A. One-sentence project description
 
