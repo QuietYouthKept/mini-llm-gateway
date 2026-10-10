@@ -139,11 +139,11 @@
       "status": "PASS",
       "tested_source_sha": "c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4",
       "tested_image_id": null,
-      "executed_command": "Normal push; GitHub Actions Run 38028193676; download Evidence Artifact 11660363882 and Validation Artifact 11660778588; independently recompute manifest and all payload hashes.",
+      "executed_command": "Normal push; GitHub Actions Run 38030118570 (head 57705e9f135b00e3f48403f565ff35262d023362, source c9ddbe6); CI re-downloaded and validated Evidence Artifact 11662136747, then published Validation Artifact 11662026960.",
       "exit_code": 0,
-      "raw_evidence": ["https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38028193676", "remote-artifacts-r10-run-38028193676/"],
+      "raw_evidence": ["https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570", "https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570/artifacts/11662136747", "https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570/artifacts/11662026960"],
       "failure_reason": null,
-      "known_limitations": ["208 tests passed at 83.47% branch coverage; CI does not validate image R01-R04 or clear R10 capacity/release risk.", "Manifest SHA-256 68e139050cc59fae1ce7fffcf1ab51bfe46b86365199874cd711fbbe54ad98ce; 155 files with zero mismatch."]
+      "known_limitations": ["208 tests passed at 83.47% pytest-only branch coverage; CI does not validate image R01-R04 or clear R10 capacity/release risk.", "Latest uploaded evidence covered 155 files; manifest SHA-256 1fbfdd94dbe4f73107f36b5541261ecfd007eece939244396b4aa562978cef9; the CI artifact-validation step passed."]
     }
   ],
   "human_follow_up": [

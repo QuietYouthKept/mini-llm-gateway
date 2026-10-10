@@ -88,8 +88,8 @@ To reopen the release decision: obtain human disposition or safe fixed packages 
 
 - Branch `codex/wave51-release-closure`; source `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`; tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`.
 - Code commits this R10 closure: `4febd225a1e5fc1144cda0f4596a5af16242c2a9` (bounded lane and error classification), then `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4` (buffered cancellation/generic recovery routing and test). Both were normally pushed; latest remote CI tested c9dd.
-- [GitHub Actions Run 38028193676](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38028193676): Success; 208 passed, 0 skipped, 83.47% pytest-only branch coverage. Ruff, compileall, independent 80% gate, PostgreSQL/Redis/two-replica, HTTP/SSE, Provider Contract, Functional 7/7, Security 8/8, Secret Scan, Dependency Audit and hygiene steps passed.
-- Evidence Artifact `11660363882`; Validation Artifact `11660778588`; validator and independent local rehash agree: 155 expected/actual, zero missing/extra/hash/size mismatches; manifest SHA-256 `68e139050cc59fae1ce7fffcf1ab51bfe46b86365199874cd711fbbe54ad98ce`. Local artifact files are under `remote-artifacts-r10-run-38028193676/`.
+- [GitHub Actions Run 38030118570](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570): Success; the run head is docs snapshot `57705e9f135b00e3f48403f565ff35262d023362` containing unchanged source c9dd; 208 passed, 0 skipped, 83.47% pytest-only branch coverage. Ruff, compileall, independent 80% gate, PostgreSQL/Redis/two-replica, HTTP/SSE, Provider Contract, Functional 7/7, Security 8/8, Secret Scan, Dependency Audit and hygiene passed.
+- Evidence Artifact `11662136747`; Validation Artifact `11662026960`; CI validator passed for 155 manifest files; manifest SHA-256 `1fbfdd94dbe4f73107f36b5541261ecfd007eece939244396b4aa562978cef9`.
 - Local Python 3.11.9 with isolated PostgreSQL: Ruff 0, compileall 0, 208 passed/0 skipped, pytest-only coverage 83.25%, independent gate 0. Python 3.14's suite passed but its branch gate was 79% (exit 2); that failure is preserved and not waived.
 
 ### Matched-resource R10 measurements

@@ -6,8 +6,8 @@ Date: 2026-10-10 (Asia/Shanghai). This is an engineering handoff and a fixed-sco
 
 - Branch: `codex/wave51-release-closure`
 - Latest code commit: `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`; tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`.
-- Remote CI: [Run 38028193676](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38028193676), Success; 208 passed, 83.47% pytest-only branch coverage.
-- Evidence: `11660363882` + validation `11660778588`, SHA/size validation 155/155 with zero errors; manifest SHA-256 `68e139050cc59fae1ce7fffcf1ab51bfe46b86365199874cd711fbbe54ad98ce`.
+- Remote CI: [Run 38030118570](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570), Success; head `57705e9f135b00e3f48403f565ff35262d023362` contains source `c9ddbe6`; 208 passed, 83.47% pytest-only branch coverage.
+- Evidence: Artifact [11662136747](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570/artifacts/11662136747) + validation [11662026960](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38030118570/artifacts/11662026960); 155 manifest files; validator passed; manifest SHA-256 `1fbfdd94dbe4f73107f36b5541261ecfd007eece939244396b4aa562978cef9`.
 - Current-source candidate image: none. Build attempts both exited 1 at PyPI TLS EOF from Docker BuildKit; host direct PyPI access worked, the user-provided proxy port 7897 did not complete TLS. No TLS bypass was attempted.
 - Prior image `sha256:44486db8bb69095129d72cb1303937df117d968ffae703b8e3055a021fd5dacf` tests source `5a474c2`, not the current source.
 
