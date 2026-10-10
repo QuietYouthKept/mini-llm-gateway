@@ -10,9 +10,9 @@ The app-only image manifest/config digest from that runtime build was `sha256:a9
 
 ## Reproducibility attempt
 
-The first cached build completed. A second independent no-cache build used the same local context, platform, Dockerfile, base-image digest, lockfile, `VCS_REF`, and fixed `BUILD_DATE`, but failed at the locked `uv==0.11.23` installation because the build container's connection to PyPI ended with `SSLEOFError: UNEXPECTED_EOF_WHILE_READING`. The exit code was 1. TLS verification was not disabled and no insecure mirror was added.
+One cached experimental build completed. An independent no-cache build with the same context inputs failed at the locked `uv==0.11.23` installation because the build container's connection to PyPI ended with `SSLEOFError: UNEXPECTED_EOF_WHILE_READING`. A clean Git archive of commit `5e74fdb` then failed while fetching `setuptools`/`wheel` to build the local project. The follow-up Dockerfile no longer installs the project wheel because the application source is copied directly to `/app`; however, a clean Git archive of latest commit `294d631` still failed fetching `uv==0.11.23` with the same TLS handshake EOF. Each failed command exited 1. TLS verification was not disabled and no insecure mirror was added.
 
-Therefore no valid pair of completed builds exists, and rootfs/layer/config/manifest equality could not be compared. Strict reproducibility is **FAILED / NOT VERIFIED**, not passed. Evidence is in `final-gates/docker-build-compose.log` and `final-gates/repro-build-2.log`.
+Therefore no valid pair of completed builds exists, and rootfs/layer/config/manifest equality could not be compared. Strict reproducibility is **FAILED / NOT VERIFIED**, not passed. Evidence is in `final-gates/docker-build-compose.log`, `final-gates/repro-build-2.log`, `final-gates/clean-commit-docker-build.log`, and `final-gates/clean-commit-docker-build-294d631.log`.
 
 ## Image security scan
 
