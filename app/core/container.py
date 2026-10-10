@@ -118,9 +118,19 @@ def build_container(
 ) -> AppContainer:
     blocking_io = BoundedBlockingIO(
         max_workers=8,
-        max_in_flight=16,
-        lane_workers={"database": 4, "redis": 2, "default": 2},
-        lane_in_flight={"database": 8, "redis": 4, "default": 4},
+        max_in_flight=80,
+        lane_workers={
+            "database": 3,
+            "database_finalization": 3,
+            "redis": 1,
+            "default": 1,
+        },
+        lane_in_flight={
+            "database": 8,
+            "database_finalization": 64,
+            "redis": 4,
+            "default": 4,
+        },
     )
     is_postgres = db_path.startswith(("postgresql://", "postgres://"))
     if is_postgres:

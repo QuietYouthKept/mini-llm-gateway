@@ -62,6 +62,18 @@ class DatabaseUnavailableError(GatewayError):
         )
 
 
+class DatabaseAdmissionOverloadedError(GatewayError):
+    """The gateway's bounded DB work queue rejected work before submission."""
+
+    def __init__(self, message: str = "Database work queue is saturated", **kwargs: object) -> None:
+        super().__init__(
+            error_code="database_admission_overloaded",
+            message=message,
+            retryable=True,
+            **kwargs,
+        )
+
+
 class TokenBudgetExceededError(GatewayError):
     def __init__(self, message: str = "Token budget exceeded", **kwargs: object) -> None:
         super().__init__(error_code="token_budget_exceeded", message=message, **kwargs)
@@ -217,6 +229,7 @@ ERROR_HTTP_STATUS: dict[str, int] = {
     "rate_limit_exceeded": 429,
     "rate_limit_backend_unavailable": 503,
     "database_unavailable": 503,
+    "database_admission_overloaded": 503,
     "token_budget_exceeded": 429,
     "budget_settlement_exceeded": 502,
     "stream_finalization_unknown": 503,

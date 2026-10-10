@@ -97,9 +97,7 @@ def test_database_error_audit_failure_does_not_turn_gateway_error_into_500(
     assert client.post("/v1/chat", json=payload, headers=headers).status_code == 200
 
     def fail_error_audit(**_kwargs) -> None:  # noqa: ANN003
-        from app.application.services.blocking_io import BlockingIOOverloadedError
-
-        raise BlockingIOOverloadedError("simulated database audit outage")
+        raise ConnectionError("simulated PostgreSQL audit outage")
 
     container.log_service.record_error = fail_error_audit
     response = client.post("/v1/chat", json=payload, headers=headers)

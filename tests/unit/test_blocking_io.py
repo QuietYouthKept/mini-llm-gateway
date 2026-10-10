@@ -105,6 +105,42 @@ async def test_database_outage_does_not_starve_redis_lane_or_event_loop() -> Non
 
 
 @pytest.mark.asyncio
+async def test_finalization_lane_runs_while_regular_database_lane_is_saturated() -> None:
+    io = BoundedBlockingIO(
+        max_workers=3,
+        max_in_flight=3,
+        admission_timeout_seconds=0.02,
+        lane_workers={"database": 1, "database_finalization": 1, "default": 1},
+        lane_in_flight={"database": 1, "database_finalization": 1, "default": 1},
+    )
+    gate = threading.Event()
+    started = threading.Event()
+
+    def blocked_query() -> None:
+        started.set()
+        gate.wait(1)
+
+    operation = asyncio.create_task(io.run(blocked_query, dependency="database"))
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        assert await io.run(
+            lambda: "finalized",
+            dependency="database",
+            lane="database_finalization",
+        ) == "finalized"
+        with pytest.raises(BlockingIOOverloadedError):
+            await io.run(lambda: None, dependency="database")
+        snapshot = io.snapshot()["lanes"]
+        assert snapshot["database"]["active_workers"] == 1
+        assert snapshot["database_finalization"]["active_workers"] == 0
+        assert snapshot["database"]["admission_rejects_total"] == 1
+    finally:
+        gate.set()
+        await operation
+        await io.aclose()
+
+
+@pytest.mark.asyncio
 async def test_worker_exception_propagates_and_releases_executor_slot() -> None:
     io = BoundedBlockingIO(max_workers=1, max_in_flight=1)
     try:
@@ -176,7 +212,9 @@ async def test_queued_database_call_fast_fails_after_connection_failure() -> Non
         await io.aclose()
 
 
-def test_chat_service_classifies_executor_saturation_as_dependency_failure(container) -> None:
+def test_chat_service_does_not_classify_executor_saturation_as_database_outage(container) -> None:
     classifier = container.chat_service._is_database_unavailable
-    assert classifier(BlockingIOOverloadedError("synthetic saturation"))
+    assert not classifier(BlockingIOOverloadedError("synthetic saturation"))
+    assert classifier(DependencyCircuitOpenError("postgres circuit is open"))
+    assert classifier(ConnectionError("synthetic connection failure"))
     assert not classifier(RuntimeError("unrelated application error"))

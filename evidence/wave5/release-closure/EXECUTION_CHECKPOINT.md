@@ -1,5 +1,14 @@
 # Wave 5.2 Execution Checkpoint — 2026-10-10
 
+## Wave 5.2 R10 closure continuation (2026-10-10)
+
+- Baseline rechecked: branch `codex/wave51-release-closure`; source HEAD and remote branch both `a9425d42e2aa1c0b6037df0e7bda9b51889be7f2`. No tracked edits existed at continuation start. All previous untracked evidence remains in place.
+- R10 hypothesis 1 (evidence-based): `BlockingIOOverloadedError` was included in `_is_database_unavailable`, so local DB-lane admission saturation was counted as PostgreSQL outage. In addition, `_submit_finalization` caught any exception, including pre-submission admission rejection, and attempted receipt recovery, incorrectly promoting known-not-submitted work to `stream_finalization_unknown` when the query also lacked lane capacity.
+- Iteration 1 code change: split a bounded `database_finalization` lane from regular DB work without increasing total workers (still 8); reserve three of eight workers for finalization, cap that lane at 64 in-flight tasks; route atomic finalization and receipt recovery through it. Add a typed `database_admission_overloaded` HTTP 503 error and avoid classifying local saturation as backend outage. Add low-cardinality operation execution totals/counts.
+- Iteration 1 targeted and regression results: Ruff exit 0; compileall exit 0; full pytest 206 passed / 1 skipped; pytest-only branch coverage 80.41%, independent `coverage report --fail-under=80` exit 0. PostgreSQL integration probe exit 0, including concurrent reservation, commit-unknown simulation, idempotent replay, audit rollback, and orphan reconciliation.
+- Current code has not been tested against HTTP load or built into the final candidate image. Do not treat R10 as fixed. Next: freeze this source in a code commit, build a candidate, run the frozen 1/8/32/64 matrix under documented resource caps, inspect persisted invariants before any reconciliation, then decide whether a second scoped iteration is warranted.
+- Existing baseline candidate remains old source `5a474c2`, image `sha256:44486db8bb69095129d72cb1303937df117d968ffae703b8e3055a021fd5dacf`; it is not evidence for the modified working tree.
+
 - Workspace: `E:\mini-llm-gateway-wave51`; D-drive history remains untouched.
 - Branch: `codex/wave51-release-closure`.
 - Current source HEAD: `5a474c208d3095e678469f307a7c7d549233e6b9`; tree `1fca57d044bab755d8ca23e37ec660ab10bca987`. Source commit only refreshes the pinned Python base-image digest in the Dockerfile. No application or migration source changed.

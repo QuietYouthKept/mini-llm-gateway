@@ -17,6 +17,7 @@ from app.application.dto.chat_dto import AttemptDetail, ChatOutcome
 from app.application.services.blocking_io import (
     BlockingIOOverloadedError,
     BoundedBlockingIO,
+    DependencyCircuitOpenError,
 )
 from app.application.services.circuit_breaker import CircuitBreaker, CircuitState
 from app.application.services.fallback_service import FallbackService
@@ -30,6 +31,7 @@ from app.application.services.token_estimator import TokenEstimator
 from app.core.request_context import get_request_id
 from app.domain.errors import (
     BudgetSettlementExceededError,
+    DatabaseAdmissionOverloadedError,
     DatabaseUnavailableError,
     FallbackExhaustedError,
     GatewayError,
@@ -470,7 +472,10 @@ class ChatService:
             if reservation_id is not None:
                 try:
                     await self._blocking_io.run(
-                        self._budget.release, reservation_id, dependency="database"
+                        self._budget.release,
+                        reservation_id,
+                        dependency="database",
+                        lane="database_finalization",
                     )
                 except Exception as release_exc:
                     if self._is_database_unavailable(release_exc):
@@ -565,6 +570,49 @@ class ChatService:
             if durable_finalized:
                 self._metrics.audit_failures.inc()
                 raise
+            if isinstance(exc, BlockingIOOverloadedError) and not isinstance(
+                exc, DependencyCircuitOpenError
+            ):
+                if reservation_id is not None:
+                    try:
+                        await self._blocking_io.run(
+                            self._budget.release,
+                            reservation_id,
+                            dependency="database",
+                            lane="database_finalization",
+                        )
+                    except Exception:
+                        self._metrics.budget_reservation_leaks.inc()
+                        self._metrics.audit_failures.inc()
+                await self._release_distributed_flight(distributed_flight_key)
+                self._release_flight(flight)
+                duration_ms = int((time.monotonic() - start) * 1000)
+                error = DatabaseAdmissionOverloadedError(request_id=request_id)
+                try:
+                    await self._blocking_io.run(
+                        self._log_service.record_error,
+                        request_id=request_id,
+                        client_id=client.client_id,
+                        model_profile=model_profile,
+                        endpoint=endpoint,
+                        status_code=http_status_for(error.error_code),
+                        error_code=error.error_code,
+                        error_message=error.message,
+                        duration_ms=duration_ms,
+                        attempts=attempts,
+                        request_body=replay_payload,
+                        decision_trace=[
+                            *[step.to_dict() for step in trace],
+                            {"step": "error", "reason": error.error_code},
+                        ],
+                        replay_payload=replay_payload,
+                        dependency="database",
+                        lane="database_finalization",
+                    )
+                except Exception:
+                    self._metrics.audit_failures.inc()
+                self._record_error_metrics(error, endpoint, duration_ms)
+                raise error from exc
             if self._is_database_unavailable(exc):
                 # Database failures skip durable error auditing.  Still wake
                 # local singleflight followers; otherwise one failed cache
@@ -656,6 +704,18 @@ class ChatService:
                     dependency="database",
                 )
         except Exception as exc:
+            if isinstance(exc, DependencyCircuitOpenError):
+                error = DatabaseUnavailableError(request_id=request_id)
+                self._record_error_metrics(
+                    error, endpoint, int((time.monotonic() - start) * 1000)
+                )
+                raise error from exc
+            if isinstance(exc, BlockingIOOverloadedError):
+                error = DatabaseAdmissionOverloadedError(request_id=request_id)
+                self._record_error_metrics(
+                    error, endpoint, int((time.monotonic() - start) * 1000)
+                )
+                raise error from exc
             if not self._is_database_unavailable(exc):
                 raise
             if reserve_submitted and not isinstance(exc, BlockingIOOverloadedError):
@@ -1040,7 +1100,9 @@ class ChatService:
                 )
                 finalized = True
                 outbound_error: BaseException = terminal.accounting_error or exc
-            except StreamFinalizationUnknownError as finalization_error:
+            except GatewayError as finalization_error:
+                if isinstance(finalization_error, DatabaseAdmissionOverloadedError):
+                    self._metrics.budget_reservation_leaks.inc()
                 outbound_error = finalization_error
             metric_error = (
                 outbound_error
@@ -1073,6 +1135,7 @@ class ChatService:
                 reservation_id,
                 dependency="database",
                 recovery_probe=True,
+                lane="database_finalization",
             ) is not None:
                 return
         except Exception as exc:
@@ -1284,7 +1347,17 @@ class ChatService:
                     self._stream_finalizer.finalize_stream,
                     command,
                     dependency="database",
+                    lane="database_finalization",
                 )
+        except DependencyCircuitOpenError as exc:
+            raise DatabaseUnavailableError(request_id=command.request_id) from exc
+        except BlockingIOOverloadedError as exc:
+            # Admission rejection happens before run_in_executor submits the
+            # transaction, so it is not a Commit-Unknown outcome and must not
+            # trigger a misleading receipt lookup.
+            raise DatabaseAdmissionOverloadedError(
+                request_id=command.request_id
+            ) from exc
         except FinalizationRejectedError:
             raise
         except FinalizationConflictError as exc:
@@ -1296,6 +1369,7 @@ class ChatService:
                     command.reservation_id,
                     dependency="database",
                     recovery_probe=True,
+                    lane="database_finalization",
                 )
             except Exception as query_exc:
                 raise StreamFinalizationUnknownError(request_id=command.request_id) from query_exc
@@ -1621,7 +1695,11 @@ class ChatService:
 
     @staticmethod
     def _is_database_unavailable(exc: BaseException) -> bool:
-        if isinstance(exc, (BlockingIOOverloadedError, OSError, TimeoutError)):
+        if isinstance(exc, DependencyCircuitOpenError):
+            return True
+        if isinstance(exc, BlockingIOOverloadedError):
+            return False
+        if isinstance(exc, (OSError, TimeoutError)):
             return True
         module = type(exc).__module__
         return module.startswith(("psycopg", "sqlite3"))

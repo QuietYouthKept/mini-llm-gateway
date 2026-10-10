@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 
-from app.domain.errors import InternalError, ProviderFailedError, ProviderTimeoutError
+from app.application.services.blocking_io import BlockingIOOverloadedError
+from app.domain.errors import (
+    DatabaseAdmissionOverloadedError,
+    InternalError,
+    ProviderFailedError,
+    ProviderTimeoutError,
+)
 from app.domain.ports.provider_port import ChatMessage, ChatRequest, ChatResponse, ProviderChunk
 from app.infrastructure.persistence.sqlite.connection import get_connection
 from app.interfaces.http.routes.chat import _stream_response
@@ -448,6 +455,30 @@ async def test_unknown_commit_result_is_not_retried_or_assumed_released(
     finally:
         conn.close()
     assert state == "reserved"
+
+
+@pytest.mark.asyncio
+async def test_pre_submission_finalization_overload_does_not_query_commit_receipt(
+    container, monkeypatch
+) -> None:
+    receipt_queries = 0
+
+    async def reject_before_submission(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        raise BlockingIOOverloadedError("bounded finalization lane is full")
+
+    def get_receipt(_reservation_id: str):
+        nonlocal receipt_queries
+        receipt_queries += 1
+        return None
+
+    monkeypatch.setattr(container.blocking_io, "run", reject_before_submission)
+    monkeypatch.setattr(container.stream_finalizer, "get_finalization", get_receipt)
+    command = SimpleNamespace(request_id="req-overloaded", reservation_id="req-overloaded:r1")
+
+    with pytest.raises(DatabaseAdmissionOverloadedError):
+        await container.chat_service._submit_finalization(command)
+
+    assert receipt_queries == 0
 
 
 @pytest.mark.asyncio

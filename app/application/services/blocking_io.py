@@ -80,6 +80,8 @@ class BoundedBlockingIO:
                 "worker_execution_seconds_total": 0.0,
                 "worker_execution_seconds_max": 0.0,
                 "operation_execution_seconds_max": {},
+                "operation_execution_seconds_total": {},
+                "operation_execution_count": {},
             }
             for lane in workers_by_lane
         }
@@ -98,6 +100,7 @@ class BoundedBlockingIO:
         dependency: str | None = None,
         probe: bool = False,
         recovery_probe: bool = False,
+        lane: str | None = None,
         **kwargs: Any,
     ) -> T:
         if self._closed:
@@ -106,17 +109,19 @@ class BoundedBlockingIO:
             raise ValueError("probe calls must identify a dependency")
         if probe and recovery_probe:
             raise ValueError("a call cannot be both a readiness and recovery probe")
-        lane = dependency if dependency in self._executors else "default"
+        execution_lane = lane or (dependency if dependency in self._executors else "default")
+        if execution_lane not in self._executors:
+            raise ValueError(f"unknown blocking I/O lane '{execution_lane}'")
         admission_started = monotonic()
         probe_permit = self._begin_call(dependency, probe, recovery_probe)
         try:
             await asyncio.wait_for(
-                self._slots[lane].acquire(), timeout=self._admission_timeout_seconds
+                self._slots[execution_lane].acquire(), timeout=self._admission_timeout_seconds
             )
         except TimeoutError as exc:
             with self._stats_lock:
-                self._lane_stats[lane]["admission_rejects_total"] += 1
-                self._lane_stats[lane]["admission_wait_seconds_total"] += (
+                self._lane_stats[execution_lane]["admission_rejects_total"] += 1
+                self._lane_stats[execution_lane]["admission_wait_seconds_total"] += (
                     monotonic() - admission_started
                 )
             self._finish_probe(dependency, probe_permit)
@@ -128,15 +133,21 @@ class BoundedBlockingIO:
         loop = asyncio.get_running_loop()
         operation = self._operation_name(function)
         with self._stats_lock:
-            self._lane_stats[lane]["in_flight"] += 1
-            self._lane_stats[lane]["admission_wait_seconds_total"] += (
+            self._lane_stats[execution_lane]["in_flight"] += 1
+            self._lane_stats[execution_lane]["admission_wait_seconds_total"] += (
                 monotonic() - admission_started
             )
         try:
             future = loop.run_in_executor(
-                self._executors[lane],
+                self._executors[execution_lane],
                 lambda: self._invoke(
-                    function, args, kwargs, dependency, probe_permit, lane, operation
+                    function,
+                    args,
+                    kwargs,
+                    dependency,
+                    probe_permit,
+                    execution_lane,
+                    operation,
                 ),
             )
             cancelled = False
@@ -160,8 +171,8 @@ class BoundedBlockingIO:
             return result
         finally:
             with self._stats_lock:
-                self._lane_stats[lane]["in_flight"] -= 1
-            self._slots[lane].release()
+                self._lane_stats[execution_lane]["in_flight"] -= 1
+            self._slots[execution_lane].release()
             self._finish_probe(dependency, probe_permit)
 
     def _begin_call(self, dependency: str | None, probe: bool, recovery_probe: bool) -> bool:
@@ -225,6 +236,10 @@ class BoundedBlockingIO:
                 )
                 operation_max = stats["operation_execution_seconds_max"]
                 operation_max[operation] = max(operation_max.get(operation, 0.0), duration)
+                operation_total = stats["operation_execution_seconds_total"]
+                operation_total[operation] = operation_total.get(operation, 0.0) + duration
+                operation_count = stats["operation_execution_count"]
+                operation_count[operation] = operation_count.get(operation, 0) + 1
 
     @staticmethod
     def _operation_name(function: Callable[..., Any]) -> str:
@@ -325,6 +340,17 @@ class BoundedBlockingIO:
                 lines.append(
                     f'{metric}{{lane="{lane}",operation="{operation}"}} {duration:.6g}'
                 )
+        for field, metric_type in (
+            ("operation_execution_seconds_total", "counter"),
+            ("operation_execution_count", "counter"),
+        ):
+            metric = f"{prefix}_blocking_io_{field}"
+            lines.append(f"# TYPE {metric} {metric_type}")
+            for lane, values in snapshot["lanes"].items():
+                for operation, value in values[field].items():
+                    lines.append(
+                        f'{metric}{{lane="{lane}",operation="{operation}"}} {value:.6g}'
+                    )
         metric = f"{prefix}_dependency_circuit_open"
         lines.append(f"# TYPE {metric} gauge")
         for dependency, value in snapshot["circuits"].items():
