@@ -1,0 +1,4 @@
+new-5a474c2 readiness=200
+phase=new-5a474c2 chat_status=200 chat_request_id=a229b64c6add45be997d1d1b89a7f5e5 sse_status=200 sse_request_id=9eb72dd749af42cdb45534dd5a16dbb2 sse_type=text/event-stream; charset=utf-8 done_event=True
+rollback-old-c4ba57d readiness=200
+phase=rollback-old-c4ba57d chat_status=200 chat_request_id=4f9ecc56088142db92c52f2d9ba2eac6 sse_status=200 sse_request_id=5a6b772d28c5458ca7a20e44eea13ad0 sse_type=text/event-stream; charset=utf-8 done_event=True

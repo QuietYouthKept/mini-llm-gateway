@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "project": "wave52-rollback",
+  "database": "isolated PostgreSQL 16 / Redis 7 Compose network",
+  "transition": [
+    {
+      "phase": "old",
+      "source_commit": "c4ba57dafd380ca1d1a6ba39b40de0732d30a697",
+      "image": "mini-llm-gateway:wave51-candidate-c4ba57d",
+      "image_id": "sha256:9c85a88dba65c3e7ac1493690ea1fe9198821284021df8eca92f0267a3e600fb",
+      "readiness": 200,
+      "chat": 200,
+      "sse": 200,
+      "sse_terminal_event": "event: done"
+    },
+    {
+      "phase": "new",
+      "source_commit": "5a474c208d3095e678469f307a7c7d549233e6b9",
+      "image": "mini-llm-gateway:wave52-candidate-5a474c2",
+      "image_id": "sha256:44486db8bb69095129d72cb1303937df117d968ffae703b8e3055a021fd5dacf",
+      "readiness": 200,
+      "chat": 200,
+      "sse": 200,
+      "sse_terminal_event": "event: done"
+    },
+    {
+      "phase": "rollback-old",
+      "source_commit": "c4ba57dafd380ca1d1a6ba39b40de0732d30a697",
+      "image": "mini-llm-gateway:wave51-candidate-c4ba57d",
+      "image_id": "sha256:9c85a88dba65c3e7ac1493690ea1fe9198821284021df8eca92f0267a3e600fb",
+      "readiness": 200,
+      "chat": 200,
+      "sse": 200,
+      "sse_terminal_event": "event: done"
+    }
+  ],
+  "application_and_migration_source_diff_between_revisions": "none",
+  "migration_ledger_rows_after_cycle": 7,
+  "persisted_invariants": {
+    "request_logs": 9,
+    "reservations": 6,
+    "reservation_states": {"settled": 6},
+    "stream_finalizations": 6,
+    "provider_attempts": 6,
+    "reservations_without_finalization": 0,
+    "duplicate_finalizations": 0
+  },
+  "switch_durations": {
+    "old_to_new_seconds": null,
+    "new_to_old_seconds": null,
+    "note": "Deployment duration was not instrumented. Output-file timestamp intervals are 46 seconds and 8 seconds respectively, but include operator/tool and smoke-test time, so are not represented as pure switch duration."
+  },
+  "status": "PASS",
+  "evidence": [
+    "wave52-rollback/rollback.log",
+    "wave52-rollback/rollback-continuation.log",
+    "wave52-rollback/post-rollback-db.txt"
+  ],
+  "harness_note": "The first old-version SSE was successful but the initial assertion incorrectly looked for OpenAI-style [DONE]. The gateway's actual contract is event: done; the captured body was retained and the corrected assertion passed for all three phases."
+}

@@ -1,0 +1,86 @@
+{
+  "request_id": "8a41e693b0c74cd99443ae39f3a02c87",
+  "content": "[mock_fast] fast response from m",
+  "provider": "mock_fast",
+  "model": "mock_fast",
+  "fallback_used": false,
+  "attempts": [
+    {
+      "provider_id": "mock_fast",
+      "attempt_order": 0,
+      "retry_index": 0,
+      "status": "success",
+      "latency_ms": 30,
+      "error_code": "",
+      "error_message": "",
+      "provider_request_id": null
+    }
+  ],
+  "decision_trace": [
+    {
+      "step": "streaming_checked",
+      "allowed": true
+    },
+    {
+      "step": "rate_limit_checked",
+      "allowed": true,
+      "limit_per_minute": 60
+    },
+    {
+      "step": "profile_resolved",
+      "profile": "fast-chat",
+      "intent": "low_latency"
+    },
+    {
+      "step": "guardrail_input_checked",
+      "allowed": true
+    },
+    {
+      "step": "distributed_singleflight_owner"
+    },
+    {
+      "step": "cache_miss",
+      "reason": "no exact match",
+      "key": "cache_fec588250e412add4a13892a"
+    },
+    {
+      "step": "budget_reserved",
+      "tokens": 136,
+      "input_floor_applied": true,
+      "remaining_after_reservation": 99864
+    },
+    {
+      "step": "provider_selected",
+      "provider": "mock_fast",
+      "reason": "primary candidate (priority=1)"
+    },
+    {
+      "step": "guardrail_output_checked",
+      "allowed": true
+    },
+    {
+      "step": "budget_finalization_requested",
+      "usage_source": "provider"
+    },
+    {
+      "step": "budget_settled",
+      "remaining_after": 99986,
+      "usage_source": "provider"
+    }
+  ],
+  "input_tokens": 6,
+  "output_tokens": 8,
+  "estimated_tokens": 14,
+  "estimated_input_tokens": 6,
+  "estimated_output_tokens": 8,
+  "actual_input_tokens": 6,
+  "actual_output_tokens": 8,
+  "usage_source": "provider",
+  "estimated_cost_usd": 1.1E-05,
+  "cost_saved_usd": 0.0,
+  "budget_before": 100000,
+  "budget_after": 99986,
+  "cache_hit": false,
+  "cache_key": "cache_fec588250e412add4a13892a",
+  "duration_ms": 128
+}

@@ -1,0 +1,7 @@
+request_logs=9
+reservations=6
+states=settled:6
+finalizations=6
+provider_attempts=6
+unfinalized=0
+duplicate_finalizations=0

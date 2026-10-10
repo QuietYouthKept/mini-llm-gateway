@@ -1,0 +1,24 @@
+Wave 5.2 isolated PostgreSQL staging state after Docker container recovery
+Observed: 2026-10-10 (Asia/Shanghai)
+Container: wave52-final-closure-postgres-1
+Container was restarted without recreating it; its ephemeral container filesystem was retained.
+
+SQL summary against database gateway:
+reservations=62
+usage=1
+request_logs=289
+provider_attempts=62
+finalizations=62
+reservation_states=settled:62
+request_statuses=completed:1,error:227,success:61
+attempt_statuses=success:62
+duplicate_reservation_finalizations=0
+duplicate_request_finalizations=0
+finalization_rows=62
+request_error_codes=internal_error:1,rate_limit_exceeded:226
+
+Docker inspection before restart:
+Gateway, PostgreSQL and Redis all exited with code 255; OOMKilled=false for the Gateway and PostgreSQL containers. Docker event query returned no retained lifecycle event explaining the exits. PostgreSQL logs did not show a crash before shutdown. This evidence does not establish the external cause of the coordinated container exits.
+
+Interpretation:
+The persisted database contains no reservation left in `reserved`, and no duplicate finalization key. This verifies database contents after the container restart only. It is not a PostgreSQL outage/failover test and does not validate COMMIT acknowledgement loss. The workload also produced one internal_error audit and 226 rate_limit_exceeded audits; see the failed performance matrix.
