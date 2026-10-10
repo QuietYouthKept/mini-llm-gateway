@@ -4,7 +4,7 @@
 **Workspace:** `E:\mini-llm-gateway-dataset-eval`
 **Branch:** `codex/dataset-evaluation`
 **Base source commit:** `9fd1cdca5318a8b00e52b1a29176b7bd5fc66b77`
-**Overall:** `PARTIAL` — engineering fixes and local gates are verified; capacity matrix stopped at its correctness guard; remote CI/artifact and 32/64 concurrency remain outstanding.
+**Overall:** `PARTIAL` — engineering fixes, local gates, remote CI, and Evidence Artifact are verified; the capacity matrix stopped at its correctness guard and 32/64 concurrency remain outstanding.
 
 ## A. What completed, failed, and remains blocked
 
@@ -17,6 +17,8 @@
 - Real Redis adapter and two-replica probes passed. PostgreSQL integration probe passed, including Commit-Unknown receipt recovery, replay idempotency, audit rollback, concurrent finalization, and orphan reconciliation.
 - Current-source container built successfully (local image ID below), ran as UID/GID 10001, root filesystem was read-only (write attempt rejected), two migration invocations succeeded, readiness returned 200 after recovery, and SIGTERM stop exited 0 without OOM.
 - SBOM generated; Trivy scan exited 0; pip-audit exited 0 with no known dependency vulnerabilities (editable project skipped).
+- Pushed source and report commits normally; GitHub Actions run `38070550481` for commit `e426969682c46d9278b3792d9f332178ce8ad480` completed successfully. Linux CI JUnit records 210 passed, 0 failed/errors/skipped; combined coverage is 84.39% and branch-only coverage 71.85%; all 14 recorded CI status files are zero.
+- Downloaded and independently checked both CI artifacts. Evidence Artifact ID `11676163738` contains 155 files; Validation Artifact ID `11676268627` reports `passed=true`, expected/actual 155, zero missing/extra/hash-size mismatches. Manifest SHA-256: `95988f1a1d38134b14141f8b2a54c9fb3531fbdd8ba2ef8a86e6e4a0ee07384c`. Local downloaded manifest recomputation matched all 155 file hashes.
 
 ### PARTIAL / FAILED
 
@@ -27,7 +29,7 @@
 
 ### BLOCKED
 
-- GitHub Actions for the new code has not run. The historical run was canceled after it remained in Full pytest for hours; a canceled run did not provide downloadable job logs. New remote run and artifact remain pending commit/push and verification.
+- The historical GitHub run was canceled after it remained in Full pytest for hours; a canceled run did not provide downloadable job logs. Its root cause and fix were reproduced locally, then verified by the successful remote run listed above.
 - Root cause of the 8-concurrency PostgreSQL failure is unconfirmed. Same-client advisory-lock contention plus short lock/statement deadlines is a plausible hypothesis, not proven without SQLSTATE/wait-event capture at failure time.
 - Human semantic privacy review of the pre-existing dataset samples has not been completed. The sample files and old dataset results remain local and are not part of the new commit.
 
@@ -37,9 +39,9 @@
 - Source HEAD before sprint edits: `9fd1cdca5318a8b00e52b1a29176b7bd5fc66b77`; base tree `35f30af4dafce3bf9db78b8609a550117eeb60e7`.
 - Initial 19 pre-existing uncommitted paths were fingerprinted outside the repository and preserved. The data roots and historical workspaces were not altered.
 - Sprint source changes: `.github/workflows/ci.yml`, `scripts/postgres_commit_ack_loss_probe.py`, and `Dockerfile`. New reports: this file plus `13_POSTGRES_REDIS_CAPACITY.md`, `14_RESUME_IMPACT_REPORT.md`, and the execution checkpoint. The pre-existing dataset harness/report files remain untouched and unstaged.
-- Source fix commit: `ffc179fe25f31b9f3a2475f5daf14e7ddf10bfe0` (`fix: bound postgres commit-ack probe and CI tests`). This report and supporting reports/checkpoint are being committed separately. Remote branch `codex/dataset-evaluation` was absent at pre-push inspection. SSH 443 currently authenticates as `yqia0089-bot`; GitHub CLI has `QuietYouthKept` active with `repo`/`workflow` scopes. If pushed, use that existing HTTPS credential path and do not alter SSH configuration.
+- Source fix commit: `ffc179fe25f31b9f3a2475f5daf14e7ddf10bfe0` (`fix: bound postgres commit-ack probe and CI tests`). Evidence/report commit: `e426969682c46d9278b3792d9f332178ce8ad480` (`docs: record overnight capacity and reliability evidence`). Both were pushed normally; remote CI passed for `e426969…`. This report-only correction will receive its own run.
 - No force push, reset, clean, merge, or tag was performed.
-- Raw evidence, including logs, test XML, coverage output, per-cell metrics, database snapshots, SBOM, scan, image build logs, and hashes, is outside Git at `E:\project-test-assets\01-gateway\results\overnight-sprint-20261010T155645Z\`.
+- Raw evidence, including logs, test XML, coverage output, per-cell metrics, database snapshots, SBOM, scan, image build logs, database dumps, downloaded Actions artifacts, and hashes, is outside Git at `E:\project-test-assets\01-gateway\results\overnight-sprint-20261010T155645Z\`. A final file-hash manifest is stored under its `manifest/` subdirectory.
 
 ## C. Tests and security gates
 
@@ -63,6 +65,11 @@
 | `git diff --check` | PASS, exit 0 | `junit-coverage/diff-check-attempt2.log` |
 | Dependency audit | PASS, pip-audit exit 0, no known vulnerabilities | `security/pip-audit.json` |
 | Image scan | PARTIAL: Trivy exit 0; 4 High findings; SBOM caveat | `security/trivy-v0.74.0/scan-summary.json`, full scan JSON |
+| GitHub Actions | PASS, Run `38070550481`, SHA `e426969…`; JUnit 210 passed | [Run 38070550481](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38070550481) |
+| Evidence Artifact | PASS, ID `11676163738`, 155 files | `github-artifacts/run-38070550481/` |
+| Validation Artifact | PASS, ID `11676268627`; missing/extra/hash mismatch 0; manifest SHA above | downloaded `artifact-validation.json` |
+
+Remote Linux JUnit (210) differs from local worktree pytest (214) because pre-existing dataset audit files were intentionally preserved but not included in the reviewed/pushed commits; GitHub validated the committed source and reporting files only.
 
 The initial PowerShell wrapper attempt failed to invoke pytest/Evals correctly and is retained as `pytest-wrapper-error-attempt1.log` with its exit summary. The corrected attempt 2 above is the actual final local test run. It is not presented as a project-code test failure.
 
@@ -82,15 +89,15 @@ No A/B optimization was performed, so `PERFORMANCE_IMPROVEMENT_VERIFIED=FALSE`. 
 
 ## F. CI, image, and container status
 
-- The Linux hang root cause is identified and patched as described above. New Linux local run passed 214 tests after the fix. Remote CI has not verified the commit yet.
+- The Linux hang root cause is identified and patched as described above. New Linux local run passed 214 tests after the fix; GitHub Actions independently passed 210 tests on the pushed commit.
 - Current-source image ID: `sha256:c5712bf1ccb8871840c5ec6cad10c9e28b96e057bccced636380f3e17279ee34`. This is a local Docker image ID, not a registry digest.
 - Explicit migration ran twice successfully. Readiness probes returned 200 after the configured dependency recovery window. Rootfs write attempt failed with “Read-only file system”. Gateway ran as UID 10001. `docker stop --timeout 10` ended with container exit 0 and no OOM.
 - SBOM is at `image-build/current-image-sbom.cdx.json`. Trivy 0.74.0 scan used the CycloneDX SBOM; it returned 26 vulnerabilities (0 Critical, 4 High, 9 Medium, 13 Low) with a third-party SBOM accuracy warning. Docker Scout was unavailable without Docker ID login; no Scout result is claimed.
-- `REMOTE_CI_PASS` and `EVIDENCE_ARTIFACT_VERIFIED` remain BLOCKED until the new pushed commit's workflow and uploaded artifact are checked.
+- `REMOTE_CI_PASS=TRUE` and `EVIDENCE_ARTIFACT_VERIFIED=TRUE` for pushed commit `e426969…`; the manifest and all included files were downloaded and verified.
 
 ## G. Four strongest evidence-backed resume bullets
 
-1. **Linux CI/reliability:** Reproduced a PostgreSQL COMMIT-ACK proxy hang caused by blocked `recv()` surviving cross-thread close; implemented bounded socket shutdown/thread lifecycle and verified current-source Linux full suite (214 passed). Source: `scripts/postgres_commit_ack_loss_probe.py`; evidence: Linux pytest log.
+1. **Linux CI/reliability:** Reproduced a PostgreSQL COMMIT-ACK proxy hang caused by blocked `recv()` surviving cross-thread close; implemented bounded socket shutdown/thread lifecycle and verified current-source Linux full suite (214 passed), plus remote Linux CI (210 passed). Source: `scripts/postgres_commit_ack_loss_probe.py`; evidence: Linux pytest log and Actions Run `38070550481`.
 2. **Idempotent accounting:** Injected a real post-COMMIT acknowledgement loss; recovered a durable receipt and replayed safely with one 12-token settlement, one audit and one provider attempt. Source: PostgreSQL probe scripts; evidence: `database-invariants/postgres-final-probe.log`.
 3. **Multi-instance Redis:** Verified shared rate limit/cache and distributed singleflight across two Uvicorn processes; 20 concurrent requests split 10 admitted/10 rejected and identical concurrent cache misses caused one synthetic provider execution. Evidence: Redis probe logs.
 4. **Failure-safe capacity testing:** Added database-state stop/reconciliation to a fixed-resource benchmark; stopped at the first all-503 database failure and reconciled two expired reservations to released with no duplicate receipt or usage charge. Source/evidence: `13_POSTGRES_REDIS_CAPACITY.md` and database snapshot JSON.
@@ -108,7 +115,7 @@ Do not add an “X% performance improvement” bullet. The historical public dat
 7. **Why is 84.02% not branch coverage?** Coverage.py's combined percentage includes statements and branches. The same JSON reports statement 86.79% and branch-only 71.28%; the CI gate is explicitly labeled combined coverage.
 8. **What caused the all-503 cell?** It is not proven. Same-client advisory-lock serialization interacting with lock/statement timeout and broad database-unavailable classification is plausible; failure-time SQLSTATE and PostgreSQL wait events are missing.
 9. **What does the Redis singleflight test establish?** The two real app processes coordinate through Redis for this deterministic test: both callers receive equivalent results while the provider runs once; lease expiry permits recovery and a stale owner cannot release the new lease.
-10. **Is this release-ready?** No. Remote CI/artifact are unverified, 32/64 and 24 matrix cells were not run, PostgreSQL failure diagnosis remains open, and the image has four High scan findings plus SBOM caveat.
+10. **Is this release-ready?** No. Although CI and evidence are verified for the pushed commit, 32/64 and 24 matrix cells were not run, PostgreSQL failure diagnosis remains open, and the image has four High scan findings plus SBOM caveat.
 
 ## I. Remaining problems and exact state
 
@@ -120,8 +127,8 @@ Do not add an “X% performance improvement” bullet. The historical public dat
 | `DATABASE_INVARIANTS_PASS` | PARTIAL | Final state after recovery is terminal with no duplicate receipt, but load-time expired reservations triggered stop and required reconciliation. |
 | `SSE_FAILURE_MATRIX_VERIFIED` | PARTIAL | Two real Uvicorn SSE E2E tests and targeted failure paths passed; not every requested disconnect/close/SIGTERM/settlement-failure combination was independently exercised over TCP. |
 | `CI_HANG_ROOT_CAUSE_IDENTIFIED` | TRUE | Linux faulthandler identified psycopg commit + proxy thread blocking in `recv()`; exact Linux mechanism reproduced and fixed. |
-| `REMOTE_CI_PASS` | BLOCKED | No new Actions run for the modified commit yet. |
-| `EVIDENCE_ARTIFACT_VERIFIED` | BLOCKED | No new remote artifact exists yet. |
+| `REMOTE_CI_PASS` | TRUE | Run `38070550481` for `e426969…` succeeded; 210 passed, all recorded gates exit 0. |
+| `EVIDENCE_ARTIFACT_VERIFIED` | TRUE | Artifact IDs `11676163738` / `11676268627`; 155 expected/actual, 0 missing, extra, or hash mismatch. |
 | `CURRENT_SOURCE_IMAGE_ACCEPTED` | PARTIAL | Image build and local readiness/security properties verified; 4 High findings and SBOM caveat remain. |
 | `DEPENDENCY_AUDIT_PASS` | TRUE | pip-audit exit 0, no known dependency vulnerabilities; editable project skipped. |
 | `RESUME_IMPACT_DELIVERED` | TRUE | Role-specific evidence-bounded variants and interviewer Q&A are in report 14 and this report. |
@@ -129,7 +136,7 @@ Do not add an “X% performance improvement” bullet. The historical public dat
 
 ## J. Stop and handoff
 
-Do not restart the stopped matrix against the same database or infer 32/64 results. The safe next engineering action is a narrowly instrumented PostgreSQL concurrency experiment on a fresh isolated database that records SQLSTATE, `pg_stat_activity` wait events and lock waits; only after that should anyone alter lock granularity or timeouts. Separately, resolve the four High image findings and rerun the scan, complete human dataset privacy review, push the verified commits normally, and inspect the exact new Actions run and artifact.
+Do not restart the stopped matrix against the same database or infer 32/64 results. The safe next engineering action is a narrowly instrumented PostgreSQL concurrency experiment on a fresh isolated database that records SQLSTATE, `pg_stat_activity` wait events and lock waits; only after that should anyone alter lock granularity or timeouts. Separately, resolve the four High image findings and rerun the scan, complete human dataset privacy review, and retain the pushed CI/artifact evidence.
 
 `OVERNIGHT_SPRINT_COMPLETED = FALSE`
 `RESUME_EVIDENCE_READY = TRUE`

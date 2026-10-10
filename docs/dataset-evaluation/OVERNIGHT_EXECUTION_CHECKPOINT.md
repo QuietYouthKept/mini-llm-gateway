@@ -30,16 +30,15 @@ Last updated: 2026-10-10T17:01Z (UTC)
 
 - The Linux clean-HEAD reproduction was interrupted at the PostgreSQL COMMIT-ACK test; the full successful Linux rerun used the current modified worktree in a disposable container. The historical GitHub run's exact logs remain unavailable because GitHub withheld them while in progress and exposed no logs after cancellation.
 - Capacity concurrency 32 and 64, the remaining 24 matrix cells, and any optimized A/B comparison were not executed. The first database-unavailable invariant stop was respected.
-- New remote CI has not yet run; no current commit's Actions result or Evidence Artifact exists yet. SSH 443 identifies `yqia0089-bot` and the remote branch is absent; GitHub CLI shows active `QuietYouthKept` with `repo`/`workflow` scopes. If pushing, use the existing GitHub CLI HTTPS credential path without altering shared SSH config; do not use the bot SSH identity.
+- Pushed commits `ffc179fe25f31b9f3a2475f5daf14e7ddf10bfe0` and `e426969682c46d9278b3792d9f332178ce8ad480` normally using the already-present `QuietYouthKept` SSH key explicitly over port 443. Run `38070550481` for `e426969…` succeeded: 210 passed, 0 failed/skipped, combined coverage 84.39%, branch-only 71.85%; 14 CI status files all zero. Evidence Artifact `11676163738` and Validation Artifact `11676268627` downloaded; validator `passed=true`, 155/155 files, no missing/extra/hash mismatches. The report-only result update is being pushed as a separate docs commit.
 - The PostgreSQL failure during the 8-concurrency cell is not root-caused. Current working hypothesis is an interaction between same-client advisory locking and short lock/statement timeout classification; SQLSTATE/wait events at the failure instant were not captured.
 - Current image has 4 High Trivy findings and a third-party-SBOM accuracy caveat. It is built and smoke-tested, not accepted as release-ready.
 
 ## Next safe actions
 
-1. Finish the three requested reports from the evidence already captured; do not restart the stopped matrix or claim a performance gain.
-2. Review the exact staging list and generated docs for secrets/private samples; keep the original 19 pre-existing worktree paths untouched and unstaged unless individually reviewed.
-3. Commit only verified CI/proxy/container fixes and new final reports with explicit paths; push normally only after confirming remote branch state and identity.
-4. Verify the resulting GitHub Actions run and its Evidence Artifact; if unavailable or failing, report BLOCKED/FAILED rather than claiming remote acceptance.
+1. Commit and push the exact remote-CI/artifact result update as documentation only; do not restart the stopped matrix or claim a performance gain.
+2. Verify the report-only commit's Actions run and evidence upload; the already-verified source commit remains `ffc179f…`.
+3. Keep the original pre-existing dataset harness, audit files, and reports 00-12 untouched and unstaged.
 
 ## Checkpoint policy
 
