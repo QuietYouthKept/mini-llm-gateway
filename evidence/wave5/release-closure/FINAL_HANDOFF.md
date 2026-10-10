@@ -20,7 +20,7 @@ The PG probe established atomic rollback, replay idempotency, a single usage inc
 
 Trivy 0.75.0 found 3 Critical and 88 High findings in the exact candidate; no exception was approved. Two-version schema upgrade/rollback was not run. OTLP Collector → trace backend → query correlation was not run. Prometheus scrape/query, DNS rebinding/redirect egress controls, and the requested controlled performance matrix were not run. The historical PyPI TLS EOF remains unexplained, although host, Engine, BuildKit proxy tests and two clean builds now succeed.
 
-Do not create a completion tag or deploy this image. See `RELEASE_GATE_SUMMARY.json`, the per-domain reports, and raw scan/test artifacts for the exact statuses. No GitHub CI run or artifact was produced for this branch in this turn; no remote result is implied.
+Do not create a completion tag or deploy this image. See `RELEASE_GATE_SUMMARY.json`, the per-domain reports, and raw scan/test artifacts for the exact statuses. Development CI run [38015606740](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38015606740) passed for `de6d2a3e0d8a4a0b61afc75fbfe16d2c4beceda3` (205 passed, 84.02% coverage and the independent 80% gate). Evidence Artifact `11656405425` and validation Artifact `11656695290` were downloaded; local independent validation found 155 files, zero hash/size mismatches, and manifest SHA-256 `850ac4938b1594821c101e93ca817b6b293c1dbf56fabf2e56986a0004a37db8`. This CI pass does not clear the candidate's image CVE, rollback, network, observability or performance blockers.
 
 ## Evidence chain
 

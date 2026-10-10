@@ -10,5 +10,5 @@
 - Latest fully executed DB probe: `scripts.postgres_integration_probe.py --database-url postgresql://gateway:***@postgres:5432/gateway` inside isolated Compose network; exit 0.
 - Latest scan: Trivy 0.75.0, refreshed DB, full image JSON; exit 0 but release policy fails on 3 Critical/88 High.
 - Next command: inspect and package the named evidence files, run `git diff --check`, then stage only the two Dockerfile commits already present and explicitly selected report/evidence files; do not stage OCI archives, coverage HTML, cache or all of `evidence/`.
-- Remote push/CI: not performed; no artifact or run URL exists for this branch.
+- Remote push: normal SSH 443 push succeeded. GitHub CI run `38015606740` passed for `de6d2a3e0d8a4a0b61afc75fbfe16d2c4beceda3`; 205 passed, branch coverage 84.02%, independent 80% gate passed. Evidence Artifact `11656405425`; validation Artifact `11656695290`; independently checked 155/155 hashes with 0 mismatches (manifest `850ac4938b1594821c101e93ca817b6b293c1dbf56fabf2e56986a0004a37db8`).
 - Tag: none.

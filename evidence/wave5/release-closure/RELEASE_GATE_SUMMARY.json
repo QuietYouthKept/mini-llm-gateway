@@ -21,6 +21,6 @@
   ],
   "test_summary": {"pytest_passed":204,"pytest_skipped":1,"branch_coverage_percent":81.08,"coverage_threshold_percent":80,"functional_eval":"see local-gates/functional-eval.log","security_eval":"8/8","provider_contract_passed":13,"tcp_sse_passed":2,"postgres_probe_exit":0,"redis_probe_exit":0},
   "security_scan": {"scanner":"Trivy 0.75.0","database_updated_at":"2026-10-09T19:06:47.421531537Z","critical":3,"high":88,"medium":144,"low":96,"unknown":3,"cisa_kev_matches":0,"risk_accepted":false},
-  "remote_ci": {"status":"NOT RUN","branch_pushed":false,"run_url":null,"artifact_id":null},
+  "remote_ci": {"status":"PASS_DEVELOPMENT_CI_ONLY","branch_pushed":true,"run_url":"https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38015606740","run_id":38015606740,"tested_sha":"de6d2a3e0d8a4a0b61afc75fbfe16d2c4beceda3","pytest":"205 passed in 15.87s","branch_coverage_percent":84.02,"independent_coverage_gate":"PASS >=80%","evidence_artifact_id":11656405425,"validation_artifact_id":11656695290,"artifact_files_expected":155,"artifact_files_downloaded":155,"artifact_hash_mismatches":0,"artifact_manifest_sha256":"850ac4938b1594821c101e93ca817b6b293c1dbf56fabf2e56986a0004a37db8","artifact_validation":"PASS"},
   "tag_created": false
 }
