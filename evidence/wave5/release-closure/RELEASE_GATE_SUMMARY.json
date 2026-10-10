@@ -1,0 +1,26 @@
+{
+  "decision": "RELEASE_CANDIDATE_NOT_ACCEPTED",
+  "source_sha": "c4ba57dafd380ca1d1a6ba39b40de0732d30a697",
+  "git_tree": "7cfffb2c5b4bed00d530e432d43ab419861fba68",
+  "image_id_local_oci_manifest": "sha256:9c85a88dba65c3e7ac1493690ea1fe9198821284021df8eca92f0267a3e600fb",
+  "image_config_digest": "sha256:2c6a69e40ebb020a4cc3e10f23dacf1c13fc3ca3cc28f931850cf569c3af3d83",
+  "gates": [
+    {"id":"G01","name":"Clean reproducible build","status":"PASS","exit_code":0,"evidence":"two no-cache OCI builds with identical archive, manifest, config, layers and RootFS DiffIDs"},
+    {"id":"G02","name":"Build network recovery","status":"PARTIAL","exit_code":0,"evidence":"host/Engine/BuildKit proxy probes and builds work; historical TLS EOF cause not reproduced"},
+    {"id":"G03","name":"Current image vulnerability gate","status":"FAILED","exit_code":0,"evidence":"Trivy 0.75.0 found 3 Critical and 88 High; no risk approval"},
+    {"id":"G04","name":"Runtime security/readiness","status":"PARTIAL","exit_code":0,"evidence":"non-root, read-only rootfs, caps dropped; health became ready after startup/restart"},
+    {"id":"G05","name":"PostgreSQL transaction rollback/idempotency","status":"PASS_WITH_LIMIT","exit_code":0,"evidence":"real PostgreSQL probe passed; ack loss synthetic after commit, not socket-level"},
+    {"id":"G06","name":"True Commit Unknown transport/crash injection","status":"NOT EXECUTED","exit_code":null,"evidence":"no connection proxy/process kill at the commit boundary"},
+    {"id":"G07","name":"Reservation reconciliation","status":"PASS_WITH_LIMIT","exit_code":0,"evidence":"expired lease released with audit and receipt; cross-replica race not run"},
+    {"id":"G08","name":"Two-version upgrade/rollback","status":"FAILED","exit_code":null,"evidence":"no prior binary run against shared upgraded schema"},
+    {"id":"G09","name":"OpenTelemetry end-to-end trace query","status":"NOT EXECUTED","exit_code":null,"evidence":"no trace backend/query configured"},
+    {"id":"G10","name":"Prometheus scrape and query","status":"PARTIAL","exit_code":0,"evidence":"gateway /metrics HTTP 200 only; no Prometheus deployment/query"},
+    {"id":"G11","name":"Network egress/DNS/redirect policy","status":"NOT EXECUTED","exit_code":null,"evidence":"proxy path tested; DNS rebinding and redirect tests not run"},
+    {"id":"G12","name":"Repeated performance acceptance","status":"NOT EXECUTED","exit_code":null,"evidence":"no controlled baseline matrix"},
+    {"id":"G13","name":"Local quality and runtime probes","status":"PASS","exit_code":0,"evidence":"Ruff, compileall, 204 passed/1 skipped, 81.08% branch coverage, evals, Provider Contract, TCP SSE, PG and Redis probes"}
+  ],
+  "test_summary": {"pytest_passed":204,"pytest_skipped":1,"branch_coverage_percent":81.08,"coverage_threshold_percent":80,"functional_eval":"see local-gates/functional-eval.log","security_eval":"8/8","provider_contract_passed":13,"tcp_sse_passed":2,"postgres_probe_exit":0,"redis_probe_exit":0},
+  "security_scan": {"scanner":"Trivy 0.75.0","database_updated_at":"2026-10-09T19:06:47.421531537Z","critical":3,"high":88,"medium":144,"low":96,"unknown":3,"cisa_kev_matches":0,"risk_accepted":false},
+  "remote_ci": {"status":"NOT RUN","branch_pushed":false,"run_url":null,"artifact_id":null},
+  "tag_created": false
+}

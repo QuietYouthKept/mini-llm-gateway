@@ -27,6 +27,16 @@ that every mutable state has an owner and a failure semantic.
 
 ## Engineering stories
 
+### Wave 5.1 evidence caveat
+
+The current local candidate has repeatable image-build and PostgreSQL/Redis
+integration evidence, but it is not production accepted. The exact image scan
+reported unresolved Critical/High findings; the synthetic lost-ack test does
+not replace a real TCP Commit Unknown experiment, and no old/new rollback or
+trace-backend query was run. Present these as explicit remaining work rather
+than claiming exactly-once behavior, vulnerability-free images, or proven
+rollback.
+
 ### 1. Cache governance bypass
 
 **Problem:** a raw provider result could be cached before policy, letting future

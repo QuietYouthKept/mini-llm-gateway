@@ -39,3 +39,19 @@ failure, and Redis-dependent operation failure.
 TLS termination belongs at the ingress boundary. See
 `deploy/nginx/nginx.conf.example`; it is a topology illustration, not a
 production certificate configuration.
+
+## Wave 5.1 release acceptance status
+
+The local candidate has repeatable clean OCI builds, and isolated PostgreSQL,
+Redis, and TCP SSE probes have passed. The image is nevertheless **not
+accepted for release**: Trivy found unresolved Critical/High issues. The
+PostgreSQL acknowledgement-loss probe is synthetic after commit, not a dropped
+wire acknowledgement; a two-version rollback and OTLP/Prometheus query drill
+were not performed. Do not use the same-version SIGTERM restart as rollback
+evidence. The detailed gate report is
+[`evidence/wave5/release-closure/RELEASE_GATE_SUMMARY.md`](../evidence/wave5/release-closure/RELEASE_GATE_SUMMARY.md).
+
+Until blockers are closed, keep this candidate in disposable local staging
+only. A deployment must retain PostgreSQL state during rollback, verify schema
+compatibility before changing binaries, and use forward recovery if the prior
+binary cannot read the migrated schema.

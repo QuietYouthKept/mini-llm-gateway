@@ -1,0 +1,17 @@
+{
+  "status": "PARTIAL",
+  "proxy_endpoint": "http://127.0.0.1:7892",
+  "tests": [
+    {"path":"Windows PowerShell explicit proxy to PyPI TLS","status":"PASS","observation":"HTTP 200; normal certificate verification"},
+    {"path":"Docker Engine container to host.docker.internal:7892","status":"PASS","observation":"HTTP 200"},
+    {"path":"BuildKit RUN with predefined proxy build args","status":"PASS","observation":"HTTP 200; build exit 0"},
+    {"path":"localhost/private IPv4 provider URL policy","status":"NOT EXECUTED","observation":"no runtime egress probe"},
+    {"path":"IPv6 loopback/private provider URL policy","status":"NOT EXECUTED","observation":"no runtime egress probe"},
+    {"path":"cloud metadata endpoint","status":"NOT EXECUTED","observation":"no request performed"},
+    {"path":"DNS rebinding from validation address to connect address","status":"NOT EXECUTED","observation":"no controlled DNS server or address pinning assertion"},
+    {"path":"HTTP redirect to private target","status":"NOT EXECUTED","observation":"no redirect experiment"},
+    {"path":"proxy bypass to internal Redis/PostgreSQL","status":"NOT EXECUTED","observation":"not evaluated"},
+    {"path":"production fail-closed egress enforcement","status":"NOT EXECUTED","observation":"no network policy/firewall boundary was exercised"}
+  ],
+  "conclusion": "The proxy route is usable for build traffic only. These probes do not establish application egress safety or DNS pinning."
+}

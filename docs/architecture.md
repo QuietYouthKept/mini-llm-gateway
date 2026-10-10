@@ -110,3 +110,16 @@ stream reservation.
 - [ADR-0002: ProviderPort abstraction](adr/0002-provider-port.md)
 - [ADR-0003: SQLite + in-memory first](adr/0003-local-first-storage.md)
 - [ADR-0004: Exact prompt cache first](adr/0004-exact-prompt-cache.md)
+
+## Wave 5.1 acceptance snapshot
+
+The isolated Wave 5.1 candidate (`c4ba57d`) passed the local PostgreSQL/Redis
+integration probes, TCP SSE smoke, and an exact two-build OCI comparison. The
+candidate is **not release accepted**: its current image scan has unresolved
+Critical/High findings, and true network-level PostgreSQL commit-ack loss,
+cross-version rollback, and end-to-end trace-backend correlation are still
+unverified. See
+[`evidence/wave5/release-closure/FINAL_HANDOFF.md`](../evidence/wave5/release-closure/FINAL_HANDOFF.md)
+and the machine-readable gate summary for evidence and limits. These results
+describe only the stated local source/image and must not be carried forward to
+another commit or registry image without rerunning the gates.

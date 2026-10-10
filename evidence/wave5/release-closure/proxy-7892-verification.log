@@ -1,0 +1,41 @@
+=== Windows loopback listener ===
+host_127.0.0.1_7892=True
+=== Windows explicit HTTP proxy HTTPS request ===
+host_proxy_status=200
+=== Docker Engine explicit host proxy ===
+container_proxy_status 200
+container_proxy_exit=0
+=== BuildKit explicit host proxy ===
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 337B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-slim
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 192B done
+#3 DONE 0.0s
+
+#4 [1/2] FROM docker.io/library/python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f
+#4 resolve docker.io/library/python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f 0.0s done
+#4 CACHED
+
+#5 [2/2] RUN python -c "import urllib.request,os; p=os.environ.get('HTTPS_PROXY'); o=urllib.request.build_opener(urllib.request.ProxyHandler({'http':p,'https':p})); print('buildkit_proxy_status',o.open('https://pypi.org/simple/uv/',timeout=12).status)"
+#5 1.950 buildkit_proxy_status 200
+#5 DONE 2.0s
+
+#6 exporting to image
+#6 exporting layers
+#6 exporting layers 0.2s done
+#6 exporting manifest sha256:e0431fae51e19c59266a1f2d124d31e99adb58e93dc5a8758a8238ae80005c66
+#6 exporting manifest sha256:e0431fae51e19c59266a1f2d124d31e99adb58e93dc5a8758a8238ae80005c66 0.0s done
+#6 exporting config sha256:91cc987e8f87ab475d08fbbc857f5b60847efb1398ceb218f596bfa0dcc7b6a1 0.0s done
+#6 exporting attestation manifest sha256:c31daf6c98da5743d950a2a6b94d833b0cde1c75891caa4056b275e78c85476d 0.0s done
+#6 exporting manifest list sha256:a04064c3e6399671878d966d323955c8369b9a540c0722a74f0e28ac1c929af0 0.0s done
+#6 naming to moby-dangling@sha256:a04064c3e6399671878d966d323955c8369b9a540c0722a74f0e28ac1c929af0 done
+#6 unpacking to moby-dangling@sha256:a04064c3e6399671878d966d323955c8369b9a540c0722a74f0e28ac1c929af0 0.0s done
+#6 DONE 0.5s
+buildkit_proxy_exit=0

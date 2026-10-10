@@ -1,0 +1,20 @@
+{
+  "status": "PARTIAL",
+  "tested_source_sha": "c4ba57dafd380ca1d1a6ba39b40de0732d30a697",
+  "tested_image": "sha256:9c85a88dba65c3e7ac1493690ea1fe9198821284021df8eca92f0267a3e600fb",
+  "environment": "Isolated Compose PostgreSQL 16 Alpine, local disposable database; gateway candidate code and matching migrations",
+  "probe": "scripts/postgres_integration_probe.py",
+  "exit_code": 0,
+  "scenarios": [
+    {"name":"reservation uniqueness under concurrent budget contention","status":"PASS","evidence":"one of two reservations admitted; usage plus reservations stayed within budget"},
+    {"name":"audit transaction rollback","status":"PASS","evidence":"injected attempt failure left zero request and attempt rows"},
+    {"name":"settlement audit rollback","status":"PASS","evidence":"injected failure left reservation reserved and zero receipt/request rows"},
+    {"name":"commit acknowledgement lost after a real commit","status":"PASS_SYNTHETIC_ACK_DROP","evidence":"wrapper raised after real finalize_stream returned; receipt query recovered settled state; replay idempotent; 10 tokens counted once; one request row"},
+    {"name":"concurrent idempotent finalization","status":"PASS","evidence":"two concurrent calls both observed settled; one replay; one request row"},
+    {"name":"expired reservation reconciliation","status":"PASS","evidence":"one expired reservation released with orphaned_released audit and release receipt"},
+    {"name":"network-level COMMIT sent then PostgreSQL ACK dropped","status":"NOT EXECUTED","evidence":"no TCP fault proxy was used; synthetic wrapper is not equivalent"},
+    {"name":"process kill between server COMMIT and app receipt handling","status":"NOT EXECUTED","evidence":"no process-kill interposition at commit boundary"},
+    {"name":"cross-replica duplicate request and concurrent reconciliation race","status":"NOT EXECUTED","evidence":"not represented by this probe"}
+  ],
+  "interpretation": "The transaction and idempotency behaviors were exercised on PostgreSQL, but true transport-level commit-unknown and crash-boundary behavior remain unproven. Do not claim exactly-once delivery."
+}

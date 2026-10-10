@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "source_commit": "c4ba57dafd380ca1d1a6ba39b40de0732d30a697",
+  "tree": "7cfffb2c5b4bed00d530e432d43ab419861fba68",
+  "platform": "linux/amd64",
+  "buildkit": "0.23.2",
+  "buildx": "0.27.0-desktop.1",
+  "base_image": "python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65",
+  "dockerfile_sha256": "eb26ce109784e657d8895665cb9f86c5e4c421b70c6c911528afb97568b6dded",
+  "uv_lock_sha256": "76be330260e5a6f204c866d344eddb1fac96a07fd513e1a74b5496c0e6c9c5bf",
+  "builds": [
+    {"id": "build-1", "exit_code": 0, "oci_sha256": "679f9eebeb1c4672e5967dbb0289ac2af28a2e7efed09d0afc68d701226b0a3b", "bytes": 60738048},
+    {"id": "build-2", "exit_code": 0, "oci_sha256": "679f9eebeb1c4672e5967dbb0289ac2af28a2e7efed09d0afc68d701226b0a3b", "bytes": 60738048}
+  ],
+  "oci_manifest_digest": "sha256:9c85a88dba65c3e7ac1493690ea1fe9198821284021df8eca92f0267a3e600fb",
+  "image_config_digest": "sha256:2c6a69e40ebb020a4cc3e10f23dacf1c13fc3ca3cc28f931850cf569c3af3d83",
+  "rootfs_diff_ids_match": true,
+  "layer_digests_match": true,
+  "config_match": true,
+  "manifest_match": true,
+  "registry_published": false,
+  "notes": "Earlier commits had differing .pyc content. Removing UV_COMPILE_BYTECODE made both exact no-cache builds byte-identical. OCI archive and manifest digest are not a registry RepoDigest."
+}

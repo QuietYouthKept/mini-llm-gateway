@@ -1,0 +1,8 @@
+ruff_exit=0
+compileall_exit=0
+pytest_cov_exit=0
+coverage_gate_exit=0
+functional_eval_exit=0
+security_eval_exit=0
+provider_contract_exit=0
+tcp_sse_exit=0

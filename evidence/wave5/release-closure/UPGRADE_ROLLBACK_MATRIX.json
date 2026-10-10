@@ -1,0 +1,14 @@
+{
+  "status": "NOT EXECUTED",
+  "tested_candidate": "c4ba57dafd380ca1d1a6ba39b40de0732d30a697 / sha256:9c85a88dba65c3e7ac1493690ea1fe9198821284021df8eca92f0267a3e600fb",
+  "environment": "wave51-release-closure Compose project; disposable PostgreSQL/Redis",
+  "steps": [
+    {"step":"candidate startup and migration ledger verification","status":"PASS","evidence":"container logged schema ledger verified; /ready returned 200 after dependency health probes"},
+    {"step":"candidate real TCP SSE request","status":"PASS","evidence":"200; message, usage, done; reservation settled; one finalization receipt; one request audit"},
+    {"step":"SIGTERM stop and restart of same candidate","status":"PARTIAL","evidence":"Compose stop completed; container exit 0, OOM false; Uvicorn graceful shutdown logged; readiness returned 200 after restart"},
+    {"step":"old committed image → new image with shared schema","status":"NOT EXECUTED","evidence":"no prior release image compatibility run in this isolated database"},
+    {"step":"new image → old committed image rollback and health checks","status":"NOT EXECUTED","evidence":"no old image run; no rollback proof"},
+    {"step":"two replicas share budget/cache/rate limits during upgrade","status":"NOT EXECUTED","evidence":"not run in this staging experiment"}
+  ],
+  "release_decision": "FAIL: one-version startup is not a rollback drill; do not claim rollback success."
+}
