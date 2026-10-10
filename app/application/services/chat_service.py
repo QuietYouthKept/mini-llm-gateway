@@ -526,6 +526,7 @@ class ChatService:
                         reservation_id,
                         dependency="database",
                         recovery_probe=True,
+                        lane="database_finalization",
                     )
                     durable_finalized = receipt is not None and receipt.request_id == request_id
                 except Exception:
@@ -537,7 +538,10 @@ class ChatService:
                     reservation_id = None
                 else:
                     await self._blocking_io.run(
-                        self._budget.release, reservation_id, dependency="database"
+                        self._budget.release,
+                        reservation_id,
+                        dependency="database",
+                        lane="database_finalization",
                     )
             await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)
@@ -634,7 +638,10 @@ class ChatService:
                 raise error from exc
             if reservation_id is not None:
                 await self._blocking_io.run(
-                    self._budget.release, reservation_id, dependency="database"
+                    self._budget.release,
+                    reservation_id,
+                    dependency="database",
+                    lane="database_finalization",
                 )
             await self._release_distributed_flight(distributed_flight_key)
             self._release_flight(flight)

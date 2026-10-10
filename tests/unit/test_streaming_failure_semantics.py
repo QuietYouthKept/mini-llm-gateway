@@ -203,6 +203,59 @@ async def test_cancel_during_second_provider_records_active_attempt(container, m
 
 
 @pytest.mark.asyncio
+async def test_buffered_chat_cancellation_uses_finalization_lane_for_recovery(
+    container, monkeypatch
+) -> None:
+    entered_provider = asyncio.Event()
+    keep_provider_running = asyncio.Event()
+    observed_lanes: list[tuple[str, str | None]] = []
+    blocking_io = container.chat_service._blocking_io
+
+    class RecordingBlockingIO:
+        async def run(self, func, *args, **kwargs):
+            observed_lanes.append((func.__name__, kwargs.get("lane")))
+            return await blocking_io.run(func, *args, **kwargs)
+
+    async def block_after_reservation(*_args, **_kwargs):
+        entered_provider.set()
+        await keep_provider_running.wait()
+
+    monkeypatch.setattr(container.chat_service, "_blocking_io", RecordingBlockingIO())
+    monkeypatch.setattr(container.chat_service._fallback, "execute", block_after_reservation)
+    request = _request("fast-chat")
+    request.stream = False
+    task = asyncio.create_task(
+        container.chat_service.chat(request, container.clients_by_id["demo"], "/v1/chat")
+    )
+    try:
+        await asyncio.wait_for(entered_provider.wait(), timeout=1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    finally:
+        keep_provider_running.set()
+
+    assert ("get_finalization", "database_finalization") in observed_lanes
+    assert ("release", "database_finalization") in observed_lanes
+    # The request id is attached to the released reservation through the audit.
+    conn = get_connection(container.db_path)
+    try:
+        reservation = conn.execute(
+            "SELECT reservation_id, state FROM token_budget_reservations "
+            "ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        assert reservation is not None
+        assert reservation["state"] == "released"
+        audit = conn.execute(
+            "SELECT count(*) FROM request_logs WHERE request_id=?",
+            (reservation["reservation_id"].split(":", 1)[0],),
+        ).fetchone()[0]
+        assert audit == 1
+    finally:
+        conn.close()
+
+
+@pytest.mark.asyncio
 async def test_unstarted_stream_close_releases_and_audits(container) -> None:
     session = await container.chat_service.start_stream(
         _request("fast-chat"), container.clients_by_id["demo"], endpoint="/v1/chat"
