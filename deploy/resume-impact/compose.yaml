@@ -1,0 +1,104 @@
+name: resume-impact-sprint
+
+services:
+  postgres:
+    image: postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: ${RI_POSTGRES_PASSWORD:?set synthetic local password}
+      POSTGRES_DB: gateway
+    ports:
+      - "127.0.0.1:25432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway -d gateway"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+    labels:
+      com.quietyouthkept.project: mini-llm-gateway
+      com.quietyouthkept.environment: resume-impact-synthetic
+
+  redis:
+    image: redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:26379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+    labels:
+      com.quietyouthkept.project: mini-llm-gateway
+      com.quietyouthkept.environment: resume-impact-synthetic
+
+  jaeger:
+    image: resume-impact-jaeger:2.22.0
+    command:
+      - --set=receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317
+      - --set=receivers.otlp.protocols.http.endpoint=0.0.0.0:4318
+    ports:
+      - "127.0.0.1:26686:16686"
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+    labels:
+      com.quietyouthkept.project: mini-llm-gateway
+      com.quietyouthkept.environment: resume-impact-synthetic
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib@sha256:89107a3a8f4636a396927edf7025bb9614b8da2d92f4cc3f43109e8d115736e2
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:24318:4318"
+    depends_on: [jaeger]
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+    labels:
+      com.quietyouthkept.project: mini-llm-gateway
+      com.quietyouthkept.environment: resume-impact-synthetic
+
+  prometheus:
+    image: prom/prometheus@sha256:508729e0e2d18e11fd742a5a5ca70e557b940a93948c3c95fd0123a6fd538b69
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yaml:/etc/prometheus/alerts.yaml:ro
+    ports:
+      - "127.0.0.1:29090:9090"
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+    labels:
+      com.quietyouthkept.project: mini-llm-gateway
+      com.quietyouthkept.environment: resume-impact-synthetic
+
+  grafana:
+    image: grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${RI_GRAFANA_PASSWORD:?set synthetic local password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml:ro
+      - ./grafana-dashboard-provider.yaml:/etc/grafana/provisioning/dashboards/provider.yaml:ro
+      - ../../grafana/mini-llm-gateway-dashboard.json:/var/lib/grafana/dashboards/gateway.json:ro
+    ports:
+      - "127.0.0.1:23000:3000"
+    depends_on: [prometheus]
+    networks: [isolated]
+    security_opt: [no-new-privileges:true]
+    labels:
+      com.quietyouthkept.project: mini-llm-gateway
+      com.quietyouthkept.environment: resume-impact-synthetic
+
+networks:
+  isolated:
+    name: resume-impact-sprint-isolated

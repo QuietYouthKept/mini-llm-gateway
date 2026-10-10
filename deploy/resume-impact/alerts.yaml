@@ -1,0 +1,19 @@
+groups:
+  - name: mini-llm-gateway-resume-impact
+    rules:
+      - alert: GatewayAdmissionSaturation
+        expr: increase(llm_gateway_blocking_io_admission_rejects_total{lane="database"}[1m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: Gateway database admission rejected work in the last minute
+      - alert: GatewayRequestErrorRatio
+        expr: |
+          sum(rate(llm_gateway_requests_total{status!="success"}[5m]))
+          / clamp_min(sum(rate(llm_gateway_requests_total[5m])), 1) > 0.02
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Gateway non-success request ratio is above 2 percent

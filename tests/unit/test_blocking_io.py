@@ -11,6 +11,7 @@ from app.application.services.blocking_io import (
     BoundedBlockingIO,
     DependencyCircuitOpenError,
 )
+from app.infrastructure.observability.tracing import TraceRecorder
 
 
 @pytest.mark.asyncio
@@ -218,3 +219,27 @@ def test_chat_service_does_not_classify_executor_saturation_as_database_outage(c
     assert classifier(DependencyCircuitOpenError("postgres circuit is open"))
     assert classifier(ConnectionError("synthetic connection failure"))
     assert not classifier(RuntimeError("unrelated application error"))
+
+
+@pytest.mark.asyncio
+async def test_blocking_io_records_low_cardinality_operation_span() -> None:
+    io = BoundedBlockingIO(max_workers=1, max_in_flight=1)
+    tracer = TraceRecorder()
+    io.tracer = tracer
+
+    def operation() -> str:
+        return "ok"
+
+    try:
+        assert await io.run(operation, dependency="database") == "ok"
+        span = tracer.snapshot()[0]
+        assert span.name == "blocking_io.operation"
+        assert span.attributes == {
+            "blocking_io.lane": "default",
+            "blocking_io.operation": BoundedBlockingIO._operation_name(operation),
+            "dependency.name": "database",
+        }
+        assert span.status == "ok"
+        assert span.duration_ms >= 0
+    finally:
+        await io.aclose()

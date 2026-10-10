@@ -220,6 +220,7 @@ def build_container(
             enabled=config.observability.tracing_enabled,
             max_spans=config.observability.max_spans,
         )
+    blocking_io.tracer = tracer
 
     if previous is not None and previous.config.metrics.prefix == config.metrics.prefix:
         metrics_registry = previous.metrics_registry

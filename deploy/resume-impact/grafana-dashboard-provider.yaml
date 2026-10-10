@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Gateway
+    orgId: 1
+    folder: Resume Impact Sprint
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards

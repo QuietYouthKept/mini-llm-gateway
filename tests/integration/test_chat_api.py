@@ -258,8 +258,18 @@ def test_lifecycle_phase_metrics_and_traces_are_prompt_free(client: TestClient, 
         assert f'phase="{phase}"' in metrics
     spans = container.tracer.snapshot()
     assert {span.name for span in spans}.issuperset(
-        {"gateway.request", "provider.queue_wait", "provider.duration"}
+        {
+            "http.server.request",
+            "gateway.request",
+            "blocking_io.operation",
+            "provider.queue_wait",
+            "provider.duration",
+        }
     )
+    request_span = next(span for span in spans if span.name == "http.server.request")
+    assert request_span.attributes["request.id"] == response.json()["request_id"]
+    assert request_span.attributes["http.route"] == "/v1/chat"
+    assert request_span.attributes["http.response.status_code"] == 200
     assert secret not in str([(span.name, span.attributes) for span in spans])
 
 

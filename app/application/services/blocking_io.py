@@ -13,6 +13,7 @@ import asyncio
 import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from threading import Lock
 from time import monotonic
 from typing import Any, TypeVar
@@ -91,8 +92,43 @@ class BoundedBlockingIO:
         self._dependency_open_until: dict[str, float] = {}
         self._dependency_probe_inflight: set[str] = set()
         self._closed = False
+        self.tracer: Any | None = None
 
     async def run(
+        self,
+        function: Callable[..., T],
+        /,
+        *args: Any,
+        dependency: str | None = None,
+        probe: bool = False,
+        recovery_probe: bool = False,
+        lane: str | None = None,
+        **kwargs: Any,
+    ) -> T:
+        execution_lane = lane or (dependency if dependency in self._executors else "default")
+        attributes: dict[str, Any] = {
+            "blocking_io.lane": execution_lane,
+            "blocking_io.operation": self._operation_name(function),
+        }
+        if dependency is not None:
+            attributes["dependency.name"] = dependency
+        trace = (
+            self.tracer.span("blocking_io.operation", attributes)
+            if self.tracer is not None
+            else nullcontext()
+        )
+        with trace:
+            return await self._run(
+                function,
+                *args,
+                dependency=dependency,
+                probe=probe,
+                recovery_probe=recovery_probe,
+                lane=lane,
+                **kwargs,
+            )
+
+    async def _run(
         self,
         function: Callable[..., T],
         /,

@@ -36,43 +36,80 @@ class RequestContextMiddleware:
             request_id = uuid.uuid4().hex
 
         token = request_id_var.set(request_id)
+        status_code = 500
+
+        app = scope.get("app")
+        container = getattr(getattr(app, "state", None), "container", None)
+        tracer = getattr(container, "tracer", None)
+        path = scope.get("path", "")
+        route = (
+            path
+            if path in {"/live", "/ready", "/metrics", "/v1/chat", "/v1/chat/completions"}
+            else "/v1/requests/{request_id}"
+            if path.startswith("/v1/requests/")
+            else "unmatched"
+        )
+        trace = (
+            tracer.span(
+                "http.server.request",
+                {
+                    "request.id": request_id,
+                    "http.request.method": scope.get("method", ""),
+                    "http.route": route,
+                },
+            )
+            if tracer is not None
+            else None
+        )
 
         async def send_wrapper(message) -> None:  # noqa: ANN001
+            nonlocal status_code
             if message["type"] == "http.response.start":
+                status_code = int(message.get("status", 500))
                 headers = list(message.get("headers", []))
                 headers.append((b"x-request-id", request_id.encode("latin-1")))
                 message["headers"] = headers
             await send(message)
 
         try:
-            try:
-                await self.app(scope, receive, send_wrapper)
-            except Exception as exc:
-                frames = traceback.extract_tb(exc.__traceback__)
-                logger.error(
-                    "Unhandled HTTP exception class=%s.%s request_id=%s stack=%s",
-                    type(exc).__module__,
-                    type(exc).__name__,
-                    get_request_id(),
-                    " <- ".join(
-                        f"{frame.filename.rsplit('/', 1)[-1]}:{frame.name}:{frame.lineno}"
-                        for frame in frames[-8:]
-                    ),
-                )
-                response = JSONResponse(
-                    status_code=500,
-                    content={
-                        "error": {
-                            "message": "Internal server error",
-                            "type": "internal_error",
-                            "code": "internal_error",
-                            "request_id": get_request_id(),
-                        }
-                    },
-                )
-                await response(scope, receive, send_wrapper)
+            if trace is None:
+                await self._dispatch(scope, receive, send_wrapper)
+            else:
+                with trace as span:
+                    try:
+                        await self._dispatch(scope, receive, send_wrapper)
+                    finally:
+                        span.attributes["http.response.status_code"] = status_code
         finally:
             request_id_var.reset(token)
+
+    async def _dispatch(self, scope, receive, send_wrapper) -> None:  # noqa: ANN001
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as exc:
+            frames = traceback.extract_tb(exc.__traceback__)
+            logger.error(
+                "Unhandled HTTP exception class=%s.%s request_id=%s stack=%s",
+                type(exc).__module__,
+                type(exc).__name__,
+                get_request_id(),
+                " <- ".join(
+                    f"{frame.filename.rsplit('/', 1)[-1]}:{frame.name}:{frame.lineno}"
+                    for frame in frames[-8:]
+                ),
+            )
+            response = JSONResponse(
+                status_code=500,
+                content={
+                    "error": {
+                        "message": "Internal server error",
+                        "type": "internal_error",
+                        "code": "internal_error",
+                        "request_id": get_request_id(),
+                    }
+                },
+            )
+            await response(scope, receive, send_wrapper)
 
 
 class HttpAuditMiddleware:
