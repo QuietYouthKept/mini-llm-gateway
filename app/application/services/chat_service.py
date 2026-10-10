@@ -199,7 +199,9 @@ class ChatService:
             trace.append(DecisionStep(step="streaming_checked", meta={"allowed": True}))
 
             with self._phase("rate_limit.wait"):
-                await self._blocking_io.run(self._enforce_rate_limit, client, request_id)
+                await self._blocking_io.run(
+                    self._enforce_rate_limit, client, request_id, dependency="redis"
+                )
             trace.append(
                 DecisionStep(
                     step="rate_limit_checked",
@@ -564,6 +566,16 @@ class ChatService:
                 self._metrics.audit_failures.inc()
                 raise
             if self._is_database_unavailable(exc):
+                # Database failures skip durable error auditing.  Still wake
+                # local singleflight followers; otherwise one failed cache
+                # miss can pin every identical request until its full deadline.
+                self._release_flight(flight)
+                try:
+                    await self._release_distributed_flight(distributed_flight_key)
+                except Exception:
+                    # Distributed leases expire independently; a Redis release
+                    # failure must not mask the database outage classification.
+                    self._metrics.redis_failures.inc()
                 if reservation_id is not None:
                     self._metrics.budget_reservation_leaks.inc()
                 self._metrics.audit_failures.inc()
@@ -611,7 +623,9 @@ class ChatService:
         replay_payload = self._request_body_snapshot(request)
         self._enforce_streaming(request, request_id)
         with self._phase("rate_limit.wait"):
-            await self._blocking_io.run(self._enforce_rate_limit, client, request_id)
+            await self._blocking_io.run(
+                self._enforce_rate_limit, client, request_id, dependency="redis"
+            )
         trace.append(DecisionStep(step="rate_limit_checked", meta={"allowed": True}))
         profile, profile_id = self._resolve_profile(request, request_id)
         trace.append(DecisionStep(step="profile_resolved", meta={"profile": profile_id}))
@@ -1607,7 +1621,7 @@ class ChatService:
 
     @staticmethod
     def _is_database_unavailable(exc: BaseException) -> bool:
-        if isinstance(exc, BlockingIOOverloadedError):
+        if isinstance(exc, (BlockingIOOverloadedError, OSError, TimeoutError)):
             return True
         module = type(exc).__module__
         return module.startswith(("psycopg", "sqlite3"))
@@ -1728,7 +1742,9 @@ class ChatService:
         assert self._cache is not None
         try:
             with self._phase("cache.lookup.duration"):
-                return await self._blocking_io.run(self._cache.get, cache_key)
+                return await self._blocking_io.run(
+                    self._cache.get, cache_key, dependency="redis"
+                )
         except Exception:
             if self._distributed_singleflight is None:
                 raise
@@ -1752,7 +1768,9 @@ class ChatService:
         """Cache publication is advisory: a Redis outage must not fail a chat."""
         assert self._cache is not None
         try:
-            await self._blocking_io.run(self._cache.put, cache_key, response)
+            await self._blocking_io.run(
+                self._cache.put, cache_key, response, dependency="redis"
+            )
         except Exception:
             if self._distributed_singleflight is None:
                 raise
@@ -1771,7 +1789,9 @@ class ChatService:
         delay_s = 0.025
         while True:
             try_acquire = self._distributed_singleflight.try_acquire
-            acquired = await self._blocking_io.run(try_acquire, cache_key)
+            acquired = await self._blocking_io.run(
+                try_acquire, cache_key, dependency="redis"
+            )
             if acquired is True:
                 trace.append(DecisionStep(step="distributed_singleflight_owner"))
                 return cache_key
@@ -1802,7 +1822,7 @@ class ChatService:
     async def _release_distributed_flight(self, cache_key: str | None) -> None:
         if cache_key is not None and self._distributed_singleflight is not None:
             released = await self._blocking_io.run(
-                self._distributed_singleflight.release, cache_key
+                self._distributed_singleflight.release, cache_key, dependency="redis"
             )
             if released is None:
                 self._metrics.redis_failures.inc()

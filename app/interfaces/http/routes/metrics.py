@@ -19,7 +19,10 @@ async def metrics(
     if not container.config.metrics.enabled:
         raise HTTPException(status_code=404, detail="metrics disabled")
     container.chat_service.sync_circuit_metrics()
+    content = container.metrics_registry.render()
+    if container.blocking_io is not None:
+        content += container.blocking_io.prometheus(container.config.metrics.prefix)
     return Response(
-        content=container.metrics_registry.render(),
+        content=content,
         media_type="text/plain; version=0.0.4; charset=utf-8",
     )

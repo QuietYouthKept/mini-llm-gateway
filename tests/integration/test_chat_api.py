@@ -109,6 +109,24 @@ def test_database_error_audit_failure_does_not_turn_gateway_error_into_500(
     assert "llm_gateway_audit_failures_total 1" in container.metrics_registry.render()
 
 
+def test_database_unavailable_releases_local_singleflight(
+    client: TestClient, container, monkeypatch
+) -> None:
+    def fail_snapshot(_client) -> None:  # noqa: ANN001
+        raise ConnectionError("simulated PostgreSQL outage")
+
+    monkeypatch.setattr(container.chat_service._budget, "snapshot", fail_snapshot)
+    payload = chat_payload("fast-chat", content="same outage request")
+
+    first = client.post("/v1/chat", json=payload, headers=auth())
+    second = client.post("/v1/chat", json=payload, headers=auth())
+
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "database_unavailable"
+    assert second.status_code == 503
+    assert second.json()["error"]["code"] == "database_unavailable"
+
+
 def test_token_budget_exceeded(client: TestClient) -> None:
     payload = chat_payload("fast-chat", content="a" * 400)
     resp = client.post("/v1/chat", json=payload, headers=auth("tiny-key"))
@@ -213,10 +231,16 @@ def test_openai_compatible_endpoint(client: TestClient) -> None:
 
 def test_metrics_endpoint(client: TestClient) -> None:
     client.post("/v1/chat", json=chat_payload("fast-chat"), headers=auth())
+    client.get("/live")
     resp = client.get("/metrics")
     assert resp.status_code == 200
     assert "llm_gateway_requests_total" in resp.text
     assert "llm_gateway_provider_attempts_total" in resp.text
+    assert 'llm_gateway_blocking_io_active_workers{lane="database"}' in resp.text
+    assert 'llm_gateway_blocking_io_queued_operations{lane="redis"}' in resp.text
+    assert 'llm_gateway_http_response_start_seconds_bucket{endpoint="/live"' in resp.text
+    assert "llm_gateway_event_loop_lag_seconds" in resp.text
+    assert "llm_gateway_event_loop_tasks" in resp.text
 
 
 def test_lifecycle_phase_metrics_and_traces_are_prompt_free(client: TestClient, container) -> None:

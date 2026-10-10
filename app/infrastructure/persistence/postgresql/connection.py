@@ -3,9 +3,87 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import os
+import socket
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Lock
+
+_DNS_LOCK = Lock()
+_DNS_REFRESH_EXECUTOR = ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="gateway-postgres-dns"
+)
+_DNS_REFRESHING: set[tuple[str, str]] = set()
+_DNS_ADDRESSES: dict[tuple[str, str], str] = {}
+
+
+def _resolve_database_address(host: str, port: str) -> str:
+    results = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    if not results:
+        raise OSError(f"No address returned for database host '{host}'")
+    return results[0][4][0]
+
+
+def _refresh_database_address(host: str, port: str) -> None:
+    key = (host.lower(), port)
+    try:
+        address = _resolve_database_address(host, port)
+    except OSError:
+        return
+    with _DNS_LOCK:
+        _DNS_ADDRESSES[key] = address
+
+
+def _schedule_database_address_refresh(host: str, port: str) -> None:
+    key = (host.lower(), port)
+    with _DNS_LOCK:
+        if key in _DNS_REFRESHING:
+            return
+        _DNS_REFRESHING.add(key)
+    future = _DNS_REFRESH_EXECUTOR.submit(_refresh_database_address, host, port)
+
+    def finished(_future) -> None:  # noqa: ANN001
+        with _DNS_LOCK:
+            _DNS_REFRESHING.discard(key)
+
+    future.add_done_callback(finished)
+
+
+def _connection_parameters(database_url: str) -> dict[str, str]:
+    """Resolve a single DNS host once and retain its address for fast outages.
+
+    libpq's connect_timeout does not bound the system resolver. Keeping the
+    hostname for TLS verification while supplying hostaddr avoids a resolver
+    stall on every request. A failed connection schedules one bounded,
+    background refresh; it never blocks the request on DNS.
+    """
+    from psycopg.conninfo import conninfo_to_dict
+
+    parameters = conninfo_to_dict(database_url)
+    host = parameters.get("host", "")
+    hosts = host.split(",")
+    if (
+        len(hosts) != 1
+        or not host
+        or parameters.get("hostaddr")
+        or host.startswith("/")
+    ):
+        return parameters
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        port = parameters.get("port", "5432")
+        key = (host.lower(), port)
+        with _DNS_LOCK:
+            address = _DNS_ADDRESSES.get(key)
+        if address is None:
+            address = _resolve_database_address(host, port)
+            with _DNS_LOCK:
+                _DNS_ADDRESSES[key] = address
+        parameters["hostaddr"] = address
+    return parameters
 
 
 def _migration_paths() -> list[Path]:
@@ -69,16 +147,35 @@ def connect(
     # Bound both network establishment and server-side waits.  A Python
     # executor protects the event loop, but without server deadlines a finite
     # worker lane could remain pinned forever by a lock or stalled query.
-    return psycopg.connect(
-        database_url,
-        connect_timeout=max(1, connect_timeout),
-        options=(
-            f"-c statement_timeout={max(1, statement_timeout_ms)} "
-            f"-c lock_timeout={max(1, lock_timeout_ms)} "
-            "-c idle_in_transaction_session_timeout=5000"
-        ),
-        row_factory=dict_row,
+    parameters = _connection_parameters(database_url)
+    host = parameters.get("host", "")
+    if len(host.split(",")) == 1 and host and not parameters.get("hostaddr"):
+        # _connection_parameters leaves explicit IPs and Unix sockets alone;
+        # resolve only DNS names and cache the successful result above.
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            port = parameters.get("port", "5432")
+            key = (host.lower(), port)
+            with _DNS_LOCK:
+                cached_address = _DNS_ADDRESSES.get(key)
+            if cached_address is None:
+                _schedule_database_address_refresh(host, port)
+    parameters["connect_timeout"] = str(max(1, connect_timeout))
+    parameters["options"] = (
+        f"-c statement_timeout={max(1, statement_timeout_ms)} "
+        f"-c lock_timeout={max(1, lock_timeout_ms)} "
+        "-c idle_in_transaction_session_timeout=5000"
     )
+    try:
+        return psycopg.connect(**parameters, row_factory=dict_row)
+    except psycopg.OperationalError:
+        if host and len(host.split(",")) == 1:
+            try:
+                ipaddress.ip_address(host)
+            except ValueError:
+                _schedule_database_address_refresh(host, parameters.get("port", "5432"))
+        raise
 
 
 def migrate(database_url: str, *, app_version: str = "unknown") -> None:

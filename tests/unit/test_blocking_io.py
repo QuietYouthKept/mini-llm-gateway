@@ -76,6 +76,35 @@ async def test_executor_admission_is_bounded_during_dependency_outage() -> None:
 
 
 @pytest.mark.asyncio
+async def test_database_outage_does_not_starve_redis_lane_or_event_loop() -> None:
+    io = BoundedBlockingIO(
+        max_workers=3,
+        max_in_flight=3,
+        lane_workers={"database": 1, "redis": 1, "default": 1},
+        lane_in_flight={"database": 1, "redis": 1, "default": 1},
+    )
+    gate = threading.Event()
+    started = threading.Event()
+
+    def blocked_database() -> None:
+        started.set()
+        gate.wait(1)
+
+    try:
+        database = asyncio.create_task(io.run(blocked_database, dependency="database"))
+        assert await asyncio.to_thread(started.wait, 1)
+        ticker_started = time.monotonic()
+        assert await io.run(lambda: "redis-ok", dependency="redis") == "redis-ok"
+        assert time.monotonic() - ticker_started < 0.2
+        assert io.snapshot()["lanes"]["database"]["active_workers"] == 1
+        assert io.snapshot()["lanes"]["redis"]["active_workers"] == 0
+    finally:
+        gate.set()
+        await database
+        await io.aclose()
+
+
+@pytest.mark.asyncio
 async def test_worker_exception_propagates_and_releases_executor_slot() -> None:
     io = BoundedBlockingIO(max_workers=1, max_in_flight=1)
     try:

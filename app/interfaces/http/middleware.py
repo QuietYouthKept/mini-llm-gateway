@@ -88,13 +88,21 @@ class HttpAuditMiddleware:
 
         status_code = 500
         start = time.monotonic()
+        response_started_at: float | None = None
+        response_completed_at: float | None = None
         cancelled = False
 
         async def send_wrapper(message) -> None:  # noqa: ANN001
-            nonlocal status_code
+            nonlocal status_code, response_started_at, response_completed_at
             if message["type"] == "http.response.start":
                 status_code = int(message["status"])
+                response_started_at = time.monotonic()
             await send(message)
+            if (
+                message["type"] == "http.response.body"
+                and not message.get("more_body", False)
+            ):
+                response_completed_at = time.monotonic()
 
         try:
             await self.app(scope, receive, send_wrapper)
@@ -102,6 +110,32 @@ class HttpAuditMiddleware:
             cancelled = True
             raise
         finally:
+            app = scope.get("app")
+            container = getattr(getattr(app, "state", None), "container", None)
+            if container is not None and response_started_at is not None:
+                route = scope.get("route")
+                endpoint = getattr(route, "path", None) or scope.get("path", "")
+                if endpoint not in {
+                    "/live",
+                    "/health",
+                    "/ready",
+                    "/health/dependencies",
+                    "/metrics",
+                    "/v1/chat",
+                    "/v1/chat/completions",
+                    "/v1/requests/{request_id}",
+                    "/admin/config",
+                    "/admin/reload-config",
+                    "/admin/reconcile-budget-reservations",
+                }:
+                    endpoint = "other"
+                completed = response_completed_at or time.monotonic()
+                container.gateway_metrics.record_http_response(
+                    endpoint,
+                    status_code,
+                    response_started_at - start,
+                    completed - start,
+                )
             if (
                 status_code >= 400
                 and not cancelled
@@ -151,7 +185,6 @@ class HttpAuditMiddleware:
                     error_code=error_code,
                     error_message=f"HTTP {status_code}",
                     duration_ms=duration_ms,
-                    dependency="database",
                 )
             else:
                 await container.blocking_io.run(
@@ -164,6 +197,7 @@ class HttpAuditMiddleware:
                     error_code=error_code,
                     error_message=f"HTTP {status_code}",
                     duration_ms=duration_ms,
+                    dependency="database",
                 )
             container.gateway_metrics.record_request(
                 scope.get("path", ""), error_code, duration_ms / 1000.0

@@ -10,6 +10,7 @@ could otherwise make its commit outcome appear known when it is not.
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
@@ -35,6 +36,8 @@ class BoundedBlockingIO:
         max_in_flight: int = 16,
         admission_timeout_seconds: float = 0.25,
         dependency_recovery_seconds: float = 1.0,
+        lane_workers: dict[str, int] | None = None,
+        lane_in_flight: dict[str, int] | None = None,
     ) -> None:
         if (
             max_workers < 1
@@ -46,10 +49,40 @@ class BoundedBlockingIO:
                 "max_workers must be positive and max_in_flight must be >= max_workers; "
                 "timeouts must also be positive"
             )
-        self._executor = ThreadPoolExecutor(
-            max_workers=max_workers, thread_name_prefix="gateway-blocking-io"
-        )
-        self._slots = asyncio.Semaphore(max_in_flight)
+        workers_by_lane = lane_workers or {"default": max_workers}
+        if (
+            "default" not in workers_by_lane
+            or any(workers < 1 for workers in workers_by_lane.values())
+            or sum(workers_by_lane.values()) > max_workers
+        ):
+            raise ValueError("lane_workers must include default and fit within max_workers")
+        slots_by_lane = lane_in_flight or {"default": max_in_flight}
+        if set(slots_by_lane) != set(workers_by_lane) or any(
+            slots_by_lane[lane] < workers_by_lane[lane] for lane in workers_by_lane
+        ) or sum(slots_by_lane.values()) > max_in_flight:
+            raise ValueError("lane_in_flight must match lanes and fit within max_in_flight")
+        self._executors = {
+            lane: ThreadPoolExecutor(
+                max_workers=workers, thread_name_prefix=f"gateway-{lane}-io"
+            )
+            for lane, workers in workers_by_lane.items()
+        }
+        self._slots = {
+            lane: asyncio.Semaphore(slots_by_lane[lane]) for lane in workers_by_lane
+        }
+        self._stats_lock = Lock()
+        self._lane_stats = {
+            lane: {
+                "active_workers": 0,
+                "in_flight": 0,
+                "admission_wait_seconds_total": 0.0,
+                "admission_rejects_total": 0,
+                "worker_execution_seconds_total": 0.0,
+                "worker_execution_seconds_max": 0.0,
+                "operation_execution_seconds_max": {},
+            }
+            for lane in workers_by_lane
+        }
         self._admission_timeout_seconds = admission_timeout_seconds
         self._dependency_recovery_seconds = dependency_recovery_seconds
         self._dependency_lock = Lock()
@@ -73,12 +106,19 @@ class BoundedBlockingIO:
             raise ValueError("probe calls must identify a dependency")
         if probe and recovery_probe:
             raise ValueError("a call cannot be both a readiness and recovery probe")
+        lane = dependency if dependency in self._executors else "default"
+        admission_started = monotonic()
         probe_permit = self._begin_call(dependency, probe, recovery_probe)
         try:
             await asyncio.wait_for(
-                self._slots.acquire(), timeout=self._admission_timeout_seconds
+                self._slots[lane].acquire(), timeout=self._admission_timeout_seconds
             )
         except TimeoutError as exc:
+            with self._stats_lock:
+                self._lane_stats[lane]["admission_rejects_total"] += 1
+                self._lane_stats[lane]["admission_wait_seconds_total"] += (
+                    monotonic() - admission_started
+                )
             self._finish_probe(dependency, probe_permit)
             raise BlockingIOOverloadedError("blocking I/O lane is saturated") from exc
         except BaseException:
@@ -86,10 +126,18 @@ class BoundedBlockingIO:
             raise
 
         loop = asyncio.get_running_loop()
+        operation = self._operation_name(function)
+        with self._stats_lock:
+            self._lane_stats[lane]["in_flight"] += 1
+            self._lane_stats[lane]["admission_wait_seconds_total"] += (
+                monotonic() - admission_started
+            )
         try:
             future = loop.run_in_executor(
-                self._executor,
-                lambda: self._invoke(function, args, kwargs, dependency, probe_permit),
+                self._executors[lane],
+                lambda: self._invoke(
+                    function, args, kwargs, dependency, probe_permit, lane, operation
+                ),
             )
             cancelled = False
             while True:
@@ -111,7 +159,9 @@ class BoundedBlockingIO:
                 raise asyncio.CancelledError
             return result
         finally:
-            self._slots.release()
+            with self._stats_lock:
+                self._lane_stats[lane]["in_flight"] -= 1
+            self._slots[lane].release()
             self._finish_probe(dependency, probe_permit)
 
     def _begin_call(self, dependency: str | None, probe: bool, recovery_probe: bool) -> bool:
@@ -142,6 +192,8 @@ class BoundedBlockingIO:
         kwargs: dict[str, Any],
         dependency: str | None,
         probe_permit: bool,
+        lane: str,
+        operation: str,
     ) -> T:
         # Work already queued when another call discovers an outage must not
         # start another connection attempt after its worker becomes available.
@@ -151,6 +203,9 @@ class BoundedBlockingIO:
                     raise DependencyCircuitOpenError(
                         f"{dependency} dependency circuit is open"
                     )
+        started = monotonic()
+        with self._stats_lock:
+            self._lane_stats[lane]["active_workers"] += 1
         try:
             return function(*args, **kwargs)
         except BaseException as exc:
@@ -159,6 +214,22 @@ class BoundedBlockingIO:
             # start in the scheduling gap after this worker returns.
             self._record_failure(dependency, exc)
             raise
+        finally:
+            duration = monotonic() - started
+            with self._stats_lock:
+                stats = self._lane_stats[lane]
+                stats["active_workers"] -= 1
+                stats["worker_execution_seconds_total"] += duration
+                stats["worker_execution_seconds_max"] = max(
+                    stats["worker_execution_seconds_max"], duration
+                )
+                operation_max = stats["operation_execution_seconds_max"]
+                operation_max[operation] = max(operation_max.get(operation, 0.0), duration)
+
+    @staticmethod
+    def _operation_name(function: Callable[..., Any]) -> str:
+        name = getattr(function, "__qualname__", getattr(function, "__name__", "call"))
+        return re.sub(r"[^a-zA-Z0-9_]", "_", name)[:80] or "call"
 
     def _record_failure(self, dependency: str | None, exc: BaseException) -> None:
         if dependency is None or not self._is_dependency_failure(exc):
@@ -192,14 +263,83 @@ class BoundedBlockingIO:
             )
             self._dependency_probe_inflight.discard(dependency)
 
+    def dependency_circuit_open(self, dependency: str) -> bool:
+        """Return whether traffic is currently rejected by this dependency circuit."""
+        with self._dependency_lock:
+            return self._dependency_open_until.get(dependency, 0.0) > monotonic()
+
     def report_dependency_success(self, dependency: str) -> None:
         """Close a dependency circuit only after an explicit healthy probe."""
         with self._dependency_lock:
             self._dependency_open_until.pop(dependency, None)
             self._dependency_probe_inflight.discard(dependency)
 
+    def snapshot(self) -> dict[str, Any]:
+        """Return bounded executor and dependency-circuit diagnostics."""
+        with self._stats_lock:
+            lanes = {
+                name: {
+                    **stats,
+                    "queued_operations": max(
+                        0, stats["in_flight"] - stats["active_workers"]
+                    ),
+                }
+                for name, stats in self._lane_stats.items()
+            }
+        now = monotonic()
+        with self._dependency_lock:
+            circuits = {
+                dependency: {
+                    "open": until > now,
+                    "recovery_probe_inflight": dependency
+                    in self._dependency_probe_inflight,
+                }
+                for dependency, until in self._dependency_open_until.items()
+            }
+        return {"lanes": lanes, "circuits": circuits}
+
+    def prometheus(self, prefix: str = "llm_gateway") -> str:
+        """Render low-cardinality executor diagnostics in Prometheus text format."""
+        snapshot = self.snapshot()
+        lines: list[str] = []
+        fields = (
+            "active_workers",
+            "queued_operations",
+            "in_flight",
+            "admission_wait_seconds_total",
+            "admission_rejects_total",
+            "worker_execution_seconds_total",
+            "worker_execution_seconds_max",
+        )
+        for field in fields:
+            metric = f"{prefix}_blocking_io_{field}"
+            metric_type = "counter" if field.endswith("_total") else "gauge"
+            lines.extend((f"# TYPE {metric} {metric_type}",))
+            for lane, values in snapshot["lanes"].items():
+                value = values[field]
+                lines.append(f'{metric}{{lane="{lane}"}} {value:.6g}')
+        metric = f"{prefix}_blocking_io_operation_execution_seconds_max"
+        lines.append(f"# TYPE {metric} gauge")
+        for lane, values in snapshot["lanes"].items():
+            for operation, duration in values["operation_execution_seconds_max"].items():
+                lines.append(
+                    f'{metric}{{lane="{lane}",operation="{operation}"}} {duration:.6g}'
+                )
+        metric = f"{prefix}_dependency_circuit_open"
+        lines.append(f"# TYPE {metric} gauge")
+        for dependency, value in snapshot["circuits"].items():
+            lines.append(
+                f'{metric}{{dependency="{dependency}"}} {int(value["open"])}'
+            )
+        return "\n".join(lines) + "\n"
+
     async def aclose(self) -> None:
         if self._closed:
             return
         self._closed = True
-        await asyncio.to_thread(self._executor.shutdown, wait=True, cancel_futures=False)
+        await asyncio.gather(
+            *(
+                asyncio.to_thread(executor.shutdown, wait=True, cancel_futures=False)
+                for executor in self._executors.values()
+            )
+        )

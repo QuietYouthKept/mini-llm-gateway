@@ -13,6 +13,22 @@ class GatewayMetrics:
         self.duration = registry.histogram(
             "gateway_request_duration_seconds", "Gateway request latency in seconds."
         )
+        self.http_response_start = registry.histogram(
+            "http_response_start_seconds",
+            "Server-side time from request entry until ASGI response headers are sent.",
+        )
+        self.http_response_complete = registry.histogram(
+            "http_response_complete_seconds",
+            "Server-side time from request entry until the final ASGI response body is sent.",
+        )
+        self.event_loop_lag = registry.gauge(
+            "event_loop_lag_seconds", "Most recent event loop scheduling delay sample."
+        )
+        self.event_loop_tasks = registry.gauge(
+            "event_loop_tasks", "Number of asyncio tasks observed in the application loop."
+        )
+        self.event_loop_lag.set(0.0)
+        self.event_loop_tasks.set(0.0)
         self.provider_attempts = registry.counter(
             "provider_attempts_total", "Provider attempts by provider and status."
         )
@@ -64,6 +80,13 @@ class GatewayMetrics:
     def record_request(self, endpoint: str, status: str, duration_s: float) -> None:
         self.requests.inc(labels=[("endpoint", endpoint), ("status", status)])
         self.duration.observe(duration_s, labels=[("endpoint", endpoint)])
+
+    def record_http_response(
+        self, endpoint: str, status: int, start_s: float, complete_s: float
+    ) -> None:
+        labels = [("endpoint", endpoint), ("status", str(status))]
+        self.http_response_start.observe(start_s, labels=labels)
+        self.http_response_complete.observe(complete_s, labels=labels)
 
     def record_attempt(self, provider: str, status: str, latency_ms: int) -> None:
         self.provider_attempts.inc(labels=[("provider", provider), ("status", status)])

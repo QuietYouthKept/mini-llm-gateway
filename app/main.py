@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -22,9 +23,25 @@ def create_app(container: AppContainer | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         app.state.container = container if container is not None else bootstrap()
         app.state.retired_containers = []
+        metrics = app.state.container.gateway_metrics
+
+        async def observe_event_loop() -> None:
+            loop = asyncio.get_running_loop()
+            interval = 0.1
+            expected = loop.time() + interval
+            while True:
+                await asyncio.sleep(max(0.0, expected - loop.time()))
+                now = loop.time()
+                metrics.event_loop_lag.set(max(0.0, now - expected))
+                metrics.event_loop_tasks.set(float(len(asyncio.all_tasks())))
+                expected = now + interval
+
+        loop_monitor = asyncio.create_task(observe_event_loop(), name="gateway-loop-metrics")
         try:
             yield
         finally:
+            loop_monitor.cancel()
+            await asyncio.gather(loop_monitor, return_exceptions=True)
             closed: set[int] = set()
             await app.state.container.close(closed)
             for retired in app.state.retired_containers:

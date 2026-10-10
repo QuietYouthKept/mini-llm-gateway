@@ -107,6 +107,8 @@ class AppContainer:
                     await result
         if self.blocking_io is not None:
             await self.blocking_io.aclose()
+        if self.readiness is not None:
+            await self.readiness.aclose()
 
 
 def build_container(
@@ -114,7 +116,12 @@ def build_container(
     db_path: str,
     previous: AppContainer | None = None,
 ) -> AppContainer:
-    blocking_io = BoundedBlockingIO()
+    blocking_io = BoundedBlockingIO(
+        max_workers=8,
+        max_in_flight=16,
+        lane_workers={"database": 4, "redis": 2, "default": 2},
+        lane_in_flight={"database": 8, "redis": 4, "default": 4},
+    )
     is_postgres = db_path.startswith(("postgresql://", "postgres://"))
     if is_postgres:
         from app.infrastructure.persistence.postgresql.repositories import (

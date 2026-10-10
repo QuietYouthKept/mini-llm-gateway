@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -74,3 +76,37 @@ async def test_database_readiness_fails_fast_then_uses_recovery_probe(
         assert ready["database"].state == "healthy"
     finally:
         await io.aclose()
+        await container.readiness.aclose()
+
+
+@pytest.mark.asyncio
+async def test_readiness_deadline_is_bounded_and_coalesces_hung_database_probe(
+    container, monkeypatch
+) -> None:  # noqa: ANN001
+    container.db_path = "postgresql://not-used-by-patched-check"
+    readiness = ReadinessService(timeout_seconds=0.05, recovery_successes=1)
+    container.readiness = readiness
+    gate = threading.Event()
+    started = threading.Event()
+    probe_count = 0
+
+    def blocked_check(_db_path: str) -> tuple[bool, str]:
+        nonlocal probe_count
+        probe_count += 1
+        started.set()
+        gate.wait(1)
+        return False, "postgresql"
+
+    monkeypatch.setattr(ReadinessService, "_database_check", staticmethod(blocked_check))
+    try:
+        begin = time.monotonic()
+        results = await asyncio.gather(*(readiness.assess(container) for _ in range(20)))
+        elapsed = time.monotonic() - begin
+        assert elapsed < 0.2
+        assert all(result["database"].state == "checking" for result in results)
+        assert await asyncio.to_thread(started.wait, 1)
+        assert probe_count == 1
+        assert readiness._probe_io.snapshot()["lanes"]["database"]["in_flight"] == 1
+    finally:
+        gate.set()
+        await readiness.aclose()
