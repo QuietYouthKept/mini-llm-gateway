@@ -3,8 +3,7 @@
 FROM python@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65 AS builder
 
 WORKDIR /build
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+ENV UV_LINK_MODE=copy
 
 COPY pyproject.toml uv.lock README.md ./
 RUN pip install --no-cache-dir "uv==0.11.23" \
