@@ -28,6 +28,10 @@ from app.infrastructure.persistence.postgresql.repositories import (
 class CommitAckLossProxy:
     """Forward PostgreSQL protocol until CommandComplete(COMMIT), then drop ReadyForQuery."""
 
+    _ACCEPT_TIMEOUT_SECONDS = 10
+    _SOCKET_TIMEOUT_SECONDS = 15
+    _THREAD_JOIN_TIMEOUT_SECONDS = 3
+
     def __init__(self, database_url: str) -> None:
         parsed = urlsplit(database_url)
         if parsed.scheme not in {"postgres", "postgresql"} or not parsed.hostname:
@@ -38,12 +42,21 @@ class CommitAckLossProxy:
         self._listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._listener.bind(("127.0.0.1", 0))
         self._listener.listen(1)
-        self._listener.settimeout(10)
+        self._listener.settimeout(self._ACCEPT_TIMEOUT_SECONDS)
         self.port = int(self._listener.getsockname()[1])
         self.commit_ack_dropped = threading.Event()
         self.error: str | None = None
+        self._relay_thread: threading.Thread | None = None
         self._thread = threading.Thread(target=self._serve, daemon=True)
         self._thread.start()
+
+    @property
+    def relay_thread_stopped(self) -> bool:
+        return self._relay_thread is None or not self._relay_thread.is_alive()
+
+    @property
+    def proxy_thread_stopped(self) -> bool:
+        return not self._thread.is_alive()
 
     @property
     def database_url(self) -> str:
@@ -65,22 +78,30 @@ class CommitAckLossProxy:
         try:
             client, _ = self._listener.accept()
             server = socket.create_connection(self._upstream, timeout=3)
-            client.settimeout(None)
-            server.settimeout(None)
-            client_to_server = threading.Thread(
+            client.settimeout(self._SOCKET_TIMEOUT_SECONDS)
+            server.settimeout(self._SOCKET_TIMEOUT_SECONDS)
+            self._relay_thread = threading.Thread(
                 target=self._relay, args=(client, server), daemon=True
             )
-            client_to_server.start()
+            self._relay_thread.start()
             self._relay_backend(server, client)
-            client_to_server.join(timeout=2)
         except (OSError, TimeoutError) as exc:
             if not self.commit_ack_dropped.is_set():
                 self.error = f"{type(exc).__name__}: {exc}"
         finally:
             for stream in (client, server, self._listener):
                 if stream is not None:
+                    # Closing a socket from another thread does not reliably
+                    # wake a blocked recv() on Linux. Shutdown first to unblock
+                    # both relay directions, then close the descriptors.
+                    with suppress(OSError):
+                        stream.shutdown(socket.SHUT_RDWR)
                     with suppress(OSError):
                         stream.close()
+            if self._relay_thread is not None:
+                self._relay_thread.join(timeout=self._THREAD_JOIN_TIMEOUT_SECONDS)
+                if self._relay_thread.is_alive() and self.error is None:
+                    self.error = "client relay thread did not exit after socket shutdown"
 
     @staticmethod
     def _relay(source: socket.socket, destination: socket.socket) -> None:
@@ -128,8 +149,12 @@ class CommitAckLossProxy:
 
     def close(self) -> None:
         with suppress(OSError):
+            self._listener.shutdown(socket.SHUT_RDWR)
+        with suppress(OSError):
             self._listener.close()
-        self._thread.join(timeout=3)
+        self._thread.join(timeout=self._THREAD_JOIN_TIMEOUT_SECONDS)
+        if self._thread.is_alive() and self.error is None:
+            self.error = "proxy thread did not exit before deadline"
 
 
 def run(database_url: str) -> dict[str, object]:
@@ -219,6 +244,8 @@ def run(database_url: str) -> dict[str, object]:
         "ready_for_query_ack_dropped": proxy.commit_ack_dropped.is_set(),
         "client_observed_commit_error": observed_error,
         "proxy_error": proxy.error,
+        "relay_thread_stopped": proxy.relay_thread_stopped,
+        "proxy_thread_stopped": proxy.proxy_thread_stopped,
         "receipt_recovered_directly": receipt is not None,
         "receipt_state": receipt.state if receipt else None,
         "idempotent_replay": replay.already_applied,
@@ -241,6 +268,8 @@ def run(database_url: str) -> dict[str, object]:
         and result["usage_tokens"] == 12
         and result["audit_count"] == 1
         and result["attempt_count"] == 1
+        and result["relay_thread_stopped"] is True
+        and result["proxy_thread_stopped"] is True
     )
     return result
 

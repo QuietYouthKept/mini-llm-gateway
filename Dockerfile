@@ -22,6 +22,7 @@ RUN groupadd --gid 10001 gateway \
 COPY --from=builder --chown=gateway:gateway /build/.venv /app/.venv
 COPY --chown=gateway:gateway app ./app
 COPY --chown=gateway:gateway config ./config
+COPY --chown=gateway:gateway migrations/postgresql ./migrations/postgresql
 
 USER 10001:10001
 EXPOSE 8000

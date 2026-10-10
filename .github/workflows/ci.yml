@@ -13,6 +13,9 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A stuck test must never hold a hosted runner indefinitely. The pytest
+    # step below has a shorter deadline so evidence upload and diagnostics run.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16
@@ -50,7 +53,7 @@ jobs:
       - name: Install locked dependencies
         run: |
           pip install "uv==0.11.23"
-          uv sync --frozen --extra dev --extra production
+          uv sync --frozen --extra dev --extra production --extra datasets
           uv pip install --python .venv/bin/python "pip-audit==2.9.0"
 
       - name: Record sanitized environment and dependency versions
@@ -99,13 +102,14 @@ jobs:
           cat evidence-out/secret-scan.txt
           exit "$code"
 
-      - name: Full pytest and application branch coverage
+      - name: Full pytest and application coverage gate
         if: always()
         run: |
           set +e
+          set -o pipefail
           export COVERAGE_FILE=evidence-out/coverage/.coverage-pytest
-          .venv/bin/pytest -q --junitxml=evidence-out/pytest-junit.xml --cov=app --cov-branch --cov-precision=2 --cov-report=xml:evidence-out/coverage/coverage.xml --cov-report=html:evidence-out/coverage/html > evidence-out/pytest.log 2>&1
-          pytest_code=$?
+          timeout --verbose --kill-after=30s 20m stdbuf -oL -eL .venv/bin/pytest -vv -o faulthandler_timeout=300 --junitxml=evidence-out/pytest-junit.xml --cov=app --cov-branch --cov-precision=2 --cov-report=xml:evidence-out/coverage/coverage.xml --cov-report=html:evidence-out/coverage/html 2>&1 | tee evidence-out/pytest.log
+          pytest_code=${PIPESTATUS[0]}
           echo "$pytest_code" > evidence-out/status/pytest.exitcode
           .venv/bin/coverage report --data-file="$COVERAGE_FILE" --fail-under=80 --precision=2 > evidence-out/coverage-gate.log 2>&1
           coverage_code=$?
