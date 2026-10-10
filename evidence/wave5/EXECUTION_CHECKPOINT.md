@@ -4,7 +4,8 @@
 - Branch: `codex/wave5-release-hardening`
 - Base/initial HEAD: `3f57ce5d8cabbea148cc74c5023c2e5277ebd005`
 - Source commits pushed: `896d4ff` (reliability), `13cf436` (container/staging), `5e74fdb` (evidence), `294d631` (avoid source wheel build in image).
-- Remote branch HEAD: `294d631acc022c0a121227f078115d1416850288`; remote CI Run `38010145778` succeeded and its artifacts were downloaded and verified.
+- Latest code commit: `294d631acc022c0a121227f078115d1416850288`; evidence/report commit: `eab496da00438e39060619247003f12927fa0d4c`.
+- Remote branch HEAD at last verification: `eab496da00438e39060619247003f12927fa0d4c`; report commit CI Run `38010301052` succeeded.
 - Remaining local untracked files are preserved diagnostics/coverage outputs; they were not staged wholesale.
 - Release decision: `RELEASE_CANDIDATE_NOT_ACCEPTED`.
 
@@ -24,6 +25,7 @@
 - Normal push succeeded using the existing QuietYouthKept-specific SSH identity (explicit identity selection); the default SSH identity was the bot account.
 - CI evidence Artifact `11652678485`; Validation Artifact `11652294607`; 155/155 files and hashes verified.
 - Latest CI evidence Artifact `11652133695`; Validation Artifact `11652323443`; 155/155 files and hashes verified; pytest 205 passed and 84.02% branch coverage.
+- Latest verified report-commit artifacts: Evidence `11653255281`; Validation `11652654356`; 155/155 files and hashes verified; manifest SHA-256 `a94a1ff74b719fa4d4dc3df3f2d9228d6263d252db2af56f8a0c91043aa84d28`.
 - Clean Git-archive builds attempted for commits `5e74fdb` and `294d631`; both failed at PyPI TLS handshake EOF. No clean image from the latest SHA exists.
 
 ## Latest quality gate
