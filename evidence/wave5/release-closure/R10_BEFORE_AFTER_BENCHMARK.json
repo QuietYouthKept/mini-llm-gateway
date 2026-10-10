@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-10-10",
+  "source_fix_commit": "c9ddbe65f94f460a55ccae122261335a89e9eef2",
+  "comparison": {
+    "validity": "matched-resource engineering diagnostic; after leg is not a clean built image",
+    "provider": "deterministic mock_fast stub; no paid model calls",
+    "config_sha256": "ef096980139cdafc86836cccffb5a66a9059e2949a99b94157af8278359a5bf5",
+    "seed": 20261010,
+    "formal_seconds": 30,
+    "warmup_seconds": 10,
+    "repetitions_per_concurrency": 3,
+    "resource_limits": {
+      "gateway": {"cpus": 2, "memory": "1GiB"},
+      "postgres": {"cpus": 2, "memory": "1GiB"},
+      "redis": {"cpus": 1, "memory": "512MiB"}
+    },
+    "baseline": {
+      "service_source": "5a474c208d3095e678469f307a7c7d549233e6b9",
+      "image_id": "sha256:44486db8bb69095129d72cb1303937df117d968ffae703b8e3055a021fd5dacf",
+      "raw_directory": "r10-iter1-baseline/"
+    },
+    "after": {
+      "service_source": "c9ddbe65f94f460a55ccae122261335a89e9eef2",
+      "image_id": "sha256:44486db8bb69095129d72cb1303937df117d968ffae703b8e3055a021fd5dacf",
+      "source_mount": "read-only app/ bind mount over the prior 5a474c2 dependency image",
+      "raw_directory": "r10-iter1-source/"
+    }
+  },
+  "results": {
+    "baseline": [
+      {"concurrency": 1, "requests": 840, "successes": 840, "success_percent": 100.0, "mean_rps": 9.27, "mean_p50_ms": 104.0, "mean_p95_ms": 151.33, "max_p99_ms": 203.0, "errors": {}},
+      {"concurrency": 8, "requests": 2368, "successes": 2368, "success_percent": 100.0, "mean_rps": 25.78, "mean_p50_ms": 266.0, "mean_p95_ms": 458.33, "max_p99_ms": 657.0, "errors": {}},
+      {"concurrency": 32, "requests": 3456, "successes": 2777, "success_percent": 80.35, "mean_rps": 35.53, "mean_p50_ms": 875.0, "mean_p95_ms": 1156.33, "max_p99_ms": 1391.0, "errors": {"database_unavailable": 500, "stream_finalization_unknown": 179}},
+      {"concurrency": 64, "requests": 6144, "successes": 1746, "success_percent": 28.42, "mean_rps": 65.27, "mean_p50_ms": 766.0, "mean_p95_ms": 1526.33, "max_p99_ms": 1875.0, "errors": {"database_unavailable": 3960, "stream_finalization_unknown": 438}}
+    ],
+    "after": [
+      {"concurrency": 1, "requests": 852, "successes": 852, "success_percent": 100.0, "mean_rps": 9.39, "mean_p50_ms": 99.31, "mean_p95_ms": 140.15, "max_p99_ms": 209.95, "errors": {}},
+      {"concurrency": 8, "requests": 3200, "successes": 3200, "success_percent": 100.0, "mean_rps": 35.25, "mean_p50_ms": 201.73, "mean_p95_ms": 285.54, "max_p99_ms": 331.11, "errors": {}},
+      {"concurrency": 32, "requests": 3840, "successes": 2727, "success_percent": 71.02, "mean_rps": 40.78, "mean_p50_ms": 724.09, "mean_p95_ms": 1121.10, "max_p99_ms": 1598.55, "errors": {"database_admission_overloaded": 1113}},
+      {"concurrency": 64, "requests": 4096, "successes": 3280, "success_percent": 80.08, "mean_rps": 40.51, "mean_p50_ms": 1128.99, "mean_p95_ms": 3471.15, "max_p99_ms": 5565.37, "errors": {"database_admission_overloaded": 816}}
+    ]
+  },
+  "durable_state_before_reconciliation": {
+    "baseline": {
+      "reservations": {"settled": 10508, "reserved_expired_without_finalization": 832},
+      "finalizations": {"settle": 10508, "release": 0},
+      "request_logs": 10509,
+      "provider_attempts": 10508,
+      "duplicate_request_receipts": 0,
+      "assessment": "no duplicate receipt observed, but 832 expired reserved rows are orphaned and require separate recovery; no reconciliation was run"
+    },
+    "after": {
+      "reservations": {"settled": 13507, "reserved": 0, "released": 0},
+      "finalizations": {"settle": 13507, "release": 0},
+      "request_logs": 16455,
+      "provider_attempts": 13507,
+      "duplicate_request_receipts": 0,
+      "expired_reserved_without_finalization": 0,
+      "assessment": "all observed reservations settled with one matching receipt; no reconciliation was run"
+    }
+  },
+  "after_leg_diagnostics": {
+    "finalization_lane_admission_rejects": 0,
+    "ordinary_database_lane_admission_rejects_at_post_load_scrape": 3733,
+    "post_load_event_loop_lag_seconds": 0,
+    "post_load_only_not_sampled_during_formal_load": true,
+    "container_stats_samples": 51,
+    "observed_peak_cpu_percent": {"gateway": 188.1, "postgres": 209.52, "redis": 5.19},
+    "observed_peak_memory_mib": {"gateway": 93.33, "postgres": 82.54, "redis": 12.8},
+    "baseline_cpu_memory_samples": "not collected; no matched resource comparison is claimed",
+    "interpretation": "database_unavailable and stream_finalization_unknown disappeared from the measured after leg, while explicit bounded admission rejection remained material at concurrency 32/64; high tail latency and missing during-load loop-lag samples keep R10 failed"
+  },
+  "gate": "FAILED",
+  "limitations": [
+    "Current-source clean image build failed at BuildKit/PyPI TLS EOF; after leg uses source c9ddbe6 mounted read-only on the prior 5a474c2 dependency image.",
+    "Baseline and after are matched in config, seed, load duration, and Compose limits, but the baseline did not capture periodic container stats.",
+    "Benchmark is HTTP Chat with a deterministic stub; it does not measure real provider throughput or SSE TTFT.",
+    "Metrics were scraped after load; post-load event-loop lag of zero is not a claim of zero lag during load."
+  ]
+}

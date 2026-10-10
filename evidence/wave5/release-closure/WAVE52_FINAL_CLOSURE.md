@@ -2,6 +2,8 @@
 
 Date: 2026-10-10. This is a fixed-scope closeout, not production authorization.
 
+Sections 2–9 preserve the original Wave 5.2 report snapshot. The later R10 iteration-2 refresh in Section 10 supersedes their source SHA, test counts, CI run, and matched-resource measurements; historical image/build/security evidence stays tied to its original source.
+
 ## 1. Conclusion
 
 `ENGINEERING_SCOPE_COMPLETED = FALSE` — several specified release checks remain NOT VERIFIED or PARTIAL, and the valid 32/64-concurrency run exposed settlement/database failures. Their exact boundary and next action are documented; no further blind retries were performed.
@@ -79,3 +81,37 @@ Artifacts are downloaded under `remote-artifacts-wave52-run-38022155005/`; raw l
 R01 PASS; R02 PASS; R03 PASS; R04 FAILED; R05 PASS; R06 NOT EXECUTED; R07 PASS; R08 PARTIAL; R09 PARTIAL; R10 FAILED; R11 PASS. Machine-readable status is `RELEASE_GATES_WAVE52.json`.
 
 To reopen the release decision: obtain human disposition or safe fixed packages for the 44 High findings; diagnose and fix the high-concurrency database/admission/finalization failure; run true COMMIT-ACK-loss injection; query an OTel backend and Prometheus; complete live egress/DNS-rebinding tests; and measure SSE TTFT/resource-constrained performance after those fixes. No production Secret was used.
+
+## 10. R10 iteration-2 final refresh (supersedes current source/test/performance values above)
+
+### Current source and remote CI
+
+- Branch `codex/wave51-release-closure`; source `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`; tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`.
+- Code commits this R10 closure: `4febd225a1e5fc1144cda0f4596a5af16242c2a9` (bounded lane and error classification), then `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4` (buffered cancellation/generic recovery routing and test). Both were normally pushed; latest remote CI tested c9dd.
+- [GitHub Actions Run 38028193676](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38028193676): Success; 208 passed, 0 skipped, 83.47% pytest-only branch coverage. Ruff, compileall, independent 80% gate, PostgreSQL/Redis/two-replica, HTTP/SSE, Provider Contract, Functional 7/7, Security 8/8, Secret Scan, Dependency Audit and hygiene steps passed.
+- Evidence Artifact `11660363882`; Validation Artifact `11660778588`; validator and independent local rehash agree: 155 expected/actual, zero missing/extra/hash/size mismatches; manifest SHA-256 `68e139050cc59fae1ce7fffcf1ab51bfe46b86365199874cd711fbbe54ad98ce`. Local artifact files are under `remote-artifacts-r10-run-38028193676/`.
+- Local Python 3.11.9 with isolated PostgreSQL: Ruff 0, compileall 0, 208 passed/0 skipped, pytest-only coverage 83.25%, independent gate 0. Python 3.14's suite passed but its branch gate was 79% (exit 2); that failure is preserved and not waived.
+
+### Matched-resource R10 measurements
+
+The complete raw matrix and aggregate are `r10-iter1-baseline/`, `r10-iter1-source/`, and `R10_BEFORE_AFTER_BENCHMARK.json`. It used a deterministic stub, same config/seed and 2 CPU/1 GiB Gateway+PostgreSQL and 1 CPU/512 MiB Redis limits, three 30-second formal runs per concurrency plus 10-second warmups. The after leg is source c9dd mounted read-only over the earlier `5a474c2` image, not a build of c9dd.
+
+| Concurrency | Baseline success/errors | After-source success/errors | Mean after RPS | Mean after P95 / max P99 |
+|---:|---|---|---:|---|
+| 1 | 100.00%, no errors | 100.00%, no errors | 9.39 | 140 ms / 210 ms |
+| 8 | 100.00%, no errors | 100.00%, no errors | 35.25 | 286 ms / 331 ms |
+| 32 | 80.35%; 500 DB unavailable + 179 finalization unknown | 71.02%; 1,113 bounded admission rejections; zero DB unavailable/unknown | 40.78 | 1,121 ms / 1,599 ms |
+| 64 | 28.42%; 3,960 DB unavailable + 438 finalization unknown | 80.08%; 816 bounded admission rejections; zero DB unavailable/unknown | 40.51 | 3,471 ms / 5,565 ms |
+
+Before reconciliation, baseline DB contained 832 expired `reserved` rows without finalization; none were reconciled. Source-leg DB contained 13,507 settled reservations/receipts/attempts, 16,455 request logs, no duplicate receipt, and no reserved/expired rows; no reconciliation was performed. Finalization-lane admission rejects were zero; ordinary DB-lane rejects were 3,733 at post-load scrape. During-source stats (51 samples) observed peak CPU Gateway/PG/Redis 188.10%/209.52%/5.19%, memory 93.33/82.54/12.80 MiB. No baseline periodic resource sampling or during-load loop-lag measurement exists; post-load event-loop-lag 0 is not a during-load result.
+
+This is measurable reliability improvement, but not a clean pass: c32 still rejects about 29% of requests and c64 has a long tail. No current-source image exists. R10 remains FAILED.
+
+### Final state and remaining blockers
+
+- Current-source clean Docker build was not achieved. Two recorded no-cache attempts at `4febd22` failed during BuildKit/PyPI TLS EOF; an additional Compose-triggered attempt for the new source hit the same EOF and was stopped without producing an image. TLS verification stayed enabled; no more blind retries.
+- The 44 High findings remain on the earlier candidate and need safe upstream fixes or human security disposition. Do not call the image clean.
+- R05 20/50 PostgreSQL outage evidence and R07 two-version rollback pass apply to historical source/image pairs, not c9dd.
+- R06 wire-level COMMIT ACK loss remains NOT VERIFIED; R08 external OTel/Prometheus backend correlation and R09 live egress/DNS protections remain PARTIAL.
+- `ENGINEERING_SCOPE_COMPLETED = FALSE`; fixed technical tasks still have explicit incomplete validation. `RELEASE_READY = FALSE`.
+- No tag, merge to main, registry image push, or production deployment occurred. Next work requires BuildKit HTTPS/TLS repair, a built c9dd candidate, bounded-rejection capacity analysis, real Commit-ACK fault injection, backend/egress tests, and human vulnerability review.

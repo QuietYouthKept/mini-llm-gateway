@@ -11,6 +11,14 @@ locally with mock providers—no paid provider key is required.
 
 ---
 
+## Current engineering status — 2026-10-10
+
+The current R10 source commit is `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`. Its GitHub CI passed 208 tests at 83.47% pytest-only branch coverage, including PostgreSQL, Redis, two-replica, HTTP/SSE, provider contract, Functional/Security Eval, Secret Scan, and Dependency Audit ([Run 38028193676](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38028193676)). The CI Evidence and validation artifacts were independently checked at 155 files with no hash/size mismatches.
+
+This is not a production-ready release. The matched-resource read-only source-overlay matrix improved c64 success from 28.42% to 80.08% and removed `database_unavailable` / `stream_finalization_unknown`, but it still has explicit admission rejections (71.02% success at c32) and high tail latency; this is not built-image evidence. The new-source Docker build has not completed because BuildKit's PyPI TLS connection failed. Do not use old image evidence as evidence for the current source. Current release blockers include the R10 capacity result, 44 High findings on the previous image, unexecuted wire-level COMMIT ACK loss, and partial external observability/egress validation. No release tag or production deployment is authorized.
+
+For the source-based handoff, start with [Final System Architecture](docs/FINAL_SYSTEM_ARCHITECTURE.md), [Core Call Chains](docs/FINAL_CORE_CALL_CHAINS.md), [Operations Runbook](docs/FINAL_OPERATIONS_RUNBOOK.md), [Interview and Resume Evidence](docs/FINAL_INTERVIEW_AND_RESUME_EVIDENCE.md), and [Post-Freeze Backlog](docs/POST_FREEZE_PRODUCTION_BACKLOG.md). The evidence index and final gate matrix are in `evidence/wave5/release-closure/`.
+
 ## Why this project
 
 When teams call LLMs directly from business code, every service repeats the same

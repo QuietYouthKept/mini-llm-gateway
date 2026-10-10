@@ -1,0 +1,9 @@
+GitHub Actions Run: 38028193676
+Commit: c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4
+Evidence Artifact ID: 11660363882
+Validation Artifact ID: 11660778588
+GitHub validation: passed=true, expected=155, actual=155, missing=0, extra=0, hash/size mismatches=0
+Independent local extraction rehash: expected=155, actual=155, file mismatches=0
+manifest.sha256 matches manifest.json: true
+Manifest SHA-256: 68e139050cc59fae1ce7fffcf1ab51bfe46b86365199874cd711fbbe54ad98ce
+Artifact download root: remote-artifacts-r10-run-38028193676/
