@@ -7,7 +7,7 @@ Evidence root: `E:\project-test-assets\01-gateway\results\production-hardening-w
 
 ## Scanner and SBOM
 
-Trivy v0.74.0 was obtained from the official `aquasecurity/trivy` GitHub release. The Windows x64 ZIP SHA-256 (`94c40e0696e4b907a74b7b2e1438d5d72ebaca83115817407f568a002d520842`) matched the official release checksum list before extraction. Vulnerability database download completed during the scan. The Docker Hub pull of the scanner container returned EOF; the checksum-verified native binary then accessed the Docker Desktop named pipe and scanned the locally loaded exact OCI candidate. TLS verification remained enabled and proxy port 7890 was used for outbound downloads.
+The final scan used Trivy v0.75.0 from the official [`aquasecurity/trivy` release](https://github.com/aquasecurity/trivy/releases/tag/v0.75.0). The Windows x64 ZIP SHA-256 (`4e43bd71a30f51aee39525f60f2b47043af77eb8df8fe082aae4372b69c6660f`) matched the official release checksum list before extraction. Vulnerability database download completed at `2026-10-11T05:36:05Z`. The Docker Hub pull of the scanner container returned EOF; the checksum-verified native binary then accessed the Docker Desktop named pipe and scanned the locally loaded exact OCI candidate. TLS verification remained enabled and proxy port 7890 was used for outbound downloads. A preceding v0.74.0 scan is retained as an earlier experiment and returned the same severity counts; v0.75.0 is the reported current result.
 
 Results for this scan:
 
@@ -35,8 +35,9 @@ This was an isolated local SQLite smoke. It does not satisfy PostgreSQL/Redis st
 
 ## Evidence files
 
-- Scanner: `candidate-trivy-vuln.json`, `candidate-trivy-vuln.log`, `candidate-trivy-vuln.exitcode`
-- SBOM: `candidate-sbom.cdx.json`, `candidate-sbom.log`, `candidate-sbom.exitcode`
-- Summary: `candidate-scan-summary.json`
+- Final scanner: `candidate-trivy-0.75-vuln.json`, `candidate-trivy-0.75-vuln.log`, `candidate-trivy-0.75-vuln.exitcode`
+- Final SBOM: `candidate-sbom-0.75.cdx.json`, `candidate-sbom-0.75.log`, `candidate-sbom-0.75.exitcode`
+- Final summary: `candidate-scan-summary-0.75.json`
+- Earlier v0.74.0 scanner output and SBOM remain preserved as separate files.
 - Runtime: `candidate-runtime-check.json`, `candidate-runtime.log`, `readonly-permission-probe-verified.json`
-- Tool provenance: `trivy_0.74.0_checksums.txt`, `trivy_0.74.0_windows-64bit.zip`, `trivy-release-v0.74.0-api.json`
+- Tool provenance: `trivy_0.75.0_checksums.txt`, `trivy_0.75.0_windows-64bit.zip`, `trivy-latest-release-api.json` (plus the retained v0.74.0 provenance)
