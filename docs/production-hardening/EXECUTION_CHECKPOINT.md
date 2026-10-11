@@ -1,14 +1,15 @@
 # Execution checkpoint
 
-## Wave 3 continuation checkpoint (2026-10-11 10:44 UTC)
+## Wave 3 continuation checkpoint (2026-10-11 10:59 UTC)
 
 - Repository: `E:\mini-llm-gateway-prod-hardening`; branch `codex/p0-p1-production-hardening`; source HEAD during the investigation `0acc85eb5f9d856bc6aa9050e8f69edbf6ee6500` (Tree `abc7b6eabfbd2b692e4de649185ed32e16de25e9`). This continuation made no application-source or deployment-code changes.
 - Isolated test image remained `sha256:eb587db5331fdd4f13bd579344a38a8c2839c5c98f42b9f47a4ff31f561b70d2`, built from `3a06d06198757f1eeb306b7d8d2e0d46e842df25`; it is not a new build of current HEAD.
 - Formal capacity matrix: 36/36 cells completed (c=1/8/32/64 × target cache 0/50/90% × 3 repeats), process exit 0. Accounting issues 0; formal traffic 73,101 requests = 53,729 HTTP 200 + 19,372 `503 database_admission_overloaded`. c=32/c=64 do not pass a full-success capacity gate. Formal run ID `20261011T101129Z`; final DB snapshot has 20,198 settled synthetic reservations/settlement receipts and no reservation without a receipt. See `WAVE3_EXECUTION_REPORT.md` and external evidence root `E:\project-test-assets\01-gateway\results\production-hardening-wave3-20261011T055445Z\04-capacity-matrix`.
 - PostgreSQL same-client advisory lock was reproduced as SQLSTATE `55P03` / `503 database_lock_timeout`; this still does not establish the historical 1,984/1,984 `database_unavailable` incident's root cause.
+- Isolated PostgreSQL SIGKILL/restart preserved formal and deterministic synthetic probe state; small custom-format dump/restore matched row count/digest. Redis outage returned `/ready=503` and `rate_limit_backend_unavailable` with error audit but no provider attempt/reservation/receipt; after restart `/ready=200` and chat settlement recovered. These are not HA or production-scale DR claims; evidence is under `07-failure-recovery`.
 - Fresh Provider/config/SSRF unit subset: 33 passed, exit 0. Runtime DNS rebinding, socket-peer pinning and restrictive network egress were not proven.
 - Security remains FAILED: the retained Trivy 0.75 scan is for the `3a06d06` image and reports 44 High / 8 CVEs. The current HEAD image was not rebuilt or rescanned; human disposition/remediation remains required.
-- Release remains NOT READY. PostgreSQL SIGKILL/backup-restore, Redis outage/recovery, upgrade/rollback, observability/alert delivery, full SSE matrix and soak remain unexecuted. No tag or production deployment was created.
+- Release remains NOT READY. Full production-scale database backup/restore, upgrade/rollback, observability/alert delivery and full SSE matrix remain unexecuted. Soak was withheld because capacity acceptance failed. No tag or production deployment was created.
 
 Detailed current-wave evidence and risk classifications: [`WAVE3_EXECUTION_REPORT.md`](WAVE3_EXECUTION_REPORT.md).
 

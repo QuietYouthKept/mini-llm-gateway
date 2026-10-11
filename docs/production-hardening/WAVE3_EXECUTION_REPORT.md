@@ -1,6 +1,6 @@
 # Wave 3 execution report
 
-Date: 2026-10-11 10:44 UTC
+Date: 2026-10-11 10:59 UTC
 Branch: `codex/p0-p1-production-hardening`
 Repository HEAD during investigation: `0acc85eb5f9d856bc6aa9050e8f69edbf6ee6500`
 Source/image used by isolated diagnostics: commit `3a06d06198757f1eeb306b7d8d2e0d46e842df25`, image `sha256:eb587db5331fdd4f13bd579344a38a8c2839c5c98f42b9f47a4ff31f561b70d2`
@@ -13,6 +13,8 @@ External evidence root: `E:\project-test-assets\01-gateway\results\production-ha
 | Scoped PostgreSQL `55P03` reproduction | **PASS (narrow scope)** | Same-client advisory-lock waits produced `503 database_lock_timeout`; PostgreSQL logs showed SQLSTATE `55P03`. This does not prove the cause of the historical 1,984/1,984 outage. |
 | Formal capacity matrix | **FAILED as a capacity acceptance gate; PASS for accounting integrity** | All 36 cells ran with 0 accounting invariant issues. 73,101 formal requests produced 53,729 HTTP 200 and 19,372 controlled `503 database_admission_overloaded` responses. c=32 and c=64 do not meet an all-success capacity objective under these limits. |
 | URL/config/Provider unit tests | **PASS** | Current source tests: 33 passed, exit 0. Runtime DNS-rebinding, socket-peer and egress-policy tests remain unexecuted. |
+| PostgreSQL SIGKILL / isolated restore | **PASS (synthetic scope)** | PostgreSQL exited 137 after SIGKILL; persisted matrix counts and a deterministic 32-row probe digest were unchanged after restart. A custom-format dump of that probe schema restored into an isolated, network-none PostgreSQL container with the same row count and digest. Full production-scale backup/restore is not proven. |
+| Redis outage / recovery | **PASS (isolated behavior)** | During Redis outage `/live` stayed 200, `/ready` returned 503, and chat returned `rate_limit_backend_unavailable` with one durable error audit and no provider attempt/reservation/receipt. After Redis restart readiness returned 200 and a new synthetic request settled normally. |
 | Current image vulnerability gate | **FAILED / HUMAN SECURITY REVIEW REQUIRED** | The retained Trivy 0.75.0 scan for the image sourced from `3a06d06` reported 44 High findings across 8 CVEs. This Wave 3 run did not rebuild or rescan an image. |
 | Production-like release acceptance | **BLOCKED** | Disaster recovery, Redis failure/recovery, full egress controls, upgrade/rollback, alert delivery and full SSE failure matrix remain incomplete. |
 
@@ -28,6 +30,9 @@ The isolated diagnostic used the candidate image, PostgreSQL 16, Redis 7 and det
 - Injected same-client budget advisory lock: requests waited on `Lock:advisory`; PostgreSQL server logs recorded SQLSTATE `55P03`; the application returned `503 database_lock_timeout` and persisted request audits. Cross-client controls showed that lock contention is not equivalent to an outage of every client, although a control attempted while the synthetic key was rate/budget limited was not usable as a clean comparison.
 - Near connection ceiling: 90 of 100 PostgreSQL connection slots were held by a disposable synthetic holder; a subsequent c=8/16 batch returned 16/16 with complete audit/reservation/receipt/attempt cardinalities.
 - The historical overnight 1,984/1,984 `database_unavailable` failure remains **unexplained**: that run did not retain contemporaneous SQLSTATE, wait-event, blocker-PID and persistence snapshots. The reproduced `55P03` defect is a scoped finding, not a retroactive root-cause claim.
+- A disposable PostgreSQL crash drill used `docker kill --signal KILL` (exit 0; container exit 137, not OOM), then an explicit container start. The 73,101 formal audit count, 20,198 settled synthetic reservations and a 32-row deterministic probe digest were identical before and after recovery. `/ready` was 503 while PostgreSQL was unavailable and returned 200 after dependency probes recovered. A chat request sent before readiness returned 503 `database_unavailable` without reservation/receipt/attempt; after readiness returned 200, a unique request completed with one provider attempt and one settled receipt. This is an isolated single-node crash/restart, not failover or HA.
+- A custom-format `pg_dump` of only the synthetic `wave3_crash_probe` schema (32 deterministic rows) was restored into a separate PostgreSQL 16 container on `--network none`; restored row count and digest matched. This proves the dump/restore path for this small synthetic schema, not a full production-scale database backup or RPO/RTO.
+- Redis was SIGKILLed in the disposable Compose project. `/live` remained 200 and `/ready` returned 503. A chat attempt returned `503 rate_limit_backend_unavailable`; the database recorded one error audit and zero provider attempts, reservations or receipts. After Redis restart, `/ready` returned 200 and a new request settled with one provider attempt/receipt. This does not test Redis HA or persistence guarantees.
 
 The diagnostic evidence is under `03-historical-503-diagnostic/`, including `c1-single.json`, `c8-single.json`, clean burst/arrival probes, advisory-lock snapshots, server log extracts and connection-pressure artifacts. Files explicitly marked contaminated or invalid remain labeled as such and were not used as clean controls.
 
@@ -73,7 +78,7 @@ Read-only PostgreSQL aggregation for the official run ID confirmed:
 - 0 reservations without a finalization receipt; all synthetic-client reservations ended `settled`; no `reserved` rows remained.
 - 0 accounting invariant issues across the 36 cell JSON files.
 
-Raw evidence: `04-capacity-matrix/formal_capacity_matrix.py`, `formal-matrix-run3.command.txt`, `formal-matrix-run3.log`, `formal-matrix-run3.exitcode`, `matrix-progress.json`, `matrix-summary.json`, 36 `c*.json` cell files, `formal-matrix-aggregate.json`, `formal-matrix-final-accounting.txt`, `matrix-final-db-state.txt`, `matrix-final-health.json`, and the two separately retained aborted-attempt logs. `/live` and `/ready` returned 200 after the matrix. These figures are a local, single-candidate, mock-provider test—not a general production capacity claim.
+Raw evidence: `04-capacity-matrix/formal_capacity_matrix.py`, `formal-matrix-run3.command.txt`, `formal-matrix-run3.log`, `formal-matrix-run3.exitcode`, `matrix-progress.json`, `matrix-summary.json`, 36 `c*.json` cell files, `formal-matrix-aggregate.json`, `formal-matrix-final-accounting.txt`, `matrix-final-db-state.txt`, `matrix-final-health.json`, and the two separately retained aborted-attempt logs. `/live` and `/ready` returned 200 after the matrix. Recovery artifacts are under `07-failure-recovery/` (PG dump/restore, SIGKILL snapshots, Redis outage responses and database side-effect queries). These figures are a local, single-candidate, mock-provider test—not a general production capacity claim.
 
 ## 3. Image CVE triage
 
@@ -106,7 +111,7 @@ Fresh command: `python -m pytest -q tests/unit/test_config_and_registry.py tests
 - **FAILED:** capacity objective at concurrency 32 and 64 due to controlled overload responses; define production SLOs and investigate queue/admission sizing/DB round trips before claiming capacity.
 - **BLOCKED:** historical 1,984/1,984 503 root cause; required failure-time evidence did not exist.
 - **BLOCKED:** full SSRF/DNS rebinding and restrictive runtime egress controls.
-- **NOT RUN:** PostgreSQL SIGKILL/recovery and backup-restore; Redis outage/recovery; replica/HA behavior (no HA claim); old-new-old schema/image compatibility; repeatable migration plus upgrade/rollback; end-to-end Prometheus/OTel/Jaeger/alert delivery; complete SSE fault matrix and soak.
+- **PASS (narrow):** PostgreSQL SIGKILL/restart with unchanged synthetic state, small synthetic custom-format dump/restore, and Redis SIGKILL/recovery behavior. **NOT RUN:** full production-scale database backup/restore; replica/HA behavior (no HA claim); old-new-old schema/image compatibility; repeatable migration plus upgrade/rollback; end-to-end Prometheus/OTel/Jaeger/alert delivery; complete SSE fault matrix. Soak was intentionally withheld because c=32/c=64 capacity acceptance failed.
 - **NOT RUN:** fresh Trivy scan of a source-identifiable image built from current HEAD `0acc85e`; the scanned image is from `3a06d06`.
 
 Release status remains **NOT READY**. No release tag, production deployment or availability/HA guarantee follows from this report.
