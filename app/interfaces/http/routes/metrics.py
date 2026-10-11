@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.core.container import AppContainer
+from app.infrastructure.persistence.postgresql.connection import prometheus as postgres_metrics
 from app.interfaces.http.dependencies.container import get_container
 
 router = APIRouter(tags=["observability"])
@@ -22,6 +23,8 @@ async def metrics(
     content = container.metrics_registry.render()
     if container.blocking_io is not None:
         content += container.blocking_io.prometheus(container.config.metrics.prefix)
+    if container.db_path.startswith(("postgresql://", "postgres://")):
+        content += postgres_metrics(container.config.metrics.prefix)
     return Response(
         content=content,
         media_type="text/plain; version=0.0.4; charset=utf-8",

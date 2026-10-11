@@ -83,6 +83,7 @@ class BoundedBlockingIO:
                 "operation_execution_seconds_max": {},
                 "operation_execution_seconds_total": {},
                 "operation_execution_count": {},
+                "admission_rejections_by_reason": {},
             }
             for lane in workers_by_lane
         }
@@ -149,14 +150,18 @@ class BoundedBlockingIO:
         if execution_lane not in self._executors:
             raise ValueError(f"unknown blocking I/O lane '{execution_lane}'")
         admission_started = monotonic()
-        probe_permit = self._begin_call(dependency, probe, recovery_probe)
+        try:
+            probe_permit = self._begin_call(dependency, probe, recovery_probe)
+        except DependencyCircuitOpenError:
+            self._record_admission_rejection(execution_lane, "dependency_circuit_open")
+            raise
         try:
             await asyncio.wait_for(
                 self._slots[execution_lane].acquire(), timeout=self._admission_timeout_seconds
             )
         except TimeoutError as exc:
+            self._record_admission_rejection(execution_lane, "lane_saturated")
             with self._stats_lock:
-                self._lane_stats[execution_lane]["admission_rejects_total"] += 1
                 self._lane_stats[execution_lane]["admission_wait_seconds_total"] += (
                     monotonic() - admission_started
                 )
@@ -232,6 +237,13 @@ class BoundedBlockingIO:
             self._dependency_probe_inflight.add(dependency)
             return True
 
+    def _record_admission_rejection(self, lane: str, reason: str) -> None:
+        with self._stats_lock:
+            stats = self._lane_stats[lane]
+            stats["admission_rejects_total"] += 1
+            by_reason = stats["admission_rejections_by_reason"]
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+
     def _invoke(
         self,
         function: Callable[..., T],
@@ -247,6 +259,7 @@ class BoundedBlockingIO:
         if dependency is not None and not probe_permit:
             with self._dependency_lock:
                 if dependency in self._dependency_open_until:
+                    self._record_admission_rejection(lane, "dependency_circuit_open")
                     raise DependencyCircuitOpenError(
                         f"{dependency} dependency circuit is open"
                     )
@@ -402,6 +415,11 @@ class BoundedBlockingIO:
                     lines.append(
                         f'{metric}{{lane="{lane}",operation="{operation}"}} {value:.6g}'
                     )
+        metric = f"{prefix}_blocking_io_admission_rejections_total"
+        lines.append(f"# TYPE {metric} counter")
+        for lane, values in snapshot["lanes"].items():
+            for reason, count in values["admission_rejections_by_reason"].items():
+                lines.append(f'{metric}{{lane="{lane}",reason="{reason}"}} {count}')
         metric = f"{prefix}_dependency_circuit_open"
         lines.append(f"# TYPE {metric} gauge")
         for dependency, value in snapshot["circuits"].items():

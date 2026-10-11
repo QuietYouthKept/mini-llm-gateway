@@ -17,6 +17,43 @@ _DNS_REFRESH_EXECUTOR = ThreadPoolExecutor(
 )
 _DNS_REFRESHING: set[tuple[str, str]] = set()
 _DNS_ADDRESSES: dict[tuple[str, str], str] = {}
+_CONNECTION_STATS_LOCK = Lock()
+_CONNECTION_STATS = {
+    "success": 0,
+    "failure": 0,
+    "seconds_total": 0.0,
+    "seconds_max": 0.0,
+}
+
+
+def prometheus(prefix: str = "llm_gateway") -> str:
+    """Expose bounded, credential-free PostgreSQL connection timings."""
+    with _CONNECTION_STATS_LOCK:
+        snapshot = dict(_CONNECTION_STATS)
+    total = snapshot["success"] + snapshot["failure"]
+    return "\n".join(
+        (
+            f"# TYPE {prefix}_database_connection_establishments_total counter",
+            f'{prefix}_database_connection_establishments_total'
+            f'{{result="success"}} {snapshot["success"]}',
+            f'{prefix}_database_connection_establishments_total'
+            f'{{result="failure"}} {snapshot["failure"]}',
+            f"# TYPE {prefix}_database_connection_establishment_seconds summary",
+            f"{prefix}_database_connection_establishment_seconds_count {total}",
+            f"{prefix}_database_connection_establishment_seconds_sum "
+            f"{snapshot['seconds_total']:.6g}",
+            f"{prefix}_database_connection_establishment_seconds_max {snapshot['seconds_max']:.6g}",
+        )
+    ) + "\n"
+
+
+def _record_connection_result(result: str, duration: float) -> None:
+    with _CONNECTION_STATS_LOCK:
+        _CONNECTION_STATS[result] += 1
+        _CONNECTION_STATS["seconds_total"] += duration
+        _CONNECTION_STATS["seconds_max"] = max(
+            _CONNECTION_STATS["seconds_max"], duration
+        )
 
 
 def _resolve_database_address(host: str, port: str) -> str:
@@ -144,10 +181,15 @@ def connect(
         from psycopg.rows import dict_row
     except ImportError as exc:  # pragma: no cover - environment gate
         raise RuntimeError("PostgreSQL backend requires psycopg[binary]") from exc
+    started = time.monotonic()
     # Bound both network establishment and server-side waits.  A Python
     # executor protects the event loop, but without server deadlines a finite
     # worker lane could remain pinned forever by a lock or stalled query.
-    parameters = _connection_parameters(database_url)
+    try:
+        parameters = _connection_parameters(database_url)
+    except BaseException:
+        _record_connection_result("failure", time.monotonic() - started)
+        raise
     host = parameters.get("host", "")
     if len(host.split(",")) == 1 and host and not parameters.get("hostaddr"):
         # _connection_parameters leaves explicit IPs and Unix sockets alone;
@@ -168,14 +210,20 @@ def connect(
         "-c idle_in_transaction_session_timeout=5000"
     )
     try:
-        return psycopg.connect(**parameters, row_factory=dict_row)
+        connection = psycopg.connect(**parameters, row_factory=dict_row)
     except psycopg.OperationalError:
         if host and len(host.split(",")) == 1:
             try:
                 ipaddress.ip_address(host)
             except ValueError:
                 _schedule_database_address_refresh(host, parameters.get("port", "5432"))
+        _record_connection_result("failure", time.monotonic() - started)
         raise
+    except BaseException:
+        _record_connection_result("failure", time.monotonic() - started)
+        raise
+    _record_connection_result("success", time.monotonic() - started)
+    return connection
 
 
 def migrate(database_url: str, *, app_version: str = "unknown") -> None:

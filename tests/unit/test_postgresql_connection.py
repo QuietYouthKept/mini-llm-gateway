@@ -6,6 +6,19 @@ import time
 from app.infrastructure.persistence.postgresql import connection
 
 
+def test_connection_establishment_metrics_are_low_cardinality_and_credential_free() -> None:
+    connection._record_connection_result("success", 0.0125)
+    connection._record_connection_result("failure", 0.0025)
+
+    rendered = connection.prometheus("test_gateway")
+
+    assert 'test_gateway_database_connection_establishments_total{result="success"}' in rendered
+    assert 'test_gateway_database_connection_establishments_total{result="failure"}' in rendered
+    assert "test_gateway_database_connection_establishment_seconds_count" in rendered
+    assert "test_gateway_database_connection_establishment_seconds_sum" in rendered
+    assert "database_url" not in rendered
+
+
 def test_connection_parameters_use_numeric_address_and_keep_tls_hostname(monkeypatch) -> None:
     monkeypatch.setattr(
         connection,

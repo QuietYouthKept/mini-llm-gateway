@@ -132,6 +132,9 @@ async def test_finalization_lane_runs_while_regular_database_lane_is_saturated()
         ) == "finalized"
         with pytest.raises(BlockingIOOverloadedError):
             await io.run(lambda: None, dependency="database")
+        rejection_metrics = io.prometheus()
+        assert 'reason="lane_saturated"' in rejection_metrics
+        assert 'lane="database",reason="lane_saturated"} 1' in rejection_metrics
         snapshot = io.snapshot()["lanes"]
         assert snapshot["database"]["active_workers"] == 1
         assert snapshot["database_finalization"]["active_workers"] == 0
@@ -198,6 +201,7 @@ async def test_queued_database_call_fast_fails_after_connection_failure() -> Non
             await first
         with pytest.raises(DependencyCircuitOpenError):
             await second
+        assert 'reason="dependency_circuit_open"' in io.prometheus()
         assert later_call == []
 
         with pytest.raises(DependencyCircuitOpenError):

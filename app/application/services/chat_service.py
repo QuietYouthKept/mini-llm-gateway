@@ -312,9 +312,10 @@ class ChatService:
                 DecisionStep(step="cache_miss", reason="no exact match", meta={"key": cache_key})
             )
 
-            budget_before = await self._blocking_io.run(
-                self._budget.snapshot, client, dependency="database"
-            )
+            with self._phase("budget.snapshot.duration"):
+                budget_before = await self._blocking_io.run(
+                    self._budget.snapshot, client, dependency="database"
+                )
             reserved_input = max(
                 estimated_input,
                 self._config.token_estimation.reservation_input_floor,
@@ -740,9 +741,10 @@ class ChatService:
         reservation_id = f"{request_id}:{uuid.uuid4().hex}"
         reserve_submitted = False
         try:
-            budget_before = await self._blocking_io.run(
-                self._budget.snapshot, client, dependency="database"
-            )
+            with self._phase("budget.snapshot.duration"):
+                budget_before = await self._blocking_io.run(
+                    self._budget.snapshot, client, dependency="database"
+                )
             with self._phase("budget.reserve.duration"):
                 reserve_submitted = True
                 await self._blocking_io.run(
@@ -1592,34 +1594,36 @@ class ChatService:
                 meta={"key": cache_key, "cost_saved_usd": cost_saved},
             )
         )
-        await self._blocking_io.run(self._log_service.record_success,
-            request_id=request_id,
-            client_id=client.client_id,
-            model_profile=profile_id,
-            endpoint=endpoint,
-            selected_provider=cached.provider_id,
-            fallback_used=False,
-            status_code=200,
-            input_tokens=estimated_input,
-            output_tokens=estimated_output,
-            estimated_tokens=estimated_total,
-            estimated_cost_usd=0.0,
-            estimated_input_tokens=estimated_input,
-            estimated_output_tokens=estimated_output,
-            usage_source="cache",
-            cost_saved_usd=cost_saved,
-            budget_before=None,
-            budget_after=None,
-            duration_ms=duration_ms,
-            attempts=[],
-            request_body=replay_payload,
-            response_body={"content": content},
-            decision_trace=[s.to_dict() for s in trace],
-            replay_payload=replay_payload,
-            cache_hit=True,
-            cache_key=cache_key,
-            dependency="database",
-        )
+        with self._phase("cache.hit_audit.duration"):
+            await self._blocking_io.run(
+                self._log_service.record_success,
+                request_id=request_id,
+                client_id=client.client_id,
+                model_profile=profile_id,
+                endpoint=endpoint,
+                selected_provider=cached.provider_id,
+                fallback_used=False,
+                status_code=200,
+                input_tokens=estimated_input,
+                output_tokens=estimated_output,
+                estimated_tokens=estimated_total,
+                estimated_cost_usd=0.0,
+                estimated_input_tokens=estimated_input,
+                estimated_output_tokens=estimated_output,
+                usage_source="cache",
+                cost_saved_usd=cost_saved,
+                budget_before=None,
+                budget_after=None,
+                duration_ms=duration_ms,
+                attempts=[],
+                request_body=replay_payload,
+                response_body={"content": content},
+                decision_trace=[s.to_dict() for s in trace],
+                replay_payload=replay_payload,
+                cache_hit=True,
+                cache_key=cache_key,
+                dependency="database",
+            )
         self._metrics.record_request(endpoint, "success", duration_ms / 1000.0)
         self.sync_circuit_metrics()
         return ChatOutcome(
