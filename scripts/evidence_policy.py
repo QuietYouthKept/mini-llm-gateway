@@ -38,6 +38,7 @@ _DIRECTORY_FILES = {
     },
     "http-sse": {"junit.xml", "result.log"},
     "provider": {"junit.xml", "result.log"},
+    "observability": {"promtool-check.log", "promtool-tests.log"},
 }
 _HTML_DIRECTORIES = {("coverage", "html"), ("postgres", "coverage-html"), ("redis", "coverage-html")}
 _REPORT_SUFFIXES = {".css", ".html", ".js", ".json", ".png", ".svg"}
