@@ -175,6 +175,7 @@ def test_uvicorn_tcp_stream_fallback_timeout_and_post_token_failure(tmp_path) ->
             "base_url": f"http://127.0.0.1:{provider_port}/v1",
             "model": "fault-fixture",
             "timeout_ms": 80,
+            "allow_private_network": True,
             "headers": {"x-fault-mode": "timeout"},
         },
     }

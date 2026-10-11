@@ -24,6 +24,7 @@ from app.domain.ports.provider_port import (
     ProviderPort,
 )
 from app.infrastructure.config.config_models import HTTPProviderConfig
+from app.infrastructure.providers.egress import install_provider_egress_guard
 
 
 class OpenAICompatibleProvider(ProviderPort):
@@ -42,7 +43,19 @@ class OpenAICompatibleProvider(ProviderPort):
         self._timeout = httpx.Timeout(timeout_ms / 1000.0)
         self._owns_client = client is None
         # Provider traffic must not silently inherit workstation proxy state.
-        self._client = client or httpx.AsyncClient(timeout=self._timeout, trust_env=False)
+        if client is None:
+            transport = httpx.AsyncHTTPTransport(verify=True, trust_env=False)
+            install_provider_egress_guard(
+                transport, allow_private_network=http.allow_private_network
+            )
+            self._client = httpx.AsyncClient(
+                timeout=self._timeout,
+                transport=transport,
+                follow_redirects=False,
+                trust_env=False,
+            )
+        else:
+            self._client = client
 
     @staticmethod
     def _resolve_api_key(http: HTTPProviderConfig) -> str:

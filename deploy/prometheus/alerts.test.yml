@@ -1,0 +1,26 @@
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'llm_gateway_audit_failures_total{instance="gateway-test"}'
+        values: '0 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: AuditFailure
+        exp_alerts:
+          - exp_labels:
+              instance: gateway-test
+              severity: page
+            exp_annotations:
+              summary: Gateway audit persistence failed
+  - interval: 1m
+    input_series:
+      - series: 'llm_gateway_audit_failures_total{instance="gateway-test"}'
+        values: '0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AuditFailure
+        exp_alerts: []

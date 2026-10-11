@@ -185,11 +185,29 @@ jobs:
         if: always()
         run: |
           set +e
-          .venv/bin/pytest -q --junitxml=evidence-out/provider/junit.xml tests/unit/test_openai_compatible_provider.py tests/unit/test_openai_compatible_provider_contract.py > evidence-out/provider/result.log 2>&1
+          .venv/bin/pytest -q --junitxml=evidence-out/provider/junit.xml tests/unit/test_openai_compatible_provider.py tests/unit/test_openai_compatible_provider_contract.py tests/unit/test_provider_egress.py > evidence-out/provider/result.log 2>&1
           code=$?
           echo "$code" > evidence-out/status/provider-contract.exitcode
           cat evidence-out/provider/result.log
           exit "$code"
+
+      - name: Prometheus alert rule syntax and synthetic firing tests
+        if: always()
+        run: |
+          set +e
+          mkdir -p evidence-out/observability
+          image='prom/prometheus@sha256:508729e0e2d18e11fd742a5a5ca70e557b940a93948c3c95fd0123a6fd538b69'
+          docker run --rm -v "$PWD/deploy/prometheus:/rules:ro" --entrypoint /bin/promtool "$image" check rules /rules/alerts.yml > evidence-out/observability/promtool-check.log 2>&1
+          syntax_code=$?
+          echo "$syntax_code" > evidence-out/status/prometheus-rules.exitcode
+          docker run --rm -v "$PWD/deploy/prometheus:/rules:ro" --entrypoint /bin/promtool "$image" test rules /rules/alerts.test.yml > evidence-out/observability/promtool-tests.log 2>&1
+          test_code=$?
+          echo "$test_code" > evidence-out/status/prometheus-alert-tests.exitcode
+          cat evidence-out/observability/promtool-check.log
+          cat evidence-out/observability/promtool-tests.log
+          if [ "$syntax_code" -ne 0 ] || [ "$test_code" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Functional evaluation
         if: always()

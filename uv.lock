@@ -468,6 +468,7 @@ version = "1.0.0rc1"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpcore" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pydantic" },
@@ -497,7 +498,8 @@ production = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110.0" },
-    { name = "httpx", specifier = ">=0.26.0" },
+    { name = "httpcore", specifier = "==1.0.9" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'production'", specifier = ">=1.24.0" },
     { name = "opentelemetry-sdk", marker = "extra == 'production'", specifier = ">=1.24.0" },
     { name = "psutil", marker = "extra == 'datasets'", specifier = ">=5.9.0" },
