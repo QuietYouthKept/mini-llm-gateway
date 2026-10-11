@@ -89,7 +89,7 @@ class TokenBudgetService:
         client: ClientConfig,
         estimated_tokens: int,
         estimated_cost_usd: float = 0.0,
-    ) -> BudgetSnapshot:
+    ) -> None:
         """Atomically admit and reserve capacity at the database boundary."""
         key = self.period_key(client.token_budget.period)
         allowed = self._repo.try_reserve(
@@ -108,7 +108,10 @@ class TokenBudgetService:
                     f"Token/cost budget cannot reserve request for client '{client.client_id}'"
                 )
             )
-        return self.snapshot(client)
+        # Admission is decided atomically by the repository. A second snapshot
+        # here would add a DB round trip and could already be stale under
+        # concurrent reservations; callers use the pre-reservation snapshot for
+        # budget_before and the durable finalization receipt for budget_after.
 
     def settle(
         self,

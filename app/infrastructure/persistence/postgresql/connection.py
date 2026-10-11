@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import ipaddress
 import os
 import socket
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 from threading import Lock
+from typing import Any
 
 _DNS_LOCK = Lock()
 _DNS_REFRESH_EXECUTOR = ThreadPoolExecutor(
@@ -17,43 +21,62 @@ _DNS_REFRESH_EXECUTOR = ThreadPoolExecutor(
 )
 _DNS_REFRESHING: set[tuple[str, str]] = set()
 _DNS_ADDRESSES: dict[tuple[str, str], str] = {}
-_CONNECTION_STATS_LOCK = Lock()
-_CONNECTION_STATS = {
-    "success": 0,
-    "failure": 0,
-    "seconds_total": 0.0,
-    "seconds_max": 0.0,
-}
+_POOL_LOCK = Lock()
+_POOLS: dict[str, Any] = {}
+_POOL_DEFAULT_MAX_SIZE = 8
+_POOL_DEFAULT_MAX_WAITING = 16
+_POOL_DEFAULT_TIMEOUT_SECONDS = 0.25
 
 
 def prometheus(prefix: str = "llm_gateway") -> str:
-    """Expose bounded, credential-free PostgreSQL connection timings."""
-    with _CONNECTION_STATS_LOCK:
-        snapshot = dict(_CONNECTION_STATS)
-    total = snapshot["success"] + snapshot["failure"]
+    """Expose aggregate, credential-free PostgreSQL pool and connect timings."""
+    with _POOL_LOCK:
+        pools = tuple(_POOLS.values())
+    snapshot: dict[str, float] = {}
+    pool_max = pool_size = pool_available = requests_waiting = 0
+    for pool in pools:
+        try:
+            stats = pool.get_stats()
+        except Exception:
+            continue
+        for name, value in stats.items():
+            snapshot[name] = snapshot.get(name, 0.0) + float(value)
+        pool_max += int(pool.max_size)
+        pool_size += int(stats.get("pool_size", 0))
+        pool_available += int(stats.get("pool_available", 0))
+        requests_waiting += int(stats.get("requests_waiting", 0))
+    connections = int(snapshot.get("connections_num", 0))
+    connection_errors = int(snapshot.get("connections_errors", 0))
+    checkouts = int(snapshot.get("requests_num", 0))
+    checkout_errors = int(snapshot.get("requests_errors", 0))
     return "\n".join(
         (
             f"# TYPE {prefix}_database_connection_establishments_total counter",
+            f'{prefix}_database_connection_establishments_total{{result="success"}} '
+            f"{connections - connection_errors}",
             f'{prefix}_database_connection_establishments_total'
-            f'{{result="success"}} {snapshot["success"]}',
-            f'{prefix}_database_connection_establishments_total'
-            f'{{result="failure"}} {snapshot["failure"]}',
+            f'{{result="failure"}} {connection_errors}',
             f"# TYPE {prefix}_database_connection_establishment_seconds summary",
-            f"{prefix}_database_connection_establishment_seconds_count {total}",
+            f"{prefix}_database_connection_establishment_seconds_count {connections}",
             f"{prefix}_database_connection_establishment_seconds_sum "
-            f"{snapshot['seconds_total']:.6g}",
-            f"{prefix}_database_connection_establishment_seconds_max {snapshot['seconds_max']:.6g}",
+            f"{snapshot.get('connections_ms', 0.0) / 1000:.6g}",
+            f"# TYPE {prefix}_database_pool_checkouts_total counter",
+            f'{prefix}_database_pool_checkouts_total{{result="success"}} '
+            f"{checkouts - checkout_errors}",
+            f'{prefix}_database_pool_checkouts_total{{result="failure"}} {checkout_errors}',
+            f"# TYPE {prefix}_database_pool_checkout_wait_seconds_total counter",
+            f"{prefix}_database_pool_checkout_wait_seconds_total "
+            f"{snapshot.get('requests_wait_ms', 0.0) / 1000:.6g}",
+            f"# TYPE {prefix}_database_pool_size gauge",
+            f"{prefix}_database_pool_size {pool_size}",
+            f"# TYPE {prefix}_database_pool_max_size gauge",
+            f"{prefix}_database_pool_max_size {pool_max}",
+            f"# TYPE {prefix}_database_pool_available gauge",
+            f"{prefix}_database_pool_available {pool_available}",
+            f"# TYPE {prefix}_database_pool_requests_waiting gauge",
+            f"{prefix}_database_pool_requests_waiting {requests_waiting}",
         )
     ) + "\n"
-
-
-def _record_connection_result(result: str, duration: float) -> None:
-    with _CONNECTION_STATS_LOCK:
-        _CONNECTION_STATS[result] += 1
-        _CONNECTION_STATS["seconds_total"] += duration
-        _CONNECTION_STATS["seconds_max"] = max(
-            _CONNECTION_STATS["seconds_max"], duration
-        )
 
 
 def _resolve_database_address(host: str, port: str) -> str:
@@ -123,6 +146,113 @@ def _connection_parameters(database_url: str) -> dict[str, str]:
     return parameters
 
 
+def _connection_kwargs(
+    database_url: str,
+    *,
+    connect_timeout: int = 1,
+    statement_timeout_ms: int = 3000,
+    lock_timeout_ms: int = 1000,
+) -> dict[str, Any]:
+    from psycopg.rows import dict_row
+
+    parameters = _connection_parameters(database_url)
+    host = parameters.get("host", "")
+    if len(host.split(",")) == 1 and host and not parameters.get("hostaddr"):
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            _schedule_database_address_refresh(host, parameters.get("port", "5432"))
+    parameters["connect_timeout"] = str(max(1, connect_timeout))
+    parameters["options"] = (
+        f"-c statement_timeout={max(1, statement_timeout_ms)} "
+        f"-c lock_timeout={max(1, lock_timeout_ms)} "
+        "-c idle_in_transaction_session_timeout=5000"
+    )
+    parameters["row_factory"] = dict_row
+    return parameters
+
+
+def _pool_for(
+    database_url: str,
+    *,
+    connect_timeout: int = 1,
+    statement_timeout_ms: int = 3000,
+    lock_timeout_ms: int = 1000,
+) -> Any:
+    with _POOL_LOCK:
+        pool = _POOLS.get(database_url)
+        if pool is not None:
+            return pool
+        try:
+            from psycopg_pool import ConnectionPool
+        except ImportError as exc:  # pragma: no cover - dependency gate
+            raise RuntimeError("PostgreSQL pooling requires psycopg[pool]") from exc
+        from psycopg.conninfo import conninfo_to_dict
+
+        parameters = conninfo_to_dict(database_url)
+        host = parameters.get("host", "")
+        port = parameters.get("port", "5432")
+
+        def reconnect_failed(_pool: Any) -> None:
+            if host and len(host.split(",")) == 1:
+                try:
+                    ipaddress.ip_address(host)
+                except ValueError:
+                    _schedule_database_address_refresh(host, port)
+
+        pool = ConnectionPool(
+            conninfo="",
+            kwargs=lambda: _connection_kwargs(
+                database_url,
+                connect_timeout=connect_timeout,
+                statement_timeout_ms=statement_timeout_ms,
+                lock_timeout_ms=lock_timeout_ms,
+            ),
+            min_size=1,
+            max_size=_pool_max_size(),
+            max_waiting=_pool_max_waiting(),
+            timeout=_POOL_DEFAULT_TIMEOUT_SECONDS,
+            reconnect_timeout=2.0,
+            reconnect_failed=reconnect_failed,
+            num_workers=1,
+            open=False,
+            name="mini-llm-gateway-postgresql",
+        )
+        # Start the connector worker without waiting for a successful initial
+        # connection. Waiting here would hold the process-wide pool lock during
+        # an outage, serializing every first DB call for up to connect_timeout.
+        # Checkouts below remain bounded by the short pool timeout.
+        pool.open(wait=False)
+        _POOLS[database_url] = pool
+        return pool
+
+
+def _pool_max_size() -> int:
+    configured = int(os.getenv("GW_PG_POOL_MAX_SIZE", _POOL_DEFAULT_MAX_SIZE))
+    if configured < 1 or configured > 64:
+        raise ValueError("GW_PG_POOL_MAX_SIZE must be between 1 and 64")
+    return configured
+
+
+def _pool_max_waiting() -> int:
+    configured = int(os.getenv("GW_PG_POOL_MAX_WAITING", _POOL_DEFAULT_MAX_WAITING))
+    if configured < 0 or configured > 256:
+        raise ValueError("GW_PG_POOL_MAX_WAITING must be between 0 and 256")
+    return configured
+
+
+def close_pools() -> None:
+    """Close process-wide PostgreSQL pools after all DB workers are drained."""
+    with _POOL_LOCK:
+        pools = tuple(_POOLS.values())
+        _POOLS.clear()
+    for pool in pools:
+        pool.close(timeout=5.0)
+
+
+atexit.register(close_pools)
+
+
 def _migration_paths() -> list[Path]:
     configured_path = os.getenv("GW_MIGRATIONS_PATH", "").strip()
     if configured_path:
@@ -169,61 +299,23 @@ def _ensure_ledger(conn) -> None:  # noqa: ANN001
     )
 
 
+@contextmanager
 def connect(
     database_url: str,
     *,
     connect_timeout: int = 1,
     statement_timeout_ms: int = 3000,
     lock_timeout_ms: int = 1000,
-):  # noqa: ANN201
-    try:
-        import psycopg
-        from psycopg.rows import dict_row
-    except ImportError as exc:  # pragma: no cover - environment gate
-        raise RuntimeError("PostgreSQL backend requires psycopg[binary]") from exc
-    started = time.monotonic()
-    # Bound both network establishment and server-side waits.  A Python
-    # executor protects the event loop, but without server deadlines a finite
-    # worker lane could remain pinned forever by a lock or stalled query.
-    try:
-        parameters = _connection_parameters(database_url)
-    except BaseException:
-        _record_connection_result("failure", time.monotonic() - started)
-        raise
-    host = parameters.get("host", "")
-    if len(host.split(",")) == 1 and host and not parameters.get("hostaddr"):
-        # _connection_parameters leaves explicit IPs and Unix sockets alone;
-        # resolve only DNS names and cache the successful result above.
-        try:
-            ipaddress.ip_address(host)
-        except ValueError:
-            port = parameters.get("port", "5432")
-            key = (host.lower(), port)
-            with _DNS_LOCK:
-                cached_address = _DNS_ADDRESSES.get(key)
-            if cached_address is None:
-                _schedule_database_address_refresh(host, port)
-    parameters["connect_timeout"] = str(max(1, connect_timeout))
-    parameters["options"] = (
-        f"-c statement_timeout={max(1, statement_timeout_ms)} "
-        f"-c lock_timeout={max(1, lock_timeout_ms)} "
-        "-c idle_in_transaction_session_timeout=5000"
+) -> Iterator[Any]:
+    """Lease a bounded reusable connection with commit/rollback context semantics."""
+    pool = _pool_for(
+        database_url,
+        connect_timeout=connect_timeout,
+        statement_timeout_ms=statement_timeout_ms,
+        lock_timeout_ms=lock_timeout_ms,
     )
-    try:
-        connection = psycopg.connect(**parameters, row_factory=dict_row)
-    except psycopg.OperationalError:
-        if host and len(host.split(",")) == 1:
-            try:
-                ipaddress.ip_address(host)
-            except ValueError:
-                _schedule_database_address_refresh(host, parameters.get("port", "5432"))
-        _record_connection_result("failure", time.monotonic() - started)
-        raise
-    except BaseException:
-        _record_connection_result("failure", time.monotonic() - started)
-        raise
-    _record_connection_result("success", time.monotonic() - started)
-    return connection
+    with pool.connection(timeout=_POOL_DEFAULT_TIMEOUT_SECONDS) as connection:
+        yield connection
 
 
 def migrate(database_url: str, *, app_version: str = "unknown") -> None:

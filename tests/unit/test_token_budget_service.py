@@ -62,6 +62,19 @@ def test_ensure_capacity_raises_when_over(service: TokenBudgetService) -> None:
         service.ensure_capacity(client, 20)
 
 
+def test_reserve_uses_atomic_repository_result_without_followup_snapshot() -> None:
+    class ReservationOnlyRepository:
+        def try_reserve(self, *args) -> bool:  # noqa: ANN002, ANN003
+            return True
+
+        def get_usage(self, *_args) -> None:  # noqa: ANN002
+            raise AssertionError("reserve must not perform a second database read")
+
+    service = TokenBudgetService(ReservationOnlyRepository())  # type: ignore[arg-type]
+
+    assert service.reserve("reservation-1", make_client(100), 10) is None
+
+
 def test_settle_releases_unused_reservation(service: TokenBudgetService) -> None:
     client = make_client(100)
     service.reserve("under", client, 100, 0.0)

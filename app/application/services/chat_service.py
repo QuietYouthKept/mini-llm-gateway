@@ -324,7 +324,7 @@ class ChatService:
             reserved_cost = self._estimator.cost_usd(reserved_input, max(0, request.max_tokens))
             reservation_id = f"{request_id}:{uuid.uuid4().hex}"
             with self._phase("budget.reserve.duration"):
-                reserved = await self._blocking_io.run(
+                await self._blocking_io.run(
                     self._budget.reserve,
                     reservation_id,
                     client,
@@ -338,7 +338,6 @@ class ChatService:
                     meta={
                         "tokens": reserved_tokens,
                         "input_floor_applied": reserved_input != estimated_input,
-                        "remaining_after_reservation": reserved.remaining_tokens,
                     },
                 )
             )
