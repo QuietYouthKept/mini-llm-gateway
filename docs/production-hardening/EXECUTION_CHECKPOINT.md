@@ -1,12 +1,24 @@
 # Execution checkpoint
 
-Updated: 2026-10-11 05:40 UTC (2026-10-11 Asia/Shanghai)
+## Wave 3 continuation checkpoint (2026-10-11 10:44 UTC)
 
-## Current phase
+- Repository: `E:\mini-llm-gateway-prod-hardening`; branch `codex/p0-p1-production-hardening`; source HEAD during the investigation `0acc85eb5f9d856bc6aa9050e8f69edbf6ee6500` (Tree `abc7b6eabfbd2b692e4de649185ed32e16de25e9`). This continuation made no application-source or deployment-code changes.
+- Isolated test image remained `sha256:eb587db5331fdd4f13bd579344a38a8c2839c5c98f42b9f47a4ff31f561b70d2`, built from `3a06d06198757f1eeb306b7d8d2e0d46e842df25`; it is not a new build of current HEAD.
+- Formal capacity matrix: 36/36 cells completed (c=1/8/32/64 × target cache 0/50/90% × 3 repeats), process exit 0. Accounting issues 0; formal traffic 73,101 requests = 53,729 HTTP 200 + 19,372 `503 database_admission_overloaded`. c=32/c=64 do not pass a full-success capacity gate. Formal run ID `20261011T101129Z`; final DB snapshot has 20,198 settled synthetic reservations/settlement receipts and no reservation without a receipt. See `WAVE3_EXECUTION_REPORT.md` and external evidence root `E:\project-test-assets\01-gateway\results\production-hardening-wave3-20261011T055445Z\04-capacity-matrix`.
+- PostgreSQL same-client advisory lock was reproduced as SQLSTATE `55P03` / `503 database_lock_timeout`; this still does not establish the historical 1,984/1,984 `database_unavailable` incident's root cause.
+- Fresh Provider/config/SSRF unit subset: 33 passed, exit 0. Runtime DNS rebinding, socket-peer pinning and restrictive network egress were not proven.
+- Security remains FAILED: the retained Trivy 0.75 scan is for the `3a06d06` image and reports 44 High / 8 CVEs. The current HEAD image was not rebuilt or rescanned; human disposition/remediation remains required.
+- Release remains NOT READY. PostgreSQL SIGKILL/backup-restore, Redis outage/recovery, upgrade/rollback, observability/alert delivery, full SSE matrix and soak remain unexecuted. No tag or production deployment was created.
 
-The PostgreSQL lock-timeout fix and evidence documentation are committed and passed remote CI. The candidate built from `3a06d06198757f1eeb306b7d8d2e0d46e842df25` now has independently verified reproducible OCI output, a fresh vulnerability scan/SBOM, and a restricted-runtime smoke test. Production acceptance remains blocked by 44 High findings and the unexecuted release gates listed below.
+Detailed current-wave evidence and risk classifications: [`WAVE3_EXECUTION_REPORT.md`](WAVE3_EXECUTION_REPORT.md).
 
-## Protected identity
+Historical checkpoint timestamp: 2026-10-11 05:40 UTC (2026-10-11 Asia/Shanghai)
+
+## Prior phase snapshot (2026-10-11 05:40 UTC; historical facts retained)
+
+At that checkpoint, the PostgreSQL lock-timeout fix and evidence documentation were committed and passed remote CI. The candidate built from `3a06d06198757f1eeb306b7d8d2e0d46e842df25` had independently verified reproducible OCI output, a vulnerability scan/SBOM, and a restricted-runtime smoke test. These are historical findings; current continuation results and outstanding gates are summarized above.
+
+## Previous checkpoint identity (historical; not the current HEAD)
 
 - Branch: `codex/p0-p1-production-hardening`
 - Base/HEAD: `4d067cc2bdd137218ad055e15bfaf85b1078644f`
@@ -18,7 +30,7 @@ The PostgreSQL lock-timeout fix and evidence documentation are committed and pas
 - Exact tracked binary diff, untracked copies and hashes: `00-checkpoint\` under the new evidence root.
 - Checkpoint capture: `00-checkpoint\git-state.json`; tracked diff length 10,334 bytes; four untracked files copied and SHA-256 hashed.
 
-## Completed
+## Completed in prior phases (historical evidence)
 
 - Rechecked remote branch SHA and GitHub Run `38070902799` against the specified baseline.
 - Verified the existing authorized SSH identity resolves to `QuietYouthKept`.
@@ -48,21 +60,22 @@ The PostgreSQL lock-timeout fix and evidence documentation are committed and pas
 - Final current-worktree local gates: Ruff 0, compileall 0, pytest 212 passed/1 skipped (0), coverage fail-under-80 (0), Functional Eval 7/7 (0), Security Eval 8/8 (0), Secret Scan 0, `git diff --check` 0. Coverage: 83.83% statements; 68.06% branch-only (618/908); 80.97% coverage.py combined.
 - PostgreSQL repository integration, including cold concurrent admission, atomic audit rollback, replay, lease reconciliation and TCP Commit ACK loss: exit 0. Redis adapter and two-instance PostgreSQL/Redis probes: both exit 0.
 
-## Not yet executed
+## Outstanding gates after Wave 3 continuation
 
 - GitHub Actions/Artifact verification, commit/push, and final review.
-- Formal 36-cell capacity experiment; SSRF/egress tests; HA/backup/restore drill; alert delivery and observability end-to-end; full SSE fault matrix.
+- Capacity acceptance at c=32/c=64: the formal matrix completed but reported controlled overloads; see current-wave results above. Runtime DNS-rebinding and restrictive egress tests remain incomplete (33 URL/provider unit tests alone are insufficient).
+- PostgreSQL SIGKILL/recovery and backup/restore; Redis outage/recovery; HA/replica behavior; alert delivery and observability end-to-end; full SSE fault matrix and soak.
 - PostgreSQL/Redis production-like staging, migration repeatability, upgrade/rollback and dependency-failure recovery against this exact candidate image.
 - Triage and remediation of the 44 High image findings, followed by a fresh scan of a source-identified rebuilt image.
 - The code and evidence-document commits are already pushed and their GitHub CI/Evidence Artifacts were verified; the most recent published SHA before the current new evidence-document update is `3a06d06198757f1eeb306b7d8d2e0d46e842df25`.
 
-## Evidence paths and interpretation
+## Prior-phase evidence paths and interpretation (retained)
 
 - External evidence root: `E:\project-test-assets\01-gateway\results\production-hardening-20261011T021712Z`
 - Lock evidence: `pg-diagnostic\induced-lock-55p03.json`, `induced-lock-cross-client-restarted.json`, `induced-lock-55p03-fixed-mixed-clients.json`, and `post-lock-same-process-recovery.json`, with adjacent `.log` and `.exitcode` files.
 - PostgreSQL server-side SQLSTATE/wait evidence: `pg-diagnostic\induced-lock-55p03-postgres-log-extract.txt` and `pg-diagnostic\postgres-live-logs-after-minimal-matrix.txt`.
 - The injected `55P03` mechanism is reproduced and fixed in the candidate; this is not proof of the historical overnight 1,984/1,984 failures, because that run lacks contemporaneous SQLSTATE, blocker, and wait snapshots.
-- Prior short normal-concurrency tests passed but are not a formal capacity matrix or throughput claim.
+- The formal 36-cell matrix is a local mock-provider measurement, not a production throughput/SLO claim. It shows 100% success through c=8 in tested cells, then material `database_admission_overloaded` at c=32/c=64.
 - Pytest-only branch coverage is 80.93%; PostgreSQL repository itself is 17%, connection module 44%, Redis prompt-cache/rate-limiter adapters 0%, and Redis singleflight 22% in the pytest-only coverage report. Separate PostgreSQL/Redis integration probes passed but were not merged into pytest coverage. Treat this as a residual coverage gap, not as fully covered repository code.
 - Historical overnight database-failure cause remains unknown despite the reproduced `55P03`/global-circuit defect. Database outage verification used graceful stop/start, not SIGKILL or failover.
 - The candidate OCI evidence is source-bound to commit `3a06d06198757f1eeb306b7d8d2e0d46e842df25`; its manifest/config/layers are independently identified in the external evidence report. It is not a production release artifact: the 44 High findings and remaining gates still block production acceptance.
