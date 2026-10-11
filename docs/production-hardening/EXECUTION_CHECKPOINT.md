@@ -1,10 +1,10 @@
 # Execution checkpoint
 
-Updated: 2026-10-11 04:58 UTC (2026-10-11 Asia/Shanghai)
+Updated: 2026-10-11 05:35 UTC (2026-10-11 Asia/Shanghai)
 
 ## Current phase
 
-Phase 1 targeted PostgreSQL lock-timeout correctness review is locally validated; Phase 2 commit/remote CI is next.
+The PostgreSQL lock-timeout fix and evidence documentation are committed and passed remote CI. The candidate built from `3a06d06198757f1eeb306b7d8d2e0d46e842df25` now has independently verified reproducible OCI output, a fresh vulnerability scan/SBOM, and a restricted-runtime smoke test. Production acceptance remains blocked by 44 High findings and the unexecuted release gates listed below.
 
 ## Protected identity
 
@@ -37,8 +37,10 @@ Phase 1 targeted PostgreSQL lock-timeout correctness review is locally validated
 - PostgreSQL integration probe passed (including cold concurrent reserve, audit rollback, commit-ack-loss receipt recovery, idempotent replay, lease expiry/reconciliation). Redis adapter probe and two-replica Redis/PostgreSQL shared-budget probe both passed.
 - Secret scan and `git diff --check` passed. Provider contract and TCP SSE E2E are included in the 211-test pytest run.
 - Container runtime checks passed: UID/GID `10001:10001`, read-only rootfs, dropped all Linux capabilities, `no-new-privileges`, `/app` write denied, `/tmp` write succeeded, healthcheck healthy, SIGTERM exited with code 0 and Gateway restarted healthy.
-- One identical no-cache rebuild did not reproduce the candidate image: final image `sha256:42935410d1bee19ec864c038b092091f1c9b9f94673deae5f30491aafcad4072`; repeat `sha256:e208f0eff6da841b929ce620027a10cc374be621f5948facc0272fd1076b43d6`. First five rootfs layers match; the next five differ. The reproducibility gate is FAILED; no further image/base changes were attempted.
-- Docker Scout CVE scan is BLOCKED because the installed CLI requires Docker Hub login. Trivy, Grype, and Syft are not installed. No vulnerability-free or SBOM claim is made.
+- The earlier default image rebuild comparison produced image IDs `sha256:42935410d1bee19ec864c038b092091f1c9b9f94673deae5f30491aafcad4072` and `sha256:e208f0eff6da841b929ce620027a10cc374be621f5948facc0272fd1076b43d6`. Inspection of the actual layer tar members established timestamp-only differences: generated account-file mtimes in layer 6, `.venv` entry mtimes in layer 7, and directory mtimes in layers 8–10. This is the measured cause for those image differences.
+- Two independent, no-cache Buildx OCI exports of the exact `3a06d06` source, using `SOURCE_DATE_EPOCH=1791695795` and exporter option `rewrite-timestamp=true`, were byte-identical (61,011,456 bytes; SHA-256 `1946fbc7ed4ef7574efddd4eaa23e837137720d84027a6a15842a5ff31f255f7`). Independent OCI parsing also found identical index, manifest, config, all 10 layer descriptors, and rootfs diff IDs. The scoped OCI reproducibility check therefore PASSES for this exact build command and platform; this does not establish every Docker/Compose or other-platform build path as reproducible.
+- A current-source image scan used official Trivy v0.74.0 Windows release binary after matching its SHA-256 against the official release checksum. Fresh vulnerability DB download succeeded. Scan results: 172 findings (44 High, 63 Medium, 62 Low, 3 Unknown); CycloneDX 1.7 SBOM contains 128 components. Security release gate remains FAILED pending review/remediation of High findings; no “zero vulnerabilities” claim is made.
+- The loaded image `sha256:eb587db5331fdd4f13bd579344a38a8c2839c5c98f42b9f47a4ff31f561b70d2` passed a current-source runtime smoke: UID/GID `10001:10001`, read-only rootfs, all capabilities dropped, `no-new-privileges`, `/app` write denied while `/tmp` and `/app/data` tmpfs writes succeeded, `/live` HTTP 200, Docker health `healthy`, and graceful `docker stop --timeout 10` exit code 0. This was a local SQLite smoke, not PostgreSQL/Redis staging, migration, upgrade, rollback, or disaster-recovery acceptance.
 - Re-audited the E worktree and preserved its current tracked/untracked state outside Git before running new tests. Confirmed local proxy TCP port 7890 is reachable; did not alter proxy/TLS settings.
 - Reproduced finalization row-lock contention over real TCP/SSE on current source: partial output followed by `database_lock_timeout`; the first snapshot showed one `reserved` reservation with no receipt or request audit. Fixed this by avoiding a second settlement attempt, persisting one `accounting_failed` audit with `usage_source=unsettled`, and allowing lease reconciliation to release the reservation.
 - Updated PostgreSQL lease reconciliation to update an existing request audit row rather than inserting a second row. After preserving the before-reconciliation snapshot, the exact two expired synthetic stream-probe reservations were reconciled; each ended `released` with one release receipt and one audit. Current-source request preserved its successful Provider attempt and original lock-timeout message.
@@ -49,9 +51,10 @@ Phase 1 targeted PostgreSQL lock-timeout correctness review is locally validated
 ## Not yet executed
 
 - GitHub Actions/Artifact verification, commit/push, and final review.
-- Docker vulnerability scan and SBOM generation remain blocked pending an authorized scanner/authenticated environment.
-- Formal 36-cell capacity experiment; image scan/reproducibility evaluation; SSRF/egress tests; HA/backup/restore drill; alert delivery and observability end-to-end; SSE fault matrix.
-- New-branch commit, push, CI run, and Artifact validation.
+- Formal 36-cell capacity experiment; SSRF/egress tests; HA/backup/restore drill; alert delivery and observability end-to-end; full SSE fault matrix.
+- PostgreSQL/Redis production-like staging, migration repeatability, upgrade/rollback and dependency-failure recovery against this exact candidate image.
+- Triage and remediation of the 44 High image findings, followed by a fresh scan of a source-identified rebuilt image.
+- The code and evidence-document commits are already pushed and their GitHub CI/Evidence Artifacts were verified; the most recent published SHA before the current new evidence-document update is `3a06d06198757f1eeb306b7d8d2e0d46e842df25`.
 
 ## Evidence paths and interpretation
 
@@ -62,7 +65,15 @@ Phase 1 targeted PostgreSQL lock-timeout correctness review is locally validated
 - Prior short normal-concurrency tests passed but are not a formal capacity matrix or throughput claim.
 - Pytest-only branch coverage is 80.93%; PostgreSQL repository itself is 17%, connection module 44%, Redis prompt-cache/rate-limiter adapters 0%, and Redis singleflight 22% in the pytest-only coverage report. Separate PostgreSQL/Redis integration probes passed but were not merged into pytest coverage. Treat this as a residual coverage gap, not as fully covered repository code.
 - Historical overnight database-failure cause remains unknown despite the reproduced `55P03`/global-circuit defect. Database outage verification used graceful stop/start, not SIGKILL or failover.
-- Current worktree and candidate image are not committed. The image must not be treated as a commit-bound release artifact; commit/CI/Evidence binding is still pending and was not attempted with mandatory release gates failed/blocked.
+- The candidate OCI evidence is source-bound to commit `3a06d06198757f1eeb306b7d8d2e0d46e842df25`; its manifest/config/layers are independently identified in the external evidence report. It is not a production release artifact: the 44 High findings and remaining gates still block production acceptance.
+
+## Current-source image evidence addendum (2026-10-11)
+
+- OCI identity comparison: `E:\project-test-assets\01-gateway\results\production-hardening-wave2-20261011T045752Z\03-docker-reproducibility\candidate-oci-identity-comparison.json`.
+- Scanner JSON, CycloneDX SBOM, logs and exit codes: the same directory, files `candidate-trivy-vuln.json`, `candidate-sbom.cdx.json`, `candidate-scan-summary.json`, `candidate-trivy-vuln.log`, and corresponding `.exitcode` files.
+- Runtime and read-only permission evidence: `candidate-runtime-check.json`, `candidate-runtime.log`, and `readonly-permission-probe-verified.json` in that directory.
+- Trivy v0.74.0 checksum, release API metadata, and download record are retained alongside the scan. Docker Hub image pull for Trivy v0.74.0 returned EOF; this did not block the checksum-verified Windows binary scan via proxy port 7890.
+- A later Trivy version notice appeared after the scan completed; the recorded scan was performed with v0.74.0 and the database downloaded during the run. Results are explicitly version/time-bound and are not asserted to be the latest possible scanner release indefinitely.
 
 ## Stop conditions
 
