@@ -10,6 +10,7 @@
 - Fresh Provider/config/SSRF unit subset: 33 passed, exit 0. Runtime DNS rebinding, socket-peer pinning and restrictive network egress were not proven.
 - Security remains FAILED: the retained Trivy 0.75 scan is for the `3a06d06` image and reports 44 High / 8 CVEs. The current HEAD image was not rebuilt or rescanned; human disposition/remediation remains required.
 - Release remains NOT READY. Full production-scale database backup/restore, upgrade/rollback, observability/alert delivery and full SSE matrix remain unexecuted. Soak was withheld because capacity acceptance failed. No tag or production deployment was created.
+- Wave 3 delivery was subsequently pushed as `577e41a126c2b6dfcbc79aae93ca7747d723cd74` over SSH 443 using the explicitly selected `QuietYouthKept-gateway` identity. GitHub CI Run [38133940602](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38133940602) passed for that SHA. Evidence Artifact `11700440901` and Validation Artifact `11699844584` were downloaded; the validation result reported 155 expected/155 actual files, zero missing/extra files and zero hash/size mismatches. The downloaded manifest SHA-256 matched its checksum file.
 
 Detailed current-wave evidence and risk classifications: [`WAVE3_EXECUTION_REPORT.md`](WAVE3_EXECUTION_REPORT.md).
 
@@ -63,7 +64,7 @@ At that checkpoint, the PostgreSQL lock-timeout fix and evidence documentation w
 
 ## Outstanding gates after Wave 3 continuation
 
-- GitHub Actions/Artifact verification, commit/push, and final review.
+- **Completed after the checkpoint timestamp:** documentation commits/push, GitHub CI, Evidence Artifact download, manifest/validation inspection and final local status check. See the delivery record in the Wave 3 continuation section above.
 - Capacity acceptance at c=32/c=64: the formal matrix completed but reported controlled overloads; see current-wave results above. Runtime DNS-rebinding and restrictive egress tests remain incomplete (33 URL/provider unit tests alone are insufficient).
 - PostgreSQL SIGKILL/recovery and backup/restore; Redis outage/recovery; HA/replica behavior; alert delivery and observability end-to-end; full SSE fault matrix and soak.
 - PostgreSQL/Redis production-like staging, migration repeatability, upgrade/rollback and dependency-failure recovery against this exact candidate image.

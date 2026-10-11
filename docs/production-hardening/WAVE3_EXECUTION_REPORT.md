@@ -116,6 +116,15 @@ Fresh command: `python -m pytest -q tests/unit/test_config_and_registry.py tests
 
 Release status remains **NOT READY**. No release tag, production deployment or availability/HA guarantee follows from this report.
 
+## 7. Remote delivery evidence
+
+The report and recovery addendum were pushed to `codex/p0-p1-production-hardening`. For commit `577e41a126c2b6dfcbc79aae93ca7747d723cd74`, GitHub CI [Run 38133940602](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38133940602) completed successfully. The run reported 213 passed tests and 83.99% total branch-aware coverage; Ruff, compileall, PostgreSQL/Redis integration, HTTP/SSE E2E, Provider contract, Functional Eval 7/7, Security Eval 8/8, dependency audit and repository hygiene all passed.
+
+- Evidence Artifact ID: `11700440901` (`gateway-ci-evidence-577e41a126c2b6dfcbc79aae93ca7747d723cd74-run-38133940602`).
+- Validation Artifact ID: `11699844584` (`gateway-evidence-validation-577e41a126c2b6dfcbc79aae93ca7747d723cd74-run-38133940602`).
+- GitHub's downloaded-artifact validation reported 155 expected/155 actual files, no missing/extra files and no hash/size mismatches. A local download confirmed the embedded manifest SHA-256 matched `manifest.sha256` and bound the manifest to commit `577e41a…`.
+- The exact remote run metadata, both downloaded artifacts, and local validation outputs are preserved under `06-final-gates/remote-artifacts-38133940602/` in the external evidence root.
+
 ## 6. Reproduction and source references
 
 - Evidence files use the external root listed above and contain synthetic identifiers only; do not upload raw environment/configuration files without reviewing them for credentials.
