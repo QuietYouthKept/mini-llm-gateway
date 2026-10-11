@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+import psycopg
 import pytest
 
 from app.application.services.blocking_io import BlockingIOOverloadedError
@@ -508,6 +509,54 @@ async def test_unknown_commit_result_is_not_retried_or_assumed_released(
     finally:
         conn.close()
     assert state == "reserved"
+
+
+@pytest.mark.asyncio
+async def test_stream_lock_timeout_is_audited_without_second_settlement(
+    container, monkeypatch
+) -> None:
+    calls = 0
+
+    def lock_timeout(_command):  # noqa: ANN001, ANN202
+        nonlocal calls
+        calls += 1
+        raise psycopg.errors.LockNotAvailable("synthetic row lock timeout")
+
+    monkeypatch.setattr(container.stream_finalizer, "finalize_stream", lock_timeout)
+    monkeypatch.setattr(container.stream_finalizer, "get_finalization", lambda _: None)
+    session = await container.chat_service.start_stream(
+        _request("fast-chat"), container.clients_by_id["demo"], endpoint="/v1/chat"
+    )
+    events = [event async for event in session.events]
+
+    assert calls == 1
+    assert any(event.event == "message" for event in events)
+    assert events[-1].event == "error"
+    assert events[-1].data["code"] == "database_lock_timeout"
+    audit = container.log_service.get(session.request_id)
+    assert audit is not None
+    assert audit["status"] == "accounting_failed"
+    assert audit["error_code"] == "database_lock_timeout"
+    assert audit["usage_source"] == "unsettled"
+    assert audit["input_tokens"] == audit["output_tokens"] == 0
+    conn = get_connection(container.db_path)
+    try:
+        row = conn.execute(
+            "SELECT state FROM token_budget_reservations WHERE reservation_id LIKE ?",
+            (f"{session.request_id}:%",),
+        ).fetchone()
+        receipt_count = conn.execute(
+            "SELECT count(*) FROM stream_finalizations WHERE request_id=?",
+            (session.request_id,),
+        ).fetchone()[0]
+        audit_count = conn.execute(
+            "SELECT count(*) FROM request_logs WHERE request_id=?", (session.request_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert row["state"] == "reserved"
+    assert receipt_count == 0
+    assert audit_count == 1
 
 
 @pytest.mark.asyncio

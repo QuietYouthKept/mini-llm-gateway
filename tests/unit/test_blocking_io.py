@@ -4,6 +4,7 @@ import asyncio
 import threading
 import time
 
+import psycopg
 import pytest
 
 from app.application.services.blocking_io import (
@@ -243,3 +244,46 @@ async def test_blocking_io_records_low_cardinality_operation_span() -> None:
         assert span.duration_ms >= 0
     finally:
         await io.aclose()
+
+
+@pytest.mark.asyncio
+async def test_postgres_lock_timeout_does_not_open_database_dependency_circuit() -> None:
+    io = BoundedBlockingIO(max_workers=1, max_in_flight=1)
+    error = psycopg.errors.LockNotAvailable("synthetic lock timeout")
+
+    def operation() -> None:
+        raise error
+
+    try:
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            await io.run(operation, dependency="database")
+        assert not io.dependency_circuit_open("database")
+        wrapped = RuntimeError("request-scoped wrapper")
+        wrapped.__cause__ = error
+        assert not BoundedBlockingIO._is_dependency_failure(wrapped)
+        contextual = RuntimeError("context wrapper")
+        contextual.__context__ = error
+        assert not BoundedBlockingIO._is_dependency_failure(contextual)
+        both = RuntimeError("both wrapper")
+        both.__cause__ = ValueError("unrelated cause")
+        both.__context__ = error
+        assert not BoundedBlockingIO._is_dependency_failure(both)
+    finally:
+        await io.aclose()
+
+
+def test_postgres_lock_timeout_has_request_scoped_chat_classification(container) -> None:
+    error = psycopg.errors.LockNotAvailable("synthetic lock timeout")
+    wrapped = RuntimeError("request-scoped wrapper")
+    wrapped.__cause__ = error
+    contextual = RuntimeError("context wrapper")
+    contextual.__context__ = error
+    both = RuntimeError("both wrapper")
+    both.__cause__ = ValueError("unrelated cause")
+    both.__context__ = error
+    service = container.chat_service
+    assert service._is_database_lock_timeout(error)
+    assert service._is_database_lock_timeout(wrapped)
+    assert service._is_database_lock_timeout(contextual)
+    assert service._is_database_lock_timeout(both)
+    assert not service._is_database_unavailable(error)

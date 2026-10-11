@@ -32,6 +32,7 @@ from app.core.request_context import get_request_id
 from app.domain.errors import (
     BudgetSettlementExceededError,
     DatabaseAdmissionOverloadedError,
+    DatabaseLockTimeoutError,
     DatabaseUnavailableError,
     FallbackExhaustedError,
     GatewayError,
@@ -617,6 +618,48 @@ class ChatService:
                     self._metrics.audit_failures.inc()
                 self._record_error_metrics(error, endpoint, duration_ms)
                 raise error from exc
+            if self._is_database_lock_timeout(exc):
+                # PostgreSQL aborts the timed-out statement/transaction, so a
+                # reservation attempt did not commit. Release is still
+                # idempotent for requests that had already reserved capacity.
+                if reservation_id is not None:
+                    try:
+                        await self._blocking_io.run(
+                            self._budget.release,
+                            reservation_id,
+                            dependency="database",
+                            lane="database_finalization",
+                        )
+                    except Exception:
+                        self._metrics.budget_reservation_leaks.inc()
+                        self._metrics.audit_failures.inc()
+                await self._release_distributed_flight(distributed_flight_key)
+                self._release_flight(flight)
+                duration_ms = int((time.monotonic() - start) * 1000)
+                error = DatabaseLockTimeoutError(request_id=request_id)
+                trace.append(DecisionStep(step="error", reason=error.error_code))
+                try:
+                    await self._blocking_io.run(
+                        self._log_service.record_error,
+                        request_id=request_id,
+                        client_id=client.client_id,
+                        model_profile=model_profile,
+                        endpoint=endpoint,
+                        status_code=http_status_for(error.error_code),
+                        error_code=error.error_code,
+                        error_message=error.message,
+                        duration_ms=duration_ms,
+                        attempts=attempts,
+                        request_body=replay_payload,
+                        decision_trace=[step.to_dict() for step in trace],
+                        replay_payload=replay_payload,
+                        dependency="database",
+                        lane="database_finalization",
+                    )
+                except Exception:
+                    self._metrics.audit_failures.inc()
+                self._record_error_metrics(error, endpoint, duration_ms)
+                raise error from exc
             if self._is_database_unavailable(exc):
                 # Database failures skip durable error auditing.  Still wake
                 # local singleflight followers; otherwise one failed cache
@@ -711,6 +754,33 @@ class ChatService:
                     dependency="database",
                 )
         except Exception as exc:
+            if self._is_database_lock_timeout(exc):
+                error = DatabaseLockTimeoutError(request_id=request_id)
+                trace.append(DecisionStep(step="error", reason=error.error_code))
+                try:
+                    await self._blocking_io.run(
+                        self._log_service.record_error,
+                        request_id=request_id,
+                        client_id=client.client_id,
+                        model_profile=profile_id,
+                        endpoint=endpoint,
+                        status_code=http_status_for(error.error_code),
+                        error_code=error.error_code,
+                        error_message=error.message,
+                        duration_ms=int((time.monotonic() - start) * 1000),
+                        attempts=[],
+                        request_body=replay_payload,
+                        decision_trace=[step.to_dict() for step in trace],
+                        replay_payload=replay_payload,
+                        dependency="database",
+                        lane="database_finalization",
+                    )
+                except Exception:
+                    self._metrics.audit_failures.inc()
+                self._record_error_metrics(
+                    error, endpoint, int((time.monotonic() - start) * 1000)
+                )
+                raise error from exc
             if isinstance(exc, DependencyCircuitOpenError):
                 error = DatabaseUnavailableError(request_id=request_id)
                 self._record_error_metrics(
@@ -1078,6 +1148,38 @@ class ChatService:
                     },
                 ),
             ]
+            if isinstance(exc, DatabaseLockTimeoutError):
+                # A completed receipt lookup found no committed result. Do not
+                # retry settlement in this error path; persist the failure with
+                # explicitly unsettled usage and let the lease reconciler own
+                # the reservation's terminal release.
+                try:
+                    await self._blocking_io.run(
+                        self._log_service.record_error,
+                        request_id=request_id,
+                        client_id=client.client_id,
+                        model_profile=profile_id,
+                        endpoint=endpoint,
+                        status_code=http_status_for(error_code),
+                        error_code=error_code,
+                        error_message=(
+                            "Stream output could not be finalized after a database lock timeout"
+                        ),
+                        duration_ms=duration_ms,
+                        attempts=attempts,
+                        request_body=replay_payload,
+                        decision_trace=error_trace,
+                        replay_payload=replay_payload,
+                        status="accounting_failed",
+                        usage_source="unsettled",
+                        dependency="database",
+                        lane="database_finalization",
+                    )
+                except Exception:
+                    self._metrics.audit_failures.inc()
+                self._record_error_metrics(exc, endpoint, duration_ms)
+                yield self._stream_error_event(exc, request_id)
+                return
             status = "guardrail_blocked" if error_code == "guardrail_blocked" else "provider_error"
             if content:
                 status = f"partial_{status}"
@@ -1387,6 +1489,13 @@ class ChatService:
                 and receipt.payload_fingerprint == command.payload_fingerprint
             ):
                 return receipt
+            if self._is_database_lock_timeout(exc):
+                # A successful receipt lookup proves commit. A completed
+                # lookup with no receipt means the timed-out transaction did
+                # not finalize and can be reported as a scoped lock timeout.
+                raise DatabaseLockTimeoutError(
+                    request_id=command.request_id
+                ) from exc
             raise StreamFinalizationUnknownError(request_id=command.request_id) from exc
 
     @staticmethod
@@ -1702,6 +1811,8 @@ class ChatService:
 
     @staticmethod
     def _is_database_unavailable(exc: BaseException) -> bool:
+        if ChatService._is_database_lock_timeout(exc):
+            return False
         if isinstance(exc, DependencyCircuitOpenError):
             return True
         if isinstance(exc, BlockingIOOverloadedError):
@@ -1710,6 +1821,23 @@ class ChatService:
             return True
         module = type(exc).__module__
         return module.startswith(("psycopg", "sqlite3"))
+
+    @staticmethod
+    def _is_database_lock_timeout(exc: BaseException) -> bool:
+        pending = [exc]
+        visited: set[int] = set()
+        while pending:
+            current = pending.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            if getattr(current, "sqlstate", None) == "55P03":
+                return True
+            if current.__cause__ is not None:
+                pending.append(current.__cause__)
+            if current.__context__ is not None:
+                pending.append(current.__context__)
+        return False
 
     def _resolve_profile(self, request: ChatRequest, request_id: str) -> tuple[ModelProfile, str]:
         profile_id = request.profile or self._config.gateway.default_profile

@@ -62,6 +62,18 @@ class DatabaseUnavailableError(GatewayError):
         )
 
 
+class DatabaseLockTimeoutError(GatewayError):
+    """A PostgreSQL lock wait exceeded its configured timeout."""
+
+    def __init__(self, message: str = "Database lock wait timed out", **kwargs: object) -> None:
+        super().__init__(
+            error_code="database_lock_timeout",
+            message=message,
+            retryable=True,
+            **kwargs,
+        )
+
+
 class DatabaseAdmissionOverloadedError(GatewayError):
     """The gateway's bounded DB work queue rejected work before submission."""
 
@@ -229,6 +241,7 @@ ERROR_HTTP_STATUS: dict[str, int] = {
     "rate_limit_exceeded": 429,
     "rate_limit_backend_unavailable": 503,
     "database_unavailable": 503,
+    "database_lock_timeout": 503,
     "database_admission_overloaded": 503,
     "token_budget_exceeded": 429,
     "budget_settlement_exceeded": 502,

@@ -121,6 +121,7 @@ class RequestLogService:
         decision_trace: list[dict[str, Any]] | None = None,
         replay_payload: Any = None,
         status: str = "error",
+        usage_source: str = "estimated",
     ) -> None:
         row = {
             "request_id": request_id,
@@ -137,7 +138,7 @@ class RequestLogService:
             "estimated_output_tokens": 0,
             "actual_input_tokens": None,
             "actual_output_tokens": None,
-            "usage_source": "estimated",
+            "usage_source": usage_source,
             "estimated_tokens": 0,
             "estimated_cost_usd": 0.0,
             "cost_saved_usd": 0.0,

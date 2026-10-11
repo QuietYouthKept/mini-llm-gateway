@@ -292,6 +292,21 @@ class BoundedBlockingIO:
 
     @staticmethod
     def _is_dependency_failure(exc: BaseException) -> bool:
+        pending = [exc]
+        visited: set[int] = set()
+        while pending:
+            current = pending.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            if getattr(current, "sqlstate", None) == "55P03":
+                # A PostgreSQL lock timeout is a request-scoped contention
+                # failure, not evidence that the database dependency is down.
+                return False
+            if current.__cause__ is not None:
+                pending.append(current.__cause__)
+            if current.__context__ is not None:
+                pending.append(current.__context__)
         if isinstance(exc, (TimeoutError, ConnectionError, OSError)):
             return True
         if type(exc).__module__ == "sqlite3" and type(exc).__name__ == "OperationalError":

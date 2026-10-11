@@ -168,11 +168,35 @@ class PostgresTokenBudgetRepository:
             for reservation in expired:
                 reservation_id = reservation["reservation_id"]
                 request_id = reservation_id.split(":", 1)[0]
-                PostgresRequestLogRepository._insert_with_connection(
-                    conn,
-                    self._orphaned_release_row(request_id, reservation["client_id"]),
-                    [],
-                )
+                existing_log = conn.execute(
+                    "SELECT decision_trace FROM request_logs WHERE request_id=%s FOR UPDATE",
+                    (request_id,),
+                ).fetchone()
+                if existing_log is None:
+                    PostgresRequestLogRepository._insert_with_connection(
+                        conn,
+                        self._orphaned_release_row(request_id, reservation["client_id"]),
+                        [],
+                    )
+                else:
+                    # Preserve the unique request audit identity and add the
+                    # durable reconciled terminal state instead of attempting
+                    # a conflicting second request_logs insert.
+                    conn.execute(
+                        """UPDATE request_logs SET status='orphaned_released',
+                        status_code=503,error_code='reservation_lease_expired',
+                        error_message=concat_ws('; ',error_message,
+                          'Reservation lease expired and was released without billing'),
+                        usage_source='not_billed',input_tokens=0,output_tokens=0,
+                        estimated_input_tokens=0,estimated_output_tokens=0,
+                        actual_input_tokens=NULL,actual_output_tokens=NULL,
+                        estimated_tokens=0,estimated_cost_usd=0,budget_after=NULL,
+                        decision_trace=COALESCE(decision_trace,'[]'::jsonb) ||
+                          jsonb_build_array(jsonb_build_object(
+                            'step','reconciled','reason','reservation_lease_expired'))
+                        WHERE request_id=%s""",
+                        (request_id,),
+                    )
                 result = conn.execute(
                     "UPDATE token_budget_reservations SET state='released', released_at=now() "
                     "WHERE reservation_id=%s AND state='reserved'",
