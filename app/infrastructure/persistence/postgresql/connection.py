@@ -250,6 +250,14 @@ def close_pools() -> None:
         pool.close(timeout=5.0)
 
 
+def close_pool(database_url: str) -> None:
+    """Close one application's pool after its blocking-I/O lanes are drained."""
+    with _POOL_LOCK:
+        pool = _POOLS.pop(database_url, None)
+    if pool is not None:
+        pool.close(timeout=5.0)
+
+
 atexit.register(close_pools)
 
 

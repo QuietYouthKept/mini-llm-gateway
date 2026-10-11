@@ -312,9 +312,10 @@ class BoundedBlockingIO:
             if id(current) in visited:
                 continue
             visited.add(id(current))
-            if getattr(current, "sqlstate", None) == "55P03":
-                # A PostgreSQL lock timeout is a request-scoped contention
-                # failure, not evidence that the database dependency is down.
+            if getattr(current, "sqlstate", None) in {"40P01", "55P03", "57014"}:
+                # Deadlocks, lock timeouts, and statement timeouts are
+                # request-scoped SQL failures, not evidence that PostgreSQL is
+                # unavailable. Do not open the dependency circuit for them.
                 return False
             if current.__cause__ is not None:
                 pending.append(current.__cause__)

@@ -253,24 +253,29 @@ async def test_blocking_io_records_low_cardinality_operation_span() -> None:
 @pytest.mark.asyncio
 async def test_postgres_lock_timeout_does_not_open_database_dependency_circuit() -> None:
     io = BoundedBlockingIO(max_workers=1, max_in_flight=1)
-    error = psycopg.errors.LockNotAvailable("synthetic lock timeout")
+    errors = (
+        psycopg.errors.LockNotAvailable("synthetic lock timeout"),
+        psycopg.errors.QueryCanceled("synthetic statement timeout"),
+        psycopg.errors.DeadlockDetected("synthetic deadlock"),
+    )
 
     def operation() -> None:
-        raise error
+        raise errors[0]
 
     try:
         with pytest.raises(psycopg.errors.LockNotAvailable):
             await io.run(operation, dependency="database")
         assert not io.dependency_circuit_open("database")
+        assert all(not BoundedBlockingIO._is_dependency_failure(error) for error in errors)
         wrapped = RuntimeError("request-scoped wrapper")
-        wrapped.__cause__ = error
+        wrapped.__cause__ = errors[0]
         assert not BoundedBlockingIO._is_dependency_failure(wrapped)
         contextual = RuntimeError("context wrapper")
-        contextual.__context__ = error
+        contextual.__context__ = errors[1]
         assert not BoundedBlockingIO._is_dependency_failure(contextual)
         both = RuntimeError("both wrapper")
         both.__cause__ = ValueError("unrelated cause")
-        both.__context__ = error
+        both.__context__ = errors[2]
         assert not BoundedBlockingIO._is_dependency_failure(both)
     finally:
         await io.aclose()

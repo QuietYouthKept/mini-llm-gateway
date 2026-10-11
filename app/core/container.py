@@ -105,10 +105,22 @@ class AppContainer:
                 result = closer()
                 if hasattr(result, "__await__"):
                     await result
-        if self.blocking_io is not None:
-            await self.blocking_io.aclose()
+        # Stop readiness probes before draining business DB/Redis workers: the
+        # health service owns a separate probe executor and can otherwise race
+        # shutdown by checking a pool after the business lane has closed.
         if self.readiness is not None:
             await self.readiness.aclose()
+        if self.blocking_io is not None:
+            await self.blocking_io.aclose()
+        if self.db_path.startswith(("postgresql://", "postgres://")):
+            # Repository calls are synchronous and may still be running in the
+            # drained worker lanes. Only close this container's pool afterwards,
+            # and keep the bounded pool join off the asyncio event loop.
+            import asyncio
+
+            from app.infrastructure.persistence.postgresql.connection import close_pool
+
+            await asyncio.to_thread(close_pool, self.db_path)
 
 
 def build_container(

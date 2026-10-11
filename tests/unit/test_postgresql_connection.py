@@ -132,3 +132,24 @@ def test_failed_connection_dns_refresh_is_deduplicated_and_asynchronous(monkeypa
             break
         time.sleep(0.001)
     assert address == "192.0.2.30"
+
+
+def test_close_pool_is_targeted_and_idempotent(monkeypatch) -> None:
+    class FakePool:
+        def __init__(self) -> None:
+            self.close_calls: list[float] = []
+
+        def close(self, *, timeout: float) -> None:
+            self.close_calls.append(timeout)
+
+    first = FakePool()
+    second = FakePool()
+    pools = {"postgresql://first": first, "postgresql://second": second}
+    monkeypatch.setattr(connection, "_POOLS", pools)
+
+    connection.close_pool("postgresql://first")
+    connection.close_pool("postgresql://first")
+
+    assert first.close_calls == [5.0]
+    assert second.close_calls == []
+    assert pools == {"postgresql://second": second}
