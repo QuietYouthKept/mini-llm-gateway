@@ -11,6 +11,8 @@ All evidence paths below are relative to `E:\project-test-assets\01-gateway\resu
 - Remote pytest JUnit/log report 247 passed, 1 skipped. Combined coverage was 84.46%, line 87.02%, branch-rate submetric 72.94%; do not conflate the branch-rate submetric with the configured combined coverage gate.
 - PostgreSQL / Redis / HTTP-SSE / Provider Contract raw evidence is in `remote-ci/ci-evidence/postgres/`, `redis/`, `http-sse/`, and `provider/`.
 
+The documentation closeout commit `6d5e178455c37ffe287fd5dc7551357cee5aa6e3` was also tested by [Run 38202404356](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38202404356). Its Evidence Artifact 11725893674 and validation Artifact 11725724020 were downloaded under `remote-ci-final/`; the final commit's main ZIP independently validated 160/160 files with zero mismatches. Manifest SHA-256: `5cda387136c96c7f7f3ec8e2462af0a94af5e1b0258dc0ddaa59ac18ca0c523e`.
+
 | Evidence | Path |
 |---|---|
 | Full pytest log, status and JUnit | `coverage/pytest-final.log`, `coverage/pytest-final.exitcode`, `coverage/pytest-final-junit.xml` |
