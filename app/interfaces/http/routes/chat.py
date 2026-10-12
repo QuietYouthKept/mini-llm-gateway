@@ -24,9 +24,56 @@ from app.interfaces.http.schemas.chat import (
     CompletionChoice,
     CompletionMessage,
     CompletionUsage,
+    GatewayErrorResponseOut,
 )
 
 router = APIRouter(prefix="/v1", tags=["chat"])
+
+_CHAT_ERROR_RESPONSES = {
+    400: {
+        "description": "Guardrail rejection or malformed request body.",
+        "content": {
+            "application/json": {
+                "schema": {
+                    "oneOf": [
+                        {"$ref": "#/components/schemas/GatewayErrorResponseOut"},
+                        {
+                            "type": "object",
+                            "properties": {"detail": {"type": "string"}},
+                            "required": ["detail"],
+                        },
+                    ]
+                }
+            }
+        },
+    },
+    401: {"model": GatewayErrorResponseOut, "description": "Invalid or missing client API key."},
+    404: {"model": GatewayErrorResponseOut, "description": "Model profile or request not found."},
+    409: {"model": GatewayErrorResponseOut, "description": "Request replay is unavailable."},
+    422: {"model": GatewayErrorResponseOut, "description": "Request validation failed."},
+    429: {"model": GatewayErrorResponseOut, "description": "Rate limit or token budget exceeded."},
+    500: {"model": GatewayErrorResponseOut, "description": "Internal gateway error."},
+    502: {"model": GatewayErrorResponseOut, "description": "Provider or settlement failure."},
+    503: {"model": GatewayErrorResponseOut, "description": "Database or admission unavailable."},
+    504: {"model": GatewayErrorResponseOut, "description": "Request or provider timed out."},
+}
+_SSE_RESPONSE = {
+    200: {
+        "description": "JSON response or a Server-Sent Events stream when stream=true.",
+        "content": {
+            "text/event-stream": {
+                "schema": {
+                    "type": "object",
+                    "required": ["event", "data"],
+                    "properties": {
+                        "event": {"type": "string"},
+                        "data": {"type": "string"},
+                    },
+                }
+            }
+        },
+    }
+}
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
@@ -96,7 +143,11 @@ def _to_domain_request(
     )
 
 
-@router.post("/chat", response_model=ChatResponseOut)
+@router.post(
+    "/chat",
+    response_model=ChatResponseOut,
+    responses={**_SSE_RESPONSE, **_CHAT_ERROR_RESPONSES},
+)
 async def chat(
     payload: ChatRequestIn,
     client: Annotated[ClientConfig, Depends(require_api_key)],
@@ -152,7 +203,11 @@ async def chat(
     )
 
 
-@router.post("/chat/completions", response_model=ChatCompletionOut)
+@router.post(
+    "/chat/completions",
+    response_model=ChatCompletionOut,
+    responses={**_SSE_RESPONSE, **_CHAT_ERROR_RESPONSES},
+)
 async def chat_completions(
     payload: ChatCompletionsRequestIn,
     client: Annotated[ClientConfig, Depends(require_api_key)],

@@ -1,0 +1,44 @@
+{
+  "source_sha_tested": "16f3b527e0b9fe86560b9bc7aaf58031cd27e651",
+  "source_tree_tested": "d6f102af676ad46960b2b68962c73318867862e1",
+  "branch": "codex/gateway-fault-contract-benchmark",
+  "worktree": "E:\\mini-llm-gateway-fault-testing",
+  "evidence_root": "E:\\project-test-assets\\01-gateway\\results\\wave6-fault-contract-20261012T030137Z",
+  "resource_gate": {
+    "available_memory_below_6_gib": true,
+    "additional_container_stack_allowed": false,
+    "consequences": ["PostgreSQL/Redis integration not run", "load/stress/spike/soak not run"]
+  },
+  "tasks": [
+    {"id":"W6-00","status":"PASS","actual_command":"uv sync --frozen --extra dev --extra production --extra datasets","exit_code":0,"evidence":"reports/uv-sync.log"},
+    {"id":"W6-01","status":"PASS","actual_command":"final full pytest with pytest-cov","result":"242 passed, 6 skipped; 81.37% branch coverage; independent 80% gate exit 0","evidence":"coverage/pytest-final.*; coverage/coverage-final-gate.*"},
+    {"id":"W6-02","status":"PASS","actual_command":"pytest tests/unit/test_fault_provider_scenarios.py","result":"10 passed","evidence":"fault-provider/unit-final.*"},
+    {"id":"W6-03","status":"PASS","actual_command":"pytest tests/integration/test_toxiproxy_stream_reset_e2e.py","result":"1 passed final rerun; three client chunks then error; Provider B not called; one audit; settled SQLite reservation","evidence":"fault-provider/toxiproxy-final.*; fault-provider/post-token-three-chunk-reset-*.json"},
+    {"id":"W6-04","status":"PARTIAL","actual_command":"focused fallback, breaker, streaming, budget and Uvicorn suite","result":"52 passed; exhaustive 429/retry/concurrent-breaker matrix not run","evidence":"reports/reliability-focused.*"},
+    {"id":"W6-05","status":"PARTIAL","result":"SQLite idempotency/accounting assertions and 8 property-success persistence checks; PostgreSQL unavailable","evidence":"reports/hypothesis-api-result.json; coverage/pytest-final.*"},
+    {"id":"W6-06","status":"PARTIAL","actual_command":"aggregate-only guardrail evaluation","result":"662 rows; source/license/label semantics unverified; not accuracy or model-safety evidence","evidence":"dataset/prompt-injection-guardrail-aggregate.json"},
+    {"id":"W6-07","status":"PASS_BOUNDED","result":"Hypothesis 15 HTTP examples; Schemathesis 127/127 generated cases across two Chat operations","evidence":"reports/hypothesis-api-*; reports/schemathesis-final.*"},
+    {"id":"W6-08","status":"PARTIAL","result":"Scenario counters recorded; RPS/latency/CPU/RSS not measured","evidence":"06_GATEWAY_METRICS_RESULTS.csv"},
+    {"id":"W6-09","status":"BLOCKED_RESOURCE","result":"No performance/load/stress/spike/soak test under the available-memory gate","evidence":"07_STREAMING_PERFORMANCE_REPORT.md"},
+    {"id":"W6-10","status":"PARTIAL","result":"Functional Eval 7/7; Security Eval 8/8; no ASVS compliance assessment","evidence":"reports/functional-eval.*; reports/security-eval.*"},
+    {"id":"W6-11","status":"PARTIAL_WITH_HISTORICAL_FAILURES","result":"Docker reproducibility FAILED; historical scan 44 High; rc1 readiness rollback PARTIAL","evidence":"09_DEPLOYMENT_RECOVERY_OBSERVABILITY_MATRIX.md"},
+    {"id":"W6-12","status":"NOT_RUN","result":"No remote GitHub Actions run or artifact in this execution"},
+    {"id":"W6-13","status":"PASS_BOUNDED","evidence":"10_RESUME_READY_QUANTIFIED_RESULTS.md"},
+    {"id":"W6-14","status":"PASS_BOUNDED","evidence":"11_INTERVIEW_DEEP_DIVE.md"},
+    {"id":"W6-15","status":"PARTIAL","result":"Local acceptance documented; release readiness remains false","evidence":"12_FINAL_TEST_ACCEPTANCE.md; TEST_EVIDENCE_INDEX.md"}
+  ],
+  "local_final_gates": {
+    "ruff":"PASS",
+    "compileall":"PASS",
+    "pytest":"PASS: 242 passed, 6 skipped",
+    "coverage":"PASS: 81.37%, fail-under=80 exit 0",
+    "functional_eval":"PASS: 7/7",
+    "security_eval":"PASS: 8/8",
+    "secret_scan":"PASS after staging exact in-scope source/test/docs paths",
+    "git_diff_check":"PASS",
+    "postgres":"BLOCKED_RESOURCE / not configured",
+    "redis":"BLOCKED_RESOURCE / not configured",
+    "remote_ci":"NOT_RUN",
+    "release_ready":false
+  }
+}

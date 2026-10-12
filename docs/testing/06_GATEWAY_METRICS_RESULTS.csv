@@ -1,0 +1,14 @@
+metric,definition,value,unit,status,evidence
+property_http_200,valid Unicode request successes,8,requests,PASS,reports/hypothesis-api-result.json
+property_http_422,boolean numeric input rejection,2,requests,PASS,reports/hypothesis-api-result.json
+property_http_400,overlong input rejection,5,requests,PASS,reports/hypothesis-api-result.json
+schemathesis_generated,generated Chat API contract cases,127,cases,PASS,reports/schemathesis-final.log
+schemathesis_passed,passing generated Chat API contract cases,127,cases,PASS,reports/schemathesis-final.log
+tcp_client_chunks,client-visible chunks before reset,3,chunks,PASS,fault-provider/post-token-three-chunk-reset-1791775668962445800.json
+tcp_provider_A_requests,synthetic Provider A requests,1,requests,PASS,fault-provider/post-token-three-chunk-reset-1791775668962445800.json
+tcp_provider_B_requests,synthetic Provider B requests,0,requests,PASS,fault-provider/post-token-three-chunk-reset-1791775668962445800.json
+tcp_request_audit_rows,terminal request audit rows,1,rows,PASS,fault-provider/post-token-three-chunk-reset-1791775668962445800.json
+postgres_connection_wait,PostgreSQL connection wait time,NOT MEASURED,ms,BLOCKED_RESOURCE,PostgreSQL integration not run
+gateway_rps,successful requests per second,NOT MEASURED,requests_per_second,BLOCKED_RESOURCE,No performance/load test under memory gate
+gateway_p95,p95 response latency,NOT MEASURED,ms,BLOCKED_RESOURCE,No performance/load test under memory gate
+gateway_cpu_rss,Gateway CPU and RSS,NOT MEASURED,percent_and_bytes,BLOCKED_RESOURCE,No performance/load test under memory gate

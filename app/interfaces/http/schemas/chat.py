@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class MessageIn(BaseModel):
@@ -14,8 +16,8 @@ class ChatRequestIn(BaseModel):
     profile: str | None = None
     model: str | None = None
     messages: list[MessageIn]
-    max_tokens: int = 512
-    temperature: float = 0.0
+    max_tokens: int = Field(default=512, strict=True)
+    temperature: float = Field(default=0.0, strict=True)
     stream: bool = False
 
 
@@ -24,8 +26,8 @@ class ChatCompletionsRequestIn(BaseModel):
 
     model: str = ""
     messages: list[MessageIn]
-    max_tokens: int = 512
-    temperature: float = 0.0
+    max_tokens: int = Field(default=512, strict=True)
+    temperature: float = Field(default=0.0, strict=True)
     stream: bool = False
 
     model_config = {"extra": "ignore"}
@@ -97,3 +99,15 @@ class ChatCompletionOut(BaseModel):
     model: str
     choices: list[CompletionChoice]
     usage: CompletionUsage
+
+
+class GatewayErrorDetailOut(BaseModel):
+    message: str
+    type: str
+    code: str
+    request_id: str
+    details: list[dict[str, Any]] | None = None
+
+
+class GatewayErrorResponseOut(BaseModel):
+    error: GatewayErrorDetailOut

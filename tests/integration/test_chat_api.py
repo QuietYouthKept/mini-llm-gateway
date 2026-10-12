@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import auth, chat_payload
@@ -239,6 +240,62 @@ def test_metrics_endpoint(client: TestClient) -> None:
     assert 'llm_gateway_http_response_start_seconds_bucket{endpoint="/live"' in resp.text
     assert "llm_gateway_event_loop_lag_seconds" in resp.text
     assert "llm_gateway_event_loop_tasks" in resp.text
+
+
+def test_openapi_documents_streaming_content_type_and_gateway_errors(client: TestClient) -> None:
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+    chat_responses = schema["paths"]["/v1/chat"]["post"]["responses"]
+    compatible_responses = schema["paths"]["/v1/chat/completions"]["post"]["responses"]
+
+    for responses in (chat_responses, compatible_responses):
+        assert {
+            "200",
+            "400",
+            "401",
+            "404",
+            "422",
+            "429",
+            "500",
+            "502",
+            "503",
+            "504",
+        } <= set(responses)
+        assert "text/event-stream" in responses["200"]["content"]
+    assert "application/json" in compatible_responses["200"]["content"]
+    event_schema = compatible_responses["200"]["content"]["text/event-stream"]["schema"]
+    assert event_schema["required"] == ["event", "data"]
+    assert event_schema["properties"]["data"]["type"] == "string"
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "payload"),
+    [
+        (
+            "/v1/chat",
+            {"profile": "fast-chat", "messages": [{"content": "hi"}], "max_tokens": True},
+        ),
+        (
+            "/v1/chat",
+            {"profile": "fast-chat", "messages": [{"content": "hi"}], "temperature": True},
+        ),
+        (
+            "/v1/chat/completions",
+            {"model": "fast-chat", "messages": [{"content": "hi"}], "max_tokens": True},
+        ),
+        (
+            "/v1/chat/completions",
+            {"model": "fast-chat", "messages": [{"content": "hi"}], "temperature": True},
+        ),
+    ],
+)
+def test_numeric_request_fields_reject_boolean_values(
+    client: TestClient, endpoint: str, payload: dict
+) -> None:
+    response = client.post(endpoint, json=payload, headers=auth())
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
 
 
 def test_lifecycle_phase_metrics_and_traces_are_prompt_free(client: TestClient, container) -> None:
