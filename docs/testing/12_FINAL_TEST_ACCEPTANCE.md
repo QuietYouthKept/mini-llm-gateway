@@ -14,6 +14,13 @@
 | Full pytest, pytest-only coverage | PASS | 242 passed, 6 skipped; 81.37% branch coverage; `coverage report --fail-under=80` exit 0 |
 | Focused reliability regression | PASS | 52 passed across fallback, breaker, stream failure, accounting and Uvicorn TCP tests |
 | Toxiproxy post-token TCP reset | PASS | Final rerun 1 passed; three client chunks, `provider_failed`, no Provider B, one audit, settled reservation |
+| Remote GitHub Actions | PASS | Run [38201945812](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38201945812), exact HEAD `95574cd11d59f851e92baff2562a82263f32721e`; all 25 workflow steps succeeded |
+| Remote pytest and coverage | PASS (coverage gate) | 247 passed, 1 skipped; coverage total 84.46%, line 87.02%, branch-rate submetric 72.94%; gate passed at configured 80% combined threshold |
+| Remote PostgreSQL probe | PASS (bounded) | Cold reservation, shared-budget race, idempotent finalization, audit rollback, orphan reclaim, migrations twice and commit-ack-loss receipt recovery all reported successful; PG package combined coverage 62% (connection 60%, repository 64%) |
+| Remote Redis probes | PASS (bounded) | Adapter + two-replica HTTP results passed: global rate limit 10 admitted/10 rejected, shared cache, fail-open/fail-closed classification, singleflight and lease expiry; Redis adapter combined coverage 88% |
+| Remote HTTP/SSE and Provider Contract | PASS | HTTP/SSE 2 passed; Provider Contract 22 passed |
+| Remote Evidence Artifact | PASS | Artifact 11725997608, 584,938 bytes; Manifest declares 160 files; downloaded ZIP independently validated 160/160, missing 0, extra 0, hash/size mismatches 0; Manifest SHA-256 `61046c3217d67b716f081fc4ac68e558ae192712b2d3b464936ff72cf06b7d7b` |
+| Remote validation Artifact | PASS | Artifact 11725997613; embedded validation JSON says `passed: true` for the same commit and 160 files |
 | Hypothesis API/persistence probe | PASS | 15 generated HTTP examples: 8 valid/200, 2 bool/422, 5 long/400; all eight success persistence assertions passed |
 | Schemathesis API contract | PASS | 127 generated cases, 127 passed on two Chat operations |
 | Ruff | PASS | Final source check exit 0 (see external `reports/ruff.log`, `fault-provider/ruff-final.log`, `dataset/ruff-final.log`; targeted post-edits checks also archived) |
@@ -22,16 +29,16 @@
 | Security Eval | PASS | Final 8/8, exit 0, `reports/security-eval-final.*` |
 | Secret scan | PASS | Tracked source scan exit 0; final exact source/test/docs list was included by staging named files only |
 | git diff --check | PASS | Final diff check exit 0, retained under `reports/` |
-| PostgreSQL integration | BLOCKED_RESOURCE | Not configured; integration cases skipped. No PG persistence claim. |
-| Redis integration / multi-instance | BLOCKED_RESOURCE | Not configured; not run. |
+| Local PostgreSQL integration | BLOCKED_RESOURCE | Not configured in the Windows worktree; use bounded remote CI probe evidence above instead |
+| Local Redis integration | BLOCKED_RESOURCE | Not configured in the Windows worktree; use bounded remote CI probe evidence above instead |
 | Docker/build/scan/rollback | PARTIAL / historical failures | Current source not built/scanned; historical rootfs reproducibility FAILED, 44 High open, rc1 readiness rollback PARTIAL |
 | Streaming performance/load/stress/soak | BLOCKED_RESOURCE | Host available memory below 6 GiB task floor; not run. |
-| Remote GitHub CI / evidence artifact | NOT RUN | No push or remote run performed in this execution yet. |
+| Remote CI branch coverage | PARTIAL | The branch-rate submetric is 72.94%, below 80%; the configured combined coverage gate passed at 84.46%. Do not describe remote branch coverage as 80%+. |
 
 ## Overall disposition
 
-`LOCAL_TEST_EVIDENCE_READY` is true for the bounded tests above after the final tracked-source gate run and commit. `RELEASE_READY` is false. PostgreSQL, Redis, load, current-image security and deployment recovery gates remain unresolved. The full suite's six skips must be read from the JUnit report; five are PostgreSQL-dependent and the opt-in Toxiproxy test is skipped unless explicitly enabled (the latter was run separately and passed).
+`LOCAL_TEST_EVIDENCE_READY` is true for the bounded local tests above. Remote CI and evidence are also verified for the exact implementation commit. `RELEASE_READY` is false. PostgreSQL and Redis have bounded CI integration evidence, while full HA/failover, load, current-image security and deployment recovery gates remain unresolved. The local full suite's six skips include configured-service cases; remote CI used isolated PG/Redis services and passed its dedicated probes. The opt-in Toxiproxy case was run separately and passed.
 
 ## External raw evidence
 
-See [`TEST_EVIDENCE_INDEX.md`](TEST_EVIDENCE_INDEX.md) for exact paths. Raw logs, coverage database/XML, JUnit XML, failure iterations, SQLite test DBs, Toxiproxy result JSON, and aggregate dataset output remain outside Git under the E: evidence root.
+See [`TEST_EVIDENCE_INDEX.md`](TEST_EVIDENCE_INDEX.md) for exact paths. Raw local logs, coverage database/XML, JUnit XML, failure iterations, SQLite test DBs, Toxiproxy result JSON, aggregate dataset output, and downloaded remote artifacts remain outside Git under the E: evidence root.

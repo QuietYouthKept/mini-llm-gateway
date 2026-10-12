@@ -12,7 +12,13 @@ locally with mock providers—no paid provider key is required.
 
 ---
 
-## Current engineering status — 2026-10-10
+## Wave 5 engineering status — 2026-10-10 (historical snapshot)
+
+### Wave 6 test-system update — 2026-10-12
+
+The bounded fault/contract test expansion is in implementation commit `95574cd11d59f851e92baff2562a82263f32721e` on `codex/gateway-fault-contract-benchmark`. Its [GitHub Actions run](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38201945812) passed: 247 passed, 1 skipped; coverage 84.46% combined (87.02% lines, 72.94% branch-rate submetric). Isolated PostgreSQL/Redis probes and Evidence validation passed. The downloaded Evidence ZIP validated 160/160 manifest files with zero mismatches. The local Toxiproxy test verified a TCP reset after three client-visible SSE chunks and persistent SQLite settlement.
+
+Start with the [Wave 6 test execution plan](docs/testing/MASTER_TEST_EXECUTION_PLAN.md), [final acceptance](docs/testing/12_FINAL_TEST_ACCEPTANCE.md), and [evidence index](docs/testing/TEST_EVIDENCE_INDEX.md). This remains a test/evidence milestone, not release acceptance: capacity/load tests were resource-blocked; Docker reproducibility is a historical failure, 44 High image findings remain open, and rollback is partial.
 
 Current source: `c9ddbe65f94f460a55cad07fe78c5e6b061f6dc4`; tree `322a6116f590cdaf55cad07fe78c5e6b061f6dc4`. [CI Run 38031469583](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38031469583) tested docs snapshot `60cc10ed5b1da761edf4d0d7477427dcc5b11a25` containing that unchanged source: **208 passed**, **83.47% pytest-only branch coverage**. PostgreSQL, Redis, two-replica, HTTP/SSE, Provider Contract, Functional/Security Eval, Secret Scan, Dependency Audit and artifact validation succeeded. [Evidence Artifact 11662094179](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38031469583/artifacts/11662094179) and [Validation Artifact 11661634786](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38031469583/artifacts/11661634786) were uploaded; the workflow reports 155 manifest files validated.
 

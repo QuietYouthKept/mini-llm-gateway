@@ -2,6 +2,15 @@
 
 All evidence paths below are relative to `E:\project-test-assets\01-gateway\results\wave6-fault-contract-20261012T030137Z`. The raw evidence is intentionally external to the source repository; it includes generated SQLite test databases and should not be uploaded wholesale.
 
+## Remote GitHub CI (commit 95574cd11d59f851e92baff2562a82263f32721e)
+
+- Run: [38201945812](https://github.com/QuietYouthKept/mini-llm-gateway/actions/runs/38201945812)
+- Evidence Artifact ID 11725997608; downloaded ZIP `remote-ci/gateway-ci-evidence.zip`; extracted review copy under `remote-ci/ci-evidence/`.
+- Validation Artifact ID 11725997613; downloaded ZIP `remote-ci/gateway-evidence-validation.zip`; extracted result under `remote-ci/validation-artifact/`.
+- Local independent verification: `remote-ci/artifact-validation-local.json`; 160 expected/actual files, zero missing, zero extra, zero hash/size mismatches; manifest SHA-256 `61046c3217d67b716f081fc4ac68e558ae192712b2d3b464936ff72cf06b7d7b`.
+- Remote pytest JUnit/log report 247 passed, 1 skipped. Combined coverage was 84.46%, line 87.02%, branch-rate submetric 72.94%; do not conflate the branch-rate submetric with the configured combined coverage gate.
+- PostgreSQL / Redis / HTTP-SSE / Provider Contract raw evidence is in `remote-ci/ci-evidence/postgres/`, `redis/`, `http-sse/`, and `provider/`.
+
 | Evidence | Path |
 |---|---|
 | Full pytest log, status and JUnit | `coverage/pytest-final.log`, `coverage/pytest-final.exitcode`, `coverage/pytest-final-junit.xml` |
